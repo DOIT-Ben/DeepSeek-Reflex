@@ -4,7 +4,7 @@
 
 As of 2026-10-04, DeepSeek-Reflex releases are **unsigned**. A SHA-256 checksum checks file integrity against the published checksum; it is not a trusted publisher signature. Application preparation does not mean a signing subscription or certificate has been approved.
 
-The project intends to apply for the [SignPath Foundation open-source program](https://signpath.org/apply.html). Approval is at the provider's discretion, including project reputation, dependencies and verifiable build origin. The bundled WebView2 SDK libraries and separately installed Microsoft runtime must be disclosed for eligibility review. No signing credentials, account permissions or provider subscription are configured in this repository yet.
+An application to the [SignPath Foundation open-source program](https://signpath.org/apply.html) was submitted on 2026-10-04; the form confirmed successful submission. Provider review is pending. Approval is at the provider's discretion, including project reputation, dependencies and verifiable build origin. The application disclosed the bundled WebView2 SDK libraries and separately installed Microsoft runtime for eligibility review. No signing credentials, account permissions or provider subscription are configured in this repository yet.
 
 ## Responsibilities
 
@@ -14,7 +14,7 @@ The project intends to apply for the [SignPath Foundation open-source program](h
 
 ## Privacy
 
-Reflex loads the official DeepSeek website in a dedicated WebView2 profile. Conversation submission is performed by the user on that website; the project does not run its own conversation server or analytics endpoint. Explicit selected-text import may read the selected text or use clipboard fallback, and the user reviews and sends the draft. Website and Microsoft runtime behavior follows the providers' own policies.
+DeepSeek-Reflex loads the official DeepSeek website in a dedicated WebView2 profile. Conversation submission is performed by the user on that website; the project does not run its own conversation server or analytics endpoint. Explicit selected-text import may read the selected text or use clipboard fallback, and the user reviews and sends the draft. Website and Microsoft runtime behavior follows the providers' own policies.
 
 See [README: Data and privacy](../README.md#数据与隐私), [DeepSeek privacy policy](https://cdn.deepseek.com/policies/zh-CN/deepseek-privacy-policy.html) and [Microsoft privacy statement](https://privacy.microsoft.com/privacystatement). The signing provider receives approved build artifacts and maintainer application information; it must never receive user profile files, cookies, chat histories or credentials.
 

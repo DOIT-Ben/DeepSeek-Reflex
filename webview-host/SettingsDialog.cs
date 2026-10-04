@@ -33,7 +33,7 @@ namespace DeepSeekFloat
         {
             original=settings.Clone();toggle=new HotkeyBox(settings.ToggleKeys);capture=new HotkeyBox(settings.CaptureKeys);
             using(var graphics=Graphics.FromHwnd(IntPtr.Zero))scale=graphics.DpiX/96f;
-            Text="DeepSeek 小窗设置";Font=new Font("Microsoft YaHei UI",10f);BackColor=Color.White;ForeColor=PanelTheme.Ink;DoubleBuffered=true;
+            Text="DeepSeek-Reflex 设置";Font=new Font("Microsoft YaHei UI",10f);BackColor=Color.White;ForeColor=PanelTheme.Ink;DoubleBuffered=true;
             FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;MinimizeBox=false;ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;
             AutoScaleMode=AutoScaleMode.None;ClientSize=new Size(S(440),S(634));Padding=Padding.Empty;
             var surface=new Panel {Name="settings-surface",Dock=DockStyle.Fill,BackColor=Color.White};Controls.Add(surface);

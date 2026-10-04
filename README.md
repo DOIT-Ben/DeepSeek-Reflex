@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo.png" width="240" alt="Reflex logo: plump blue fish with an integrated floating window" />
+  <img src="docs/assets/logo.png" width="240" alt="DeepSeek-Reflex logo: plump blue fish with an integrated floating window" />
 </p>
 
 <h1 align="center">DeepSeek-Reflex</h1>
@@ -10,13 +10,13 @@
   <img src="https://img.shields.io/badge/platform-Windows%20x64-4563F5" alt="Windows x64" />
 </p>
 
-你正在看文档、备课、写代码，突然有一个问题：按一下快捷键，DeepSeek 就出现在身边；问完再按一下，继续手头的工作。**Reflex** 取自“快速响应”，希望把来回寻找浏览器标签页的动作，缩短成一次按键。
+你正在看文档、备课、写代码，突然有一个问题：按一下快捷键，DeepSeek-Reflex 就出现在身边；问完再按一下，继续手头的工作。品牌名 **DeepSeek-Reflex** 中的 Reflex 取自“快速响应”，希望把来回寻找浏览器标签页的动作，缩短成一次按键。
 
 **[下载最新版 →](https://github.com/DOIT-Ben/DeepSeek-Reflex/releases/latest)** · [问题反馈](https://github.com/DOIT-Ben/DeepSeek-Reflex/issues) · [更新记录](CHANGELOG.md)
 
 这是独立的社区开源工具，直接加载 [DeepSeek 官网](https://chat.deepseek.com)，没有与 DeepSeek 官方的隶属或背书关系。
 
-1.0.2 增加首次使用的四步引导，可跳过，也可以在设置中重新查看。程序、托盘、任务栏、快捷方式和安装器统一使用蓝鱼与小窗标识。
+1.0.3 统一在主窗、引导、设置和托盘使用完整品牌名 **DeepSeek-Reflex**。首次使用的四步引导可跳过，也可以在设置中重新查看。程序、托盘、任务栏、快捷方式和安装器统一使用蓝鱼与小窗标识。
 
 ## 为什么用它
 
@@ -39,16 +39,16 @@
 
 | 文件 | 怎么用 |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.2-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
-| `DeepSeek-Reflex-1.0.2-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
+| `DeepSeek-Reflex-1.0.3-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
+| `DeepSeek-Reflex-1.0.3-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
 | `SHA256SUMS.txt` | 对照下载文件的 SHA-256。源码压缩包由 GitHub 自动提供。 |
 
 要求 **Windows 10/11 x64、.NET Framework 4.8、WebView2 Evergreen Runtime**。V1 在 Windows 11 上验证；Windows 10 兼容性尚未逐机验收。安装器会检查运行环境，缺少时提示安装 [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) 或 [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48)。安装包不静默下载其他软件。ARM64 原生版本尚未提供。
 
-当前发行包尚未进行受信任代码签名，Windows 可能显示未知发布者提示。签名申请和接入方案见 [Code signing policy](docs/code-signing.md)，申请准备不等于已签名。请从本仓库 Releases 下载，并核对哈希：
+当前发行包尚未进行受信任代码签名，Windows 可能显示未知发布者提示。已于 2026-10-04 提交 SignPath Foundation 免费开源签名申请，等待审核；申请已提交不等于已签名。接入方案见 [Code signing policy](docs/code-signing.md)。请从本仓库 Releases 下载，并核对哈希：
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.2-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.0.3-Setup-x64.exe -Algorithm SHA256
 ```
 
 升级前先从托盘右键菜单选择 **退出**。卸载保留个人设置和官网登录资料，重新安装可以继续使用。ZIP 也使用同一用户数据目录；它是免安装版本，数据不会跟着 ZIP 文件夹移动。

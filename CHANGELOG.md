@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3 — 2026-10-04
+
+- Full DeepSeek-Reflex brand in the main titlebar, introduction, settings, tray, auxiliary windows and shortcut descriptions.
+- Single-instance wake-up uses the updated window title while retaining a fallback for an already running older version. Existing profile and executable paths remain compatible.
+- Branding documentation consistently uses DeepSeek-Reflex as the project name. Signing application work does not imply that this release has a trusted signature.
+
 ## 1.0.2 — 2026-10-04
 
 - Four-step first-use introduction using the existing smooth frame and animated controls, with skip and replay from Settings > Help.

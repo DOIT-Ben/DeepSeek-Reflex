@@ -100,7 +100,7 @@ namespace DeepSeekFloat
             diagnostics = args.FirstOrDefault(a => a.StartsWith("--diagnostics=",StringComparison.Ordinal)||a.StartsWith("--window-diagnostics=",StringComparison.Ordinal));
             pageDiagnostics=diagnostics!=null&&diagnostics.StartsWith("--diagnostics=",StringComparison.Ordinal);
             if (diagnostics != null) diagnostics = Path.GetFullPath(diagnostics.Substring(diagnostics.IndexOf('=')+1));
-            Text = "DeepSeek 小窗";
+            Text = "DeepSeek-Reflex";
             AutoScaleMode = AutoScaleMode.None;
             using (var graphics = Graphics.FromHwnd(IntPtr.Zero)) dpiScale = graphics.DpiX / 96f;
             BackColor = Color.White;
@@ -117,7 +117,7 @@ namespace DeepSeekFloat
             }
 
             chrome.BackColor = Color.White;
-            title.Text = "DeepSeek";
+            title.Text = "DeepSeek-Reflex";
             title.ForeColor = Color.FromArgb(69,77,92);
             title.Font = new Font("Segoe UI",9f,FontStyle.Regular);
             title.TextAlign = ContentAlignment.MiddleCenter;
@@ -195,7 +195,7 @@ namespace DeepSeekFloat
                 else SaveBounds();
             };
             tray.Icon = Icon;
-            tray.Text = "DeepSeek 小窗";
+            tray.Text = "DeepSeek-Reflex";
             // NotifyIcon supplies the foreground owner and taskbar menu lifecycle.
             // Showing a standalone dropdown here bypasses outside-click dismissal.
             tray.ContextMenuStrip = BuildMenu();
@@ -367,7 +367,7 @@ namespace DeepSeekFloat
         {
             var next=settings.Clone();next.Mode=value;
             try { next.Save();settings=next;ApplyMode(value);RefreshMode();WriteHealth(); }
-            catch(IOException) { MessageBox.Show(this,"尺寸设置未能保存，请重试。","DeepSeek 小窗"); }
+            catch(IOException) { MessageBox.Show(this,"尺寸设置未能保存，请重试。","DeepSeek-Reflex"); }
         }
         private string ApplySettings(WindowSettings next)
         {
@@ -436,7 +436,7 @@ namespace DeepSeekFloat
             if(contextMenu!=null)return contextMenu;
             var menu=new TrayMenu(dpiScale);
             // Finish the dropdown click before opening a modal window or disposing the host.
-            menu.AddAction("打开 DeepSeek 小窗",delegate { BeginInvoke(new Action(ShowChat)); });
+            menu.AddAction("打开 DeepSeek-Reflex",delegate { BeginInvoke(new Action(ShowChat)); });
             var pinItem=menu.AddAction(TopMost?"取消置顶":"置顶窗口",delegate { BeginInvoke(new Action(delegate { SetPinned(!TopMost); })); });
             menu.AddDivider();
             menu.AddAction("设置",delegate { BeginInvoke(new Action(ShowSettings)); });
@@ -500,7 +500,7 @@ namespace DeepSeekFloat
             {
                 Uri uri;
                 if (!Uri.TryCreate(e.Uri,UriKind.Absolute,out uri) || uri.Scheme!="https") { e.Handled=true; return; }
-                popup=new Form { Text="DeepSeek · 登录或链接",Size=new Size(S(440),S(640)),StartPosition=FormStartPosition.CenterParent,Icon=Icon };
+                popup=new Form { Text="DeepSeek-Reflex · 登录或链接",Size=new Size(S(440),S(640)),StartPosition=FormStartPosition.CenterParent,Icon=Icon };
                 var child=new WebView2 { Dock=DockStyle.Fill,DefaultBackgroundColor=Color.White };
                 popup.Controls.Add(child);
                 popup.FormClosed += delegate { child.Dispose(); };
@@ -512,7 +512,7 @@ namespace DeepSeekFloat
                 e.NewWindow=child.CoreWebView2;
                 e.Handled=true;
             }
-            catch (Exception) { e.Handled=true; if (popup!=null) popup.Close(); MessageBox.Show("此窗口未能打开，请重试。","DeepSeek 小窗"); }
+            catch (Exception) { e.Handled=true; if (popup!=null) popup.Close(); MessageBox.Show("此窗口未能打开，请重试。","DeepSeek-Reflex"); }
             finally { deferral.Complete(); }
         }
         private async Task CollectPageFacts()

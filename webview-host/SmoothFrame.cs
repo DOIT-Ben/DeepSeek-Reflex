@@ -120,7 +120,7 @@ namespace DeepSeekFloat {
         internal bool Uploaded {get;private set;}
         internal CornerSurface(Form owner,float dpiScale,bool allowResize) {
             host=owner;scale=dpiScale;resizable=allowResize;AutoScaleMode=AutoScaleMode.None;FormBorderStyle=FormBorderStyle.None;
-            ShowInTaskbar=false;StartPosition=FormStartPosition.Manual;Text="DeepSeek 圆角绘制层";
+            ShowInTaskbar=false;StartPosition=FormStartPosition.Manual;Text="DeepSeek-Reflex 圆角绘制层";
         }
         protected override bool ShowWithoutActivation {get{return true;}}
         protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle|=0x80000|0x8000000|0x80;return value;}}

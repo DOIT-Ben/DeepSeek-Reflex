@@ -15,7 +15,8 @@ namespace DeepSeekFloat
             {
                 if (!created)
                 {
-                    var previous = Native.FindWindow(null, "DeepSeek 小窗");
+                    var previous = Native.FindWindow(null, "DeepSeek-Reflex");
+                    if(previous==IntPtr.Zero)previous=Native.FindWindow(null,"DeepSeek 小窗");
                     if (previous != IntPtr.Zero) Native.PostMessage(previous, Native.OpenMessage, IntPtr.Zero, IntPtr.Zero);
                     return;
                 }
@@ -36,7 +37,7 @@ namespace DeepSeekFloat
                 File.AppendAllText(Path.Combine(Preferences.Root,"host-errors.log"),DateTime.UtcNow.ToString("o")+" "+error.GetType().FullName+"\n"+error.StackTrace+"\n");
             }
             catch (IOException) { }
-            MessageBox.Show("小窗遇到问题，请重新打开。\n" + error.GetType().Name, "DeepSeek 小窗", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("小窗遇到问题，请重新打开。\n" + error.GetType().Name, "DeepSeek-Reflex", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
     }
 }

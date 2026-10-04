@@ -67,7 +67,7 @@ foreach ($shortcutPath in @($DesktopLnk,$StartLnk,$StartupLnk)) {
     $shortcut.WorkingDirectory = $InstallDir
     $shortcut.WindowStyle = 1
     $shortcut.Arguments = if ($shortcutPath -eq $StartupLnk) { '--background' } else { '' }
-    $shortcut.Description = 'DeepSeek 小窗：快捷键唤出 / 收起，设置面板调整快捷键'
+    $shortcut.Description = 'DeepSeek-Reflex：快捷键唤出 / 收起，设置面板调整快捷键'
     $shortcut.Hotkey = ''
     $shortcut.IconLocation = Join-Path $InstallDir 'icon.ico'
     $shortcut.Save()

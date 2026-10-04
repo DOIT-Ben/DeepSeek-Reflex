@@ -29,7 +29,7 @@ namespace DeepSeekFloat
         {
             this.text=text;this.anchor=anchor;
             using(var g=Graphics.FromHwnd(IntPtr.Zero))scale=g.DpiX/96f;
-            Text="DeepSeek 划词浮窗";AutoScaleMode=AutoScaleMode.None;
+            Text="DeepSeek-Reflex 划词浮窗";AutoScaleMode=AutoScaleMode.None;
             KeyPreview=true;KeyDown+=delegate(object sender,KeyEventArgs e) { if(e.KeyCode==Keys.Escape) { e.Handled=true;Close(); } };
             FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;BackColor=Color.White;
             Font=new Font("Microsoft YaHei UI",9f);
@@ -44,7 +44,7 @@ namespace DeepSeekFloat
             question.Click+=async delegate { await Request(2); };
             retry.Click+=async delegate { await Request(pendingAction); };
             close.Click+=delegate { Close(); };
-            caption.Text="划词 · DeepSeek";caption.ForeColor=Color.FromArgb(78,87,107);caption.TextAlign=ContentAlignment.MiddleLeft;
+            caption.Text="划词 · DeepSeek-Reflex";caption.ForeColor=Color.FromArgb(78,87,107);caption.TextAlign=ContentAlignment.MiddleLeft;
             caption.MouseDown+=delegate(object s,MouseEventArgs e) { if(Expanded && e.Button==MouseButtons.Left) { Native.ReleaseCapture();Native.SendMessage(Handle,0xA1,new IntPtr(2),IntPtr.Zero); } };
             selectionPreview.Text=text.Replace('\r',' ').Replace('\n',' ');selectionPreview.AutoEllipsis=true;selectionPreview.ForeColor=Color.FromArgb(100,110,130);
             selectionPreview.TextAlign=ContentAlignment.MiddleLeft;

@@ -174,7 +174,7 @@ internal static class SettingsTests {
     var button=(ChromeButton)Field(window,"mode");Check(button.AccessibleName.Length>0&&button.Text==button.AccessibleName,"size button has accessible name");
     var settingsButton=(ChromeButton)Field(window,"more");Check(settingsButton.Kind=="settings"&&settingsButton.AccessibleName=="设置","titlebar settings icon replaces dropdown trigger");
     var label=(Label)Field(window,"title");var minimize=(ChromeButton)Field(window,"minimize");var pin=(ChromeButton)Field(window,"pin");var sizeButton=(ChromeButton)Field(window,"mode");
-    Check(label.Text=="DeepSeek"&&label.TextAlign==ContentAlignment.MiddleCenter&&Math.Abs(label.Left+label.Width/2-window.Width/2)<=1,"DeepSeek title is centered without Beta label");
+    Check(label.Text=="DeepSeek-Reflex"&&label.TextAlign==ContentAlignment.MiddleCenter&&Math.Abs(label.Left+label.Width/2-window.Width/2)<=1,"full DeepSeek-Reflex brand is centered without Beta label");
     Check(minimize.Left<pin.Left&&pin.Left<sizeButton.Left&&sizeButton.Right<label.Left&&settingsButton.Left>label.Right,"left controls ordered minimize pin size and right settings");
     Check(window.Region!=null&&!window.Region.IsVisible(1,1)&&window.Region.IsVisible(window.Width/2,1)&&window.Region.IsVisible(window.Width/2,window.Height-2),"real window region clips corners while retaining top and bottom edges");
     var outline=(WindowFrame)Field(window,"frame");Check(!outline.Region.IsVisible(window.Width/2,window.Height/2)&&outline.Region.IsVisible(window.Width/2,1),"outline covers border only and leaves website interaction open");

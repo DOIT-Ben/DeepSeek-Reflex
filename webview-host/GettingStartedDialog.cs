@@ -22,11 +22,11 @@ namespace DeepSeekFloat {
         internal int Step {get;private set;}
         internal GettingStartedDialog(WindowSettings settings) {
             using(var graphics=Graphics.FromHwnd(IntPtr.Zero))scale=graphics.DpiX/96f;
-            Text="Reflex 使用帮助";Font=new Font("Microsoft YaHei UI",10f);BackColor=Color.White;ForeColor=PanelTheme.Ink;
+            Text="DeepSeek-Reflex 使用帮助";Font=new Font("Microsoft YaHei UI",10f);BackColor=Color.White;ForeColor=PanelTheme.Ink;
             DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;FormBorderStyle=FormBorderStyle.None;
             ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;ClientSize=new Size(S(400),S(452));
             var surface=new Panel {Name="guide-surface",Dock=DockStyle.Fill,BackColor=Color.White};Controls.Add(surface);
-            var brand=LabelAt(surface,"Reflex · 随时问答",24,24,320,30,12f,true);
+            var brand=LabelAt(surface,"DeepSeek-Reflex",24,24,312,30,12f,true);
             var close=new ChromeButton("close","跳过引导，开始使用");Place(surface,close,344,22,32,28);
             close.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
             progress=LabelAt(surface,"",24,68,352,22,9f,false);progress.ForeColor=PanelTheme.Muted;
@@ -48,7 +48,7 @@ namespace DeepSeekFloat {
                 "左侧图钉可置顶，旁边切换小窗 / 阅读尺寸。\n右上角关闭只收进托盘，托盘菜单可彻底退出。"};
             keys=new[]{"官网登录 · 无需 API Key",HotkeyBindings.Format(settings.ToggleKeys),HotkeyBindings.Format(settings.CaptureKeys),"置顶 · 拉伸 · 收起"};
             hints=new[]{
-                "Reflex 是独立社区工具，需要联网使用。",
+                "DeepSeek-Reflex 是独立社区工具，需要联网。",
                 settings.HideToTrayOnToggle?"当前收起方式：收进托盘。快捷键可在设置修改。":"当前收起方式：最小化到任务栏。可在设置修改。",
                 "取词失败时，可复制文字，再从设置导入剪贴板。",
                 "拖动标题栏移动窗口；四边和四角都可以拉伸。"};
