@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2 — 2026-10-04
+
+- Four-step first-use introduction using the existing smooth frame and animated controls, with skip and replay from Settings > Help.
+- Introduction reflects active shortcuts and hide behavior; background startup defers it until an explicit wake. Dismissal is stored separately from existing preferences and website data.
+- Hotkeys and composer focus are suspended during the introduction and resume when it closes.
+- Bilingual package quick-start instructions use VERSION instead of a stale hard-coded release number.
+- Code signing policy and application preparation documented; release files remain unsigned pending provider approval.
+
 ## 1.0.1 — 2026-10-04
 
 - Reading preset narrowed from 760 to 752 DIP, with height and website zoom unchanged.

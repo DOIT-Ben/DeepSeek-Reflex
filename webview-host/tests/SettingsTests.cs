@@ -28,6 +28,45 @@ internal static class SettingsTests {
    Application.EnableVisualStyles();
    var root=Path.Combine(args[0],"test-preferences-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
    typeof(Preferences).GetField("Root",BindingFlags.NonPublic|BindingFlags.Static).SetValue(null,root);
+   Check(GettingStarted.NeedsIntroduction,"fresh or upgraded install offers introduction before acknowledgement");
+   Preferences.Write(GettingStarted.Marker,"broken");Check(GettingStarted.NeedsIntroduction,"malformed introduction marker does not silently suppress help");
+   File.Delete(Path.Combine(root,GettingStarted.Marker));Directory.CreateDirectory(Path.Combine(root,GettingStarted.Marker));
+   Check(!GettingStarted.Acknowledge()&&GettingStarted.NeedsIntroduction,"unwritable introduction marker neither crashes nor pretends dismissal was saved");Directory.Delete(Path.Combine(root,GettingStarted.Marker));
+   var guideSettings=WindowSettings.Defaults();guideSettings.ToggleKeys=K(Keys.F19);guideSettings.CaptureKeys=K(Keys.F18);guideSettings.HideToTrayOnToggle=true;
+   using(var guide=new GettingStartedDialog(guideSettings)) {
+    guide.Show();Application.DoEvents();var smooth=(SmoothFrame)Field(guide,"smoothFrame");
+    Check(guide.Step==0&&smooth.Ready&&smooth.Aligned&&smooth.UploadCount==4,"introduction starts at login and uses the shared cached smooth frame");
+    var next=(PanelButton)Field(guide,"next");next.PerformClick();Check(guide.Step==1&&((Label)Field(guide,"key")).Text==HotkeyBindings.Format(guideSettings.ToggleKeys)&&((Label)Field(guide,"hint")).Text.Contains("收进托盘"),"introduction shows current wake shortcut and hide preference");
+    next.PerformClick();Check(guide.Step==2&&((Label)Field(guide,"key")).Text==HotkeyBindings.Format(guideSettings.CaptureKeys)&&((Label)Field(guide,"body")).Text.Contains("自己发送"),"selection guide uses actual shortcut and requires user to send draft");
+    ((PanelButton)Field(guide,"previous")).PerformClick();Check(guide.Step==1,"introduction can return to the previous step");guide.SetStep(3);
+    Check(next.Text=="开始使用"&&next.AccessibleName=="开始使用","final guide action is clearly named");
+    var panel=guide.Controls.OfType<Panel>().Single(p=>p.Name=="guide-surface");guide.Controls.Remove(panel);panel.Font=guide.Font;panel.Size=guide.ClientSize;
+    using(var bitmap=new Bitmap(panel.Width,panel.Height)){panel.DrawToBitmap(bitmap,new Rectangle(0,0,bitmap.Width,bitmap.Height));bitmap.Save(Path.Combine(args[0],"guide-preview.png"));}guide.Controls.Add(panel);
+    next.PerformClick();Check(!guide.Visible&&guide.DialogResult==DialogResult.OK&&!smooth.Visible,"finishing introduction closes all owned corner surfaces");
+   }
+   using(var guide=new GettingStartedDialog(guideSettings)){guide.Show();Application.DoEvents();Children(guide).OfType<Button>().Single(b=>b.Text=="跳过").PerformClick();Check(!guide.Visible&&guide.DialogResult==DialogResult.Cancel,"introduction can be skipped without traversing all steps");}
+   // Test the real deferred startup path using only our own windows, never a website.
+   guideSettings.Save();
+   using(var window=new ChatWindow(new[]{"--background"}))using(var dismiss=new Timer {Interval=20}) {
+    window.Text="Reflex 引导自有测试";typeof(ChatWindow).GetField("initializing",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(window,true);
+    window.Show();Application.DoEvents();Check(!window.Visible&&GettingStarted.NeedsIntroduction,"background startup defers introduction and does not acknowledge it");
+    bool opened=false,suspended=false;var timeout=System.Diagnostics.Stopwatch.StartNew();
+    dismiss.Tick+=delegate {
+     var guide=Application.OpenForms.OfType<GettingStartedDialog>().FirstOrDefault();
+     if(guide!=null){opened=true;suspended=!((HotkeyBindings)Field(window,"hotkeys")).ToggleRegistered;Native.SendMessage(window.Handle,0x312,new IntPtr(Native.HotkeyId),IntPtr.Zero);Check(window.Visible&&guide.Visible,"queued hotkey cannot hide host under the modal introduction");guide.SetStep(3);((PanelButton)Field(guide,"next")).PerformClick();dismiss.Stop();}
+     else if(timeout.ElapsedMilliseconds>4000){dismiss.Stop();window.Close();}
+    };
+    dismiss.Start();typeof(ChatWindow).GetMethod("ShowChat",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(window,null);Application.DoEvents();
+    Check(opened&&suspended&&!GettingStarted.NeedsIntroduction,"first explicit wake opens guide, suspends hotkeys and persists dismissal");
+    Check(((HotkeyBindings)Field(window,"hotkeys")).ToggleRegistered,"closing introduction restores wake hotkey");
+    typeof(ChatWindow).GetMethod("ShowChat",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(window,null);Application.DoEvents();Check(!Application.OpenForms.OfType<GettingStartedDialog>().Any(),"subsequent wake does not repeat acknowledged introduction");
+    typeof(ChatWindow).GetField("quitting",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(window,true);window.Close();
+   }
+   using(var guide=new GettingStartedDialog(guideSettings)){Check(guide.Step==0&&!GettingStarted.NeedsIntroduction,"manual help remains available after startup acknowledgement");}
+   using(var dialog=new SettingsDialog(WindowSettings.Defaults(),delegate(WindowSettings next){return null;},delegate(string action){Check(action=="help","settings help action routes to the guide");})) {
+    dialog.Show();Application.DoEvents();Children(dialog).OfType<Button>().Single(b=>b.Text=="使用帮助").PerformClick();Check(!dialog.Visible,"help entry closes settings before opening another modal");
+   }
+   File.Delete(Path.Combine(root,"window-settings.json"));
    Check(!Preferences.AutomaticSelectionEnabled(),"fresh install never enables experimental mouse hook");
    Preferences.Write("selection-popup-disabled.json","broken");Check(!Preferences.AutomaticSelectionEnabled(),"malformed experimental preference remains disabled");
    Preferences.Write("selection-popup-disabled.json","false");Check(Preferences.AutomaticSelectionEnabled(),"explicit legacy experimental opt-in is retained");

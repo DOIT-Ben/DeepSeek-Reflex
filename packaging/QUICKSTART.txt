@@ -1,4 +1,9 @@
-DeepSeek-Reflex 1.0.0 — Windows x64
+DeepSeek-Reflex — Windows x64 (see VERSION for this package's version)
+
+首次打开会显示四步使用引导，可跳过；设置 → 使用帮助可以重新查看。
+后台启动不弹出引导，首次主动唤起时再显示。
+Ctrl+Space：唤出 / 收起；Ctrl+Shift+D：选中文字带入，检查草稿后自行发送。
+右上角关闭收进托盘，托盘菜单“退出”才会结束程序。
 
 ZIP: extract the entire DeepSeek-Reflex folder, then double-click DeepSeekFloat.exe.
 EXE: run the Setup installer; no administrator privileges are required.
@@ -9,6 +14,7 @@ Runtime download: https://developer.microsoft.com/microsoft-edge/webview2/
 Ctrl+Space: show / minimize the chat window.
 Ctrl+Shift+D: import selected text as a draft, then confirm and send yourself.
 Settings: customize hotkeys, close behavior, focus and window size.
+Getting started: a four-step introduction on first visible launch; replay it from Settings > Help.
 Tray right-click: open / pin / settings / exit. Exit before upgrading.
 
 The ZIP is standalone but not data-isolated: both packages keep preferences

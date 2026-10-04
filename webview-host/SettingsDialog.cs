@@ -50,10 +50,11 @@ namespace DeepSeekFloat
             LabelAt(surface,"窗口尺寸",24,404,392,24,10f,true);
             windowMode.SelectedIndex=settings.Mode=="reading"?2:settings.Mode=="compact"?1:0;Place(surface,windowMode,24,432,392,38);
             var hint=LabelAt(surface,"点击按键框，再按下你想用的组合键。",24,476,392,24,9f,false);hint.ForeColor=PanelTheme.Muted;
-            var refresh=new PanelButton("刷新页面");var import=new PanelButton("导入剪贴板");Place(surface,refresh,24,512,190,34);Place(surface,import,226,512,190,34);
-            refresh.Enabled=import.Enabled=quickAction!=null;
+            var refresh=new PanelButton("刷新页面");var import=new PanelButton("导入剪贴板");var help=new PanelButton("使用帮助");Place(surface,refresh,24,512,120,34);Place(surface,import,156,512,128,34);Place(surface,help,296,512,120,34);
+            refresh.Enabled=import.Enabled=help.Enabled=quickAction!=null;
             refresh.Click+=delegate{DialogResult=DialogResult.Cancel;Close();quickAction("refresh");};
             import.Click+=delegate{DialogResult=DialogResult.Cancel;Close();quickAction("import");};
+            help.Click+=delegate{DialogResult=DialogResult.Cancel;Close();quickAction("help");};
             Place(surface,error,24,554,392,28);error.Font=new Font(Font.FontFamily,9f);
             var save=new PanelButton("保存") {Primary=true};var cancel=new PanelButton("取消") {DialogResult=DialogResult.Cancel};
             Place(surface,cancel,232,588,86,34);Place(surface,save,330,588,86,34);

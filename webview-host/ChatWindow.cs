@@ -51,6 +51,8 @@ namespace DeepSeekFloat
         [DataMember] public bool interactiveResize;
         [DataMember] public int smoothFrameUploads;
         [DataMember] public bool smoothCornersAligned;
+        [DataMember] public bool guideVisible;
+        [DataMember] public bool guideAcknowledged;
     }
 
     internal sealed class ChatWindow : Form
@@ -75,7 +77,7 @@ namespace DeepSeekFloat
         private readonly Button insertSelection = new Button();
         private readonly Button copySelection = new Button();
         private readonly Button dismissSelection = new Button();
-        private bool capturing, inserting, settingsOpen, pendingComposerFocus,layingOut;
+        private bool capturing, inserting, settingsOpen, pendingComposerFocus,layingOut,guideOpen,guideQueued;
         private int focusVersion;
         private WindowSettings settings;
         private HotkeyBindings hotkeys;
@@ -187,7 +189,7 @@ namespace DeepSeekFloat
                 }
                 WriteHealth();
             };
-            Shown += delegate { if(!background) RequestComposerFocus(); };
+            Shown += delegate { if(!background) RequestComposerFocus();QueueIntroduction(); };
             FormClosing += delegate(object sender,FormClosingEventArgs e) {
                 if (!quitting && e.CloseReason == CloseReason.UserClosing) { e.Cancel=true; Hide(); WriteHealth(); }
                 else SaveBounds();
@@ -304,6 +306,7 @@ namespace DeepSeekFloat
         }
         private void ShowChat()
         {
+            if(guideOpen){var guide=OwnedForms.OfType<GettingStartedDialog>().FirstOrDefault();if(guide!=null)guide.Activate();return;}
             allowShow = true;
             Show();
             if (WindowState == FormWindowState.Minimized) WindowState=FormWindowState.Normal;
@@ -311,6 +314,7 @@ namespace DeepSeekFloat
             Native.SetForegroundWindow(Handle);
             browser.Focus();
             RequestComposerFocus();
+            QueueIntroduction();
             WriteHealth();
         }
         private void ToggleWindow()
@@ -379,13 +383,14 @@ namespace DeepSeekFloat
         }
         private void ShowSettings()
         {
-            if(settingsOpen)return;
+            if(settingsOpen||guideOpen)return;
             focusVersion++;pendingComposerFocus=false;settingsOpen=true;hotkeys.Suspend();
             try {
                 using(var dialog=new SettingsDialog(settings,ApplySettings,delegate(string action) {
                     BeginInvoke(new Action(async delegate {
                         if(action=="refresh"&&browser.CoreWebView2!=null)browser.Reload();
                         if(action=="import")await PresentSelection(SelectionCapture.FromClipboard());
+                        if(action=="help")ShowHelp();
                     }));
                 })) { dialog.Icon=Icon;dialog.ShowDialog(this); }
             }
@@ -398,6 +403,20 @@ namespace DeepSeekFloat
                 }
             }
         }
+        private void QueueIntroduction() {
+            if(guideQueued||guideOpen||settingsOpen||resourcesDisposed||quitting||!Visible||WindowState==FormWindowState.Minimized||!GettingStarted.NeedsIntroduction)return;
+            guideQueued=true;
+            BeginInvoke(new Action(delegate{guideQueued=false;if(!resourcesDisposed&&!quitting&&!IsDisposed&&Visible&&WindowState!=FormWindowState.Minimized&&!settingsOpen&&GettingStarted.NeedsIntroduction)ShowHelp();}));
+        }
+        private void ShowHelp() {
+            if(guideOpen||settingsOpen||resourcesDisposed||quitting)return;
+            guideOpen=true;focusVersion++;pendingComposerFocus=false;hotkeys.Suspend();
+            try {using(var guide=new GettingStartedDialog(settings)){guide.Icon=Icon;guide.ShowDialog(this);}GettingStarted.Acknowledge();}
+            finally {
+                guideOpen=false;
+                if(!resourcesDisposed&&!quitting&&!IsDisposed&&IsHandleCreated){string error=hotkeys.Resume();tips.SetToolTip(more,error??"设置 · 快捷键与窗口");RequestComposerFocus();WriteHealth();}
+            }
+        }
         private void RequestComposerFocus()
         {
             focusVersion++;pendingComposerFocus=settings.FocusOnOpen;
@@ -407,7 +426,7 @@ namespace DeepSeekFloat
         {
             if(browser.CoreWebView2==null) { health.composerFocus="loading";return; }
             health.composerFocus=await ComposerFocus.TryFocusAsync(browser.CoreWebView2,delegate {
-                return !resourcesDisposed&&!quitting&&!settingsOpen&&settings.FocusOnOpen&&version==focusVersion&&Visible&&WindowState!=FormWindowState.Minimized&&Native.GetForegroundWindow()==Handle;
+                return !resourcesDisposed&&!quitting&&!settingsOpen&&!guideOpen&&settings.FocusOnOpen&&version==focusVersion&&Visible&&WindowState!=FormWindowState.Minimized&&Native.GetForegroundWindow()==Handle;
             });
             if(version==focusVersion)pendingComposerFocus=false;
             WriteHealth();
@@ -532,6 +551,7 @@ namespace DeepSeekFloat
             health.interactiveResize=smoothFrame!=null&&smoothFrame.InteractiveResize;
             health.smoothFrameUploads=smoothFrame==null?0:smoothFrame.UploadCount;
             health.smoothCornersAligned=smoothFrame!=null&&smoothFrame.Aligned;
+            health.guideVisible=guideOpen;health.guideAcknowledged=!GettingStarted.NeedsIntroduction;
             health.selectionVisible=selectionBar.Visible;
             health.automaticSelectionEnabled=autoSelection!=null && autoSelection.Enabled;
             health.automaticSelectionRegistered=autoSelection!=null && autoSelection.Registered;
@@ -554,7 +574,7 @@ namespace DeepSeekFloat
                 var cursor=WindowResize.CursorFor((int)(m.LParam.ToInt64()&0xffff));
                 if(cursor!=null){Cursor.Current=cursor;m.Result=new IntPtr(1);return;}
             }
-            if(m.Msg==0x312&&settingsOpen)return;
+            if(m.Msg==0x312&&(settingsOpen||guideOpen))return;
             if(m.Msg==0x312 && m.WParam.ToInt32()==Native.HotkeyId) { ToggleWindow(); return; }
             if(m.Msg==0x312 && m.WParam.ToInt32()==Native.CaptureHotkeyId) { CaptureSelection(); return; }
             if(m.Msg==Native.OpenMessage) { ShowChat(); return; }
