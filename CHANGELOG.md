@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.7 — 2026-10-05
 
 - Restore mouse resizing from the window edges and rounded corners by enabling the native sizing style on the real HWND, including after style updates.
 - Keep WinForms' borderless size calculations and the existing custom client frame, avoiding extra native borders or size growth after pinned minimize / restore.
