@@ -28,6 +28,9 @@ namespace DeepSeekFloat
         [StructLayout(LayoutKind.Sequential)] internal struct MOUSEINPUT { internal int x,y; internal uint mouseData,flags,time; internal UIntPtr extra; }
         internal static INPUT Key(ushort key, bool up) { return new INPUT { type=1, data=new INPUTUNION { keyboard=new KEYBDINPUT { key=key, flags=up ? 2u : 0u } } }; }
         internal const int OpenMessage = 0x8001;
+        [DllImport("user32.dll")] internal static extern int GetWindowLong(IntPtr hwnd,int index);
+        [DllImport("user32.dll",SetLastError=true)] internal static extern int SetWindowLong(IntPtr hwnd,int index,int value);
+        [DllImport("user32.dll",SetLastError=true)] internal static extern bool SetWindowPos(IntPtr hwnd,IntPtr after,int x,int y,int width,int height,uint flags);
         [DllImport("user32.dll", SetLastError = true)] internal static extern bool RegisterHotKey(IntPtr hwnd, int id, uint modifiers, uint key);
         [DllImport("user32.dll")] internal static extern bool UnregisterHotKey(IntPtr hwnd, int id);
         [DllImport("user32.dll")] internal static extern bool ReleaseCapture();

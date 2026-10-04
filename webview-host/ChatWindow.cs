@@ -234,7 +234,8 @@ namespace DeepSeekFloat
         protected override CreateParams CreateParams {
             get {
                 var value=base.CreateParams;
-                // Keep native taskbar minimize/restore semantics without adding a caption or border.
+                // WinForms calculates borderless restore sizes from these parameters.
+                // The native sizing bit is applied separately to the actual HWND.
                 value.Style|=0x000a0000; // WS_SYSMENU | WS_MINIMIZEBOX
                 value.ExStyle|=0x00040000; // WS_EX_APPWINDOW
                 return value;
@@ -364,6 +365,7 @@ namespace DeepSeekFloat
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
+            EnableNativeSizing(Handle);
             WindowFrame.ConfigureNativeBorder(Handle);
             frame.UpdateShape(this,dpiScale);
             if(smoothFrame!=null)smoothFrame.SyncOwner();
@@ -591,6 +593,10 @@ namespace DeepSeekFloat
         }
         protected override void WndProc(ref Message m)
         {
+            if(m.Msg==0x7d&&m.WParam.ToInt64()==-16)EnableNativeSizing(m.HWnd);
+            // Keep the entire rectangle as client area. WS_THICKFRAME enables
+            // Windows' sizing loop, but our existing frame owns its visual border.
+            if(m.Msg==0x83) {m.Result=IntPtr.Zero;return;}
             if((m.Msg==0x214||m.Msg==0x216)&&m.LParam!=IntPtr.Zero&&smoothFrame!=null) {
                 var rect=(Native.RECT)System.Runtime.InteropServices.Marshal.PtrToStructure(m.LParam,typeof(Native.RECT));
                 if(smoothFrame.TrySetBounds(Rectangle.FromLTRB(rect.left,rect.top,rect.right,rect.bottom))){m.Result=new IntPtr(1);return;}
@@ -610,6 +616,12 @@ namespace DeepSeekFloat
             if(m.Msg==0x312 && m.WParam.ToInt32()==Native.CaptureHotkeyId) { CaptureSelection(); return; }
             if(m.Msg==Native.OpenMessage) { ShowChat(); return; }
             base.WndProc(ref m);
+        }
+        private static void EnableNativeSizing(IntPtr handle) {
+            int style=Native.GetWindowLong(handle,-16);
+            if((style&0x40000)!=0)return;
+            if(Native.SetWindowLong(handle,-16,style|0x40000)==0)throw new System.ComponentModel.Win32Exception();
+            if(!Native.SetWindowPos(handle,IntPtr.Zero,0,0,0,0,0x37))throw new System.ComponentModel.Win32Exception();
         }
         protected override void Dispose(bool disposing)
         {

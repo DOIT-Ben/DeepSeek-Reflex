@@ -200,13 +200,27 @@ internal static class SettingsTests {
     Check(smooth.Ready&&smooth.Aligned,"actual chat host has four cached corners before native sizing message");
     int style=GetWindowLong(window.Handle,-16);
     Check((style&0xa0000)==0xa0000&&(style&0xc00000)==0&&(GetWindowLong(window.Handle,-20)&0x40000)!=0,"borderless chat retains native system menu minimize and app taskbar styles without a caption");
+    Check((style&0x40000)!=0,"actual chat HWND enables the native sizing frame, not only resize hit testing");
+    Check(window.ClientSize==window.Size,"native sizing frame reserves no system border or caption space");
+    bool nativeSizingStarted=false;
+    EventHandler resizeStarted=delegate {nativeSizingStarted=true;};
+    window.ResizeBegin+=resizeStarted;
+    using(var cancelResize=new Timer {Interval=30}) {
+     // Drive Windows' own sizing command on this isolated test-owned window,
+     // then cancel its modal loop without loading or reading a website.
+     cancelResize.Tick+=delegate {Native.PostMessage(window.Handle,0x100,new IntPtr(27),IntPtr.Zero);};
+     cancelResize.Start();
+     try {Native.SendMessage(window.Handle,0x112,new IntPtr(0xf002),IntPtr.Zero);}
+     finally {cancelResize.Stop();window.ResizeBegin-=resizeStarted;}
+    }
+    Check(nativeSizingStarted&&!smooth.InteractiveResize&&smooth.Aligned,"real system sizing command enters and exits the native resize loop with cached corners aligned");
     var restoredBounds=window.Bounds;
     for(int cycle=0;cycle<2;cycle++) {
      window.TopMost=cycle==1;
      Native.SendMessage(window.Handle,0x112,new IntPtr(0xf020),IntPtr.Zero);Application.DoEvents();
      Check(window.WindowState==FormWindowState.Minimized&&!smooth.Visible,"native system command minimizes chat and hides all corner surfaces: pinned="+window.TopMost);
      Native.SendMessage(window.Handle,0x112,new IntPtr(0xf120),IntPtr.Zero);Application.DoEvents();
-     Check(window.WindowState==FormWindowState.Normal&&window.Visible&&window.Bounds==restoredBounds&&smooth.Visible&&smooth.Aligned&&smooth.UploadCount==4,"native system command restores chat with aligned cached corners and original bounds: pinned="+window.TopMost);
+     Check(window.WindowState==FormWindowState.Normal&&window.Visible&&window.Bounds==restoredBounds&&smooth.Visible&&smooth.Aligned&&smooth.UploadCount==4,"native system command restores chat with aligned cached corners and original bounds: pinned="+window.TopMost+" actual="+window.Bounds+" expected="+restoredBounds+" aligned="+smooth.Aligned);
     }
     var next=new Rectangle(window.Left+6,window.Top+6,window.Width+10,window.Height-12);var rect=new Native.RECT{left=next.Left,top=next.Top,right=next.Right,bottom=next.Bottom};
     var buffer=System.Runtime.InteropServices.Marshal.AllocHGlobal(System.Runtime.InteropServices.Marshal.SizeOf(typeof(Native.RECT)));

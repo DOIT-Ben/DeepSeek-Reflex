@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Restore mouse resizing from the window edges and rounded corners by enabling the native sizing style on the real HWND, including after style updates.
+- Keep WinForms' borderless size calculations and the existing custom client frame, avoiding extra native borders or size growth after pinned minimize / restore.
+- Add regressions for the actual Windows sizing loop, native sizing style and full client rectangle, alongside the existing taskbar and corner alignment checks.
+
 ## 1.0.6 — 2026-10-04
 
 - Native host and shortcuts use the stable `DOITBen.DeepSeekReflex.Windows` Shell identity, distinct from earlier cached entries. Local installation now creates full-brand `DeepSeek-Reflex.lnk` shortcuts, matching the installer, and backs up only verified legacy shortcuts before retiring them.
