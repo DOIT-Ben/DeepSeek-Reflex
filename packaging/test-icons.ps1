@@ -37,6 +37,29 @@ if($bytes.Length -lt 6+16*$count){throw 'Truncated ICO directory'}
 $sizes=@(for($i=0;$i -lt $count;$i++) { $size=[int]$bytes[6+16*$i];if($size -eq 0){256}else{$size} })
 if(($sizes -join ',') -ne '16,24,32,48,64,128,256'){throw 'ICO sizes mismatch'}
 Write-Output ('PASS multi-resolution ICO sizes: '+($sizes -join ', '))
+for($i=0;$i -lt $count;$i++) {
+    $length=[BitConverter]::ToUInt32($bytes,6+16*$i+8)
+    $offset=[BitConverter]::ToUInt32($bytes,6+16*$i+12)
+    if($offset+$length -gt $bytes.Length){throw 'Truncated ICO image'}
+    $stream=[IO.MemoryStream]::new($bytes,[int]$offset,[int]$length)
+    $bitmap=[Drawing.Bitmap]::new($stream)
+    try {
+        $size=$sizes[$i];$transparent=0;$visible=0;$left=$size;$right=-1;$top=$size;$bottom=-1
+        if($bitmap.Width -ne $size -or $bitmap.Height -ne $size){throw 'ICO image dimensions mismatch'}
+        for($y=0;$y -lt $size;$y++){for($x=0;$x -lt $size;$x++){
+            $alpha=$bitmap.GetPixel($x,$y).A
+            if($alpha -eq 0){$transparent++}
+            if($alpha -ge 32){$visible++;$left=[Math]::Min($left,$x);$right=[Math]::Max($right,$x);$top=[Math]::Min($top,$y);$bottom=[Math]::Max($bottom,$y)}
+        }}
+        foreach($point in @(@(0,0),@(($size-1),0),@(0,($size-1)),@(($size-1),($size-1)))){
+            if($bitmap.GetPixel($point[0],$point[1]).A -ne 0){throw "Opaque background in ${size}px ICO"}
+        }
+        $width=$right-$left+1;$height=$bottom-$top+1
+        if($transparent -lt $size*$size*0.25 -or $visible -lt $size*$size*0.20 -or $width -lt $size*0.85){throw "Invisible, undersized or opaque ${size}px ICO"}
+        if($height -gt $width*0.75 -or $height -lt $width*0.45){throw "Distorted fish aspect ratio in ${size}px ICO"}
+        Write-Output "PASS transparent ${size}px ICO, subject ${width}x${height}"
+    } finally {$bitmap.Dispose();$stream.Dispose()}
+}
 $baseline = Get-IconPixels $IconPath
 foreach($path in $BinaryPaths) {
     $actual=Get-IconPixels $path

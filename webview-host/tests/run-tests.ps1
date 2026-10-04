@@ -29,7 +29,7 @@ foreach ($Dpi in @('default','high-dpi')) {
         & $Compiler /nologo /target:exe /platform:x64 /warnaserror+ /main:DeepSeekFloat.SettingsTests "/out:$TestExe" $Manifest $Refs $Sources "$PSScriptRoot\SettingsTests.cs"
         if ($LASTEXITCODE -ne 0) { throw 'Test compilation failed' }
     } finally { $env:LIB = $PriorLib }
-    foreach ($Name in @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll')) {
+    foreach ($Name in @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','icon.ico')) {
         Copy-Item -LiteralPath (Join-Path $HostSources "dist\$Name") -Destination $RunDirectory -Force
     }
     & $TestExe $RunDirectory | Tee-Object -FilePath (Join-Path $RunDirectory 'regression.log')

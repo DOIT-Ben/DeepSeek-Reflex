@@ -53,6 +53,9 @@ namespace DeepSeekFloat
         [DataMember] public bool smoothCornersAligned;
         [DataMember] public bool guideVisible;
         [DataMember] public bool guideAcknowledged;
+        [DataMember] public int windowIconWidth;
+        [DataMember] public int trayIconWidth;
+        [DataMember] public bool iconBackgroundTransparent;
     }
 
     internal sealed class ChatWindow : Form
@@ -70,6 +73,7 @@ namespace DeepSeekFloat
         private readonly ChromeButton mode = new ChromeButton("mode","切换小窗 / 阅读尺寸");
         private readonly ToolTip tips = new ToolTip();
         private readonly NotifyIcon tray = new NotifyIcon();
+        private readonly Icon windowIcon, trayIcon;
         private readonly Timer healthTimer = new Timer();
         private readonly Panel selectionBar = new Panel();
         private readonly ComboBox selectionAction = new ComboBox();
@@ -108,7 +112,23 @@ namespace DeepSeekFloat
             StartPosition = FormStartPosition.Manual;
             MinimumSize = new Size(S(360),S(480));
             Bounds = Preferences.Bounds(dpiScale);
-            try { Icon = new Icon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"icon.ico")); } catch (IOException) { }
+            try {
+                var iconPath=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"icon.ico");
+                windowIcon=new Icon(iconPath,SystemInformation.IconSize);
+                trayIcon=new Icon(iconPath,SystemInformation.SmallIconSize);
+                Icon=windowIcon;
+                health.windowIconWidth=windowIcon.Width;health.trayIconWidth=trayIcon.Width;
+                // Framework Icon.ToBitmap can flatten PNG icon alpha. Verify the
+                // actual icon drawing leaves a contrasting background untouched.
+                using(var bitmap=new Bitmap(trayIcon.Width,trayIcon.Height)) {
+                    using(var graphics=Graphics.FromImage(bitmap)) {
+                        graphics.Clear(Color.Magenta);var dc=graphics.GetHdc();
+                        try{Native.DrawIconEx(dc,0,0,trayIcon.Handle,trayIcon.Width,trayIcon.Height,0,IntPtr.Zero,3);}
+                        finally{graphics.ReleaseHdc(dc);}
+                    }
+                    health.iconBackgroundTransparent=(bitmap.GetPixel(0,0).ToArgb()&0xffffff)==0xff00ff&&(bitmap.GetPixel(bitmap.Width-1,bitmap.Height-1).ToArgb()&0xffffff)==0xff00ff;
+                }
+            } catch (IOException) { }
             TopMost = Preferences.ReadBool("pin.json");
             settings = WindowSettings.Load();
             if(settings.Mode=="compact") {
@@ -194,7 +214,7 @@ namespace DeepSeekFloat
                 if (!quitting && e.CloseReason == CloseReason.UserClosing) { e.Cancel=true; Hide(); WriteHealth(); }
                 else SaveBounds();
             };
-            tray.Icon = Icon;
+            tray.Icon = trayIcon ?? Icon;
             tray.Text = "DeepSeek-Reflex";
             // NotifyIcon supplies the foreground owner and taskbar menu lifecycle.
             // Showing a standalone dropdown here bypasses outside-click dismissal.
@@ -591,6 +611,8 @@ namespace DeepSeekFloat
                 healthTimer.Dispose();
                 if(contextMenu!=null) contextMenu.Dispose();
                 tray.Visible=false; tray.Dispose(); tips.Dispose(); browser.Dispose();
+                if(trayIcon!=null)trayIcon.Dispose();
+                if(windowIcon!=null)windowIcon.Dispose();
             }
             base.Dispose(disposing);
         }

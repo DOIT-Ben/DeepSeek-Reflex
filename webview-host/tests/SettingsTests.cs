@@ -22,6 +22,17 @@ internal static class SettingsTests {
  static void Check(bool value,string name) { if(!value)throw new Exception(name);passed++;Console.WriteLine("PASS "+name); }
  static int K(Keys key) { return (int)(Keys.Control|Keys.Alt|Keys.Shift|key); }
  static object Field(object obj,string name) { return obj.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic).GetValue(obj); }
+ static string IconPixels(IntPtr icon,Size size) {
+  using(var bitmap=new Bitmap(size.Width,size.Height)) {
+   using(var graphics=Graphics.FromImage(bitmap)) {
+    graphics.Clear(Color.Magenta);var dc=graphics.GetHdc();
+    try{if(!Native.DrawIconEx(dc,0,0,icon,size.Width,size.Height,0,IntPtr.Zero,3))throw new Exception("Native icon render failed");}finally{graphics.ReleaseHdc(dc);}
+   }
+   var pixels=new System.Collections.Generic.List<int>();
+   for(int y=0;y<size.Height;y++)for(int x=0;x<size.Width;x++)pixels.Add(bitmap.GetPixel(x,y).ToArgb()&0xffffff);
+   return String.Join(",",pixels);
+  }
+ }
  static System.Collections.Generic.IEnumerable<Control> Children(Control parent) { foreach(Control child in parent.Controls) { yield return child;foreach(var descendant in Children(child))yield return descendant; } }
  [STAThread] static void Main(string[] args) {
   try {
@@ -141,10 +152,24 @@ internal static class SettingsTests {
    using(var window=new ChatWindow(new[]{"--background"})) {
     // Keep this a self-contained layout fixture: no navigation, website DOM,
     // physical input or existing browser is involved.
+    Check(window.Icon!=null&&window.Icon.Size==SystemInformation.IconSize,"window loads the native taskbar icon size from the multi-resolution fish ICO");
+    var trayIcon=((NotifyIcon)Field(window,"tray")).Icon;
+    Check(trayIcon!=null&&trayIcon.Size==SystemInformation.SmallIconSize,"tray loads the native small icon layer instead of resampling the large window icon");
+    using(var bitmap=new Bitmap(trayIcon.Width,trayIcon.Height)) {
+     using(var graphics=Graphics.FromImage(bitmap)) {
+      graphics.Clear(Color.Magenta);var dc=graphics.GetHdc();
+      try{Check(Native.DrawIconEx(dc,0,0,trayIcon.Handle,trayIcon.Width,trayIcon.Height,0,IntPtr.Zero,3),"Windows renders the actual tray HICON");}finally{graphics.ReleaseHdc(dc);}
+     }
+     Check((bitmap.GetPixel(0,0).ToArgb()&0xffffff)==0xff00ff&&(bitmap.GetPixel(bitmap.Width-1,bitmap.Height-1).ToArgb()&0xffffff)==0xff00ff,"actual tray icon rendering retains transparent corners: "+bitmap.GetPixel(0,0)+" / "+bitmap.GetPixel(bitmap.Width-1,bitmap.Height-1));
+    }
     window.Text="DeepSeek 自有布局测试";
     typeof(ChatWindow).GetField("initializing",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);
     typeof(ChatWindow).GetField("allowShow",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);
     window.Show();Application.DoEvents();var smooth=(SmoothFrame)Field(window,"smoothFrame");
+    var bigIcon=Native.SendMessage(window.Handle,0x7f,new IntPtr(1),IntPtr.Zero);
+    var smallIcon=Native.SendMessage(window.Handle,0x7f,IntPtr.Zero,IntPtr.Zero);
+    Check(bigIcon!=IntPtr.Zero&&IconPixels(bigIcon,window.Icon.Size)==IconPixels(window.Icon.Handle,window.Icon.Size),"actual taskbar HWND icon pixels match the selected window fish icon");
+    Check(smallIcon!=IntPtr.Zero&&IconPixels(smallIcon,trayIcon.Size)==IconPixels(trayIcon.Handle,trayIcon.Size),"actual small window icon pixels match the selected tray fish icon");
     Check(smooth.Ready&&smooth.Aligned,"actual chat host has four cached corners before native sizing message");
     var next=new Rectangle(window.Left+6,window.Top+6,window.Width+10,window.Height-12);var rect=new Native.RECT{left=next.Left,top=next.Top,right=next.Right,bottom=next.Bottom};
     var buffer=System.Runtime.InteropServices.Marshal.AllocHGlobal(System.Runtime.InteropServices.Marshal.SizeOf(typeof(Native.RECT)));

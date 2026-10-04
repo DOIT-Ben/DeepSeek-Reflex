@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.4 — 2026-10-04
+
+- Transparent blue-fish logo without the exterior white square; retain the approved fish silhouette and internal white artwork.
+- ICO export fits the visible alpha bounds with minimal padding and preserves aspect ratio, so the fish occupies more of the tray icon.
+- Window and tray load their native system icon sizes separately; local updates notify the Shell about changed application resources and shortcuts.
+- Release checks now reject opaque backgrounds, undersized subjects and distorted proportions in every ICO layer. Runtime regressions verify the actual tray bitmap and the window's published taskbar icon.
+
 ## 1.0.3 — 2026-10-04
 
 - Full DeepSeek-Reflex brand in the main titlebar, introduction, settings, tray, auxiliary windows and shortcut descriptions.

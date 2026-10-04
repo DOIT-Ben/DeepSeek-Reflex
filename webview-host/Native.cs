@@ -31,6 +31,7 @@ namespace DeepSeekFloat
         [DllImport("user32.dll", SetLastError = true)] internal static extern bool RegisterHotKey(IntPtr hwnd, int id, uint modifiers, uint key);
         [DllImport("user32.dll")] internal static extern bool UnregisterHotKey(IntPtr hwnd, int id);
         [DllImport("user32.dll")] internal static extern bool ReleaseCapture();
+        [DllImport("user32.dll")] internal static extern bool DrawIconEx(IntPtr dc,int x,int y,IntPtr icon,int width,int height,uint step,IntPtr brush,uint flags);
         [DllImport("user32.dll")] internal static extern IntPtr SendMessage(IntPtr hwnd, int message, IntPtr wp, IntPtr lp);
         [DllImport("user32.dll")] internal static extern bool PostMessage(IntPtr hwnd, int message, IntPtr wp, IntPtr lp);
         [DllImport("user32.dll")] internal static extern bool SetForegroundWindow(IntPtr hwnd);

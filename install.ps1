@@ -72,6 +72,21 @@ foreach ($shortcutPath in @($DesktopLnk,$StartLnk,$StartupLnk)) {
     $shortcut.IconLocation = Join-Path $InstallDir 'icon.ico'
     $shortcut.Save()
 }
+# Notify only the application's changed resources and links; do not clear the
+# machine-wide icon cache or restart Explorer to refresh one application.
+if (-not ('ReflexShellRefresh' -as [type])) {
+    Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class ReflexShellRefresh {
+    [DllImport("shell32.dll",CharSet=CharSet.Unicode)]
+    public static extern void SHChangeNotify(uint events,uint flags,string path,IntPtr unused);
+}
+'@
+}
+foreach ($changedPath in @($ExeDst,(Join-Path $InstallDir 'icon.ico'),$DesktopLnk,$StartLnk,$StartupLnk)) {
+    if(Test-Path -LiteralPath $changedPath){[ReflexShellRefresh]::SHChangeNotify(0x2000,0x2005,$changedPath,[IntPtr]::Zero)}
+}
 if (-not $NoLaunch) { Start-Process -FilePath $ExeDst -WindowStyle Hidden }
 Write-Output "installed: $ExeDst"
 Write-Output "rollback files: $RollbackDir"
