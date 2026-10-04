@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.8 — 2026-10-05
+
+- Prevent Windows' classic sizing frame from painting over the custom rounded border when opening or returning from settings, or switching active windows. Keep native resizing and minimized activation processing intact.
+- Add native edge-pixel checks and repeated real modal settings cycles under default and high DPI, alongside the existing native sizing and taskbar restore regressions.
+
 ## 1.0.7 — 2026-10-05
 
 - Restore mouse resizing from the window edges and rounded corners by enabling the native sizing style on the real HWND, including after style updates.

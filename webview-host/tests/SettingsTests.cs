@@ -15,12 +15,28 @@ internal sealed class ResizeProbeForm : Form {
 }
 internal static class SettingsTests {
  [System.Runtime.InteropServices.DllImport("user32.dll")] static extern int GetWindowLong(IntPtr handle,int index);
+ [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr GetWindowDC(IntPtr handle);
+ [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool IsWindowEnabled(IntPtr handle);
+ [System.Runtime.InteropServices.DllImport("user32.dll")] static extern int ReleaseDC(IntPtr handle,IntPtr dc);
+ [System.Runtime.InteropServices.DllImport("gdi32.dll")] static extern uint GetPixel(IntPtr dc,int x,int y);
  [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr handle,out Native.RECT rect);
  [System.Runtime.InteropServices.DllImport("gdi32.dll")] static extern int GetBitmapBits(IntPtr bitmap,int size,byte[] bits);
  [System.Runtime.InteropServices.DllImport("user32.dll")] static extern int GetGuiResources(IntPtr process,int flag);
  static int passed;
  static void Check(bool value,string name) { if(!value)throw new Exception(name);passed++;Console.WriteLine("PASS "+name); }
  static int K(Keys key) { return (int)(Keys.Control|Keys.Alt|Keys.Shift|key); }
+ static bool CleanStraightEdges(Form window) {
+  // Read only four pixels in the empty margin of this offline test-owned HWND.
+  // DrawToBitmap misses system frame painting, which bypasses client controls.
+  float scale;using(var graphics=window.CreateGraphics())scale=graphics.DpiX/96f;
+  int inset=(int)Math.Round(4*scale);var dc=GetWindowDC(window.Handle);
+  if(dc==IntPtr.Zero)return false;
+  try {return GetPixel(dc,window.Width/2,inset)==0xffffff
+    &&GetPixel(dc,window.Width/2,window.Height-1-inset)==0xffffff
+    &&GetPixel(dc,inset,window.Height/2)==0xffffff
+    &&GetPixel(dc,window.Width-1-inset,window.Height/2)==0xffffff;
+  }finally {ReleaseDC(window.Handle,dc);}
+ }
  static object Field(object obj,string name) { return obj.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic).GetValue(obj); }
  static object Com(object obj,string name,BindingFlags flags,params object[] args){return obj.GetType().InvokeMember(name,flags,null,obj,args);}
  static void TestShortcutIdentity(string directory) {
@@ -190,6 +206,10 @@ internal static class SettingsTests {
      Check((bitmap.GetPixel(0,0).ToArgb()&0xffffff)==0xff00ff&&(bitmap.GetPixel(bitmap.Width-1,bitmap.Height-1).ToArgb()&0xffffff)==0xff00ff,"actual tray icon rendering retains transparent corners: "+bitmap.GetPixel(0,0)+" / "+bitmap.GetPixel(bitmap.Width-1,bitmap.Height-1));
     }
     window.Text="DeepSeek 自有布局测试";
+    // Modal settings resume native registration. Use fixture-only bindings so
+    // the user's running application cannot cause a conflict message box.
+    var fixtureSettings=(WindowSettings)Field(window,"settings");
+    fixtureSettings.ToggleKeys=K(Keys.F20);fixtureSettings.CaptureKeys=K(Keys.F21);
     typeof(ChatWindow).GetField("initializing",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);
     typeof(ChatWindow).GetField("allowShow",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);
     window.Show();Application.DoEvents();var smooth=(SmoothFrame)Field(window,"smoothFrame");
@@ -202,6 +222,30 @@ internal static class SettingsTests {
     Check((style&0xa0000)==0xa0000&&(style&0xc00000)==0&&(GetWindowLong(window.Handle,-20)&0x40000)!=0,"borderless chat retains native system menu minimize and app taskbar styles without a caption");
     Check((style&0x40000)!=0,"actual chat HWND enables the native sizing frame, not only resize hit testing");
     Check(window.ClientSize==window.Size,"native sizing frame reserves no system border or caption space");
+    window.Refresh();
+    Check(CleanStraightEdges(window),"owned straight margins start white before native activation");
+    Native.SendMessage(window.Handle,0x86,IntPtr.Zero,IntPtr.Zero);
+    Check(CleanStraightEdges(window),"native deactivation does not draw a gray sizing frame over custom margins");
+    Native.SendMessage(window.Handle,0x86,new IntPtr(1),IntPtr.Zero);
+    Check(CleanStraightEdges(window),"native reactivation does not draw a gray sizing frame over custom margins");
+    Native.SendMessage(window.Handle,0x85,new IntPtr(1),IntPtr.Zero);
+    Check(CleanStraightEdges(window),"native nonclient repaint leaves all four custom straight edges intact");
+    var modalBounds=window.Bounds;bool modalDisabledOwner=false;int modalClosed=0;
+    using(var closeSettings=new Timer {Interval=30}) {
+     closeSettings.Tick+=delegate {
+      foreach(var dialog in Application.OpenForms.OfType<SettingsDialog>().ToArray()) {
+       modalDisabledOwner|=!IsWindowEnabled(window.Handle)&&Native.GetWindow(dialog.Handle,4)==window.Handle;modalClosed++;dialog.Close();
+      }
+     };
+     closeSettings.Start();
+     try {for(int cycle=0;cycle<3;cycle++) {
+      window.TopMost=cycle%2==1;
+      typeof(ChatWindow).GetMethod("ShowSettings",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);
+      Application.DoEvents();
+      Check(IsWindowEnabled(window.Handle)&&window.Bounds==modalBounds&&CleanStraightEdges(window),"actual modal settings return preserves geometry and white margins: cycle="+cycle);
+     }}finally {closeSettings.Stop();}
+    }
+    Check(modalDisabledOwner&&modalClosed==3&&((HotkeyBindings)Field(window,"hotkeys")).ToggleRegistered,"real settings modal disables owner then closes and resumes shortcut binding on every cycle");
     bool nativeSizingStarted=false;
     EventHandler resizeStarted=delegate {nativeSizingStarted=true;};
     window.ResizeBegin+=resizeStarted;

@@ -597,6 +597,13 @@ namespace DeepSeekFloat
             // Keep the entire rectangle as client area. WS_THICKFRAME enables
             // Windows' sizing loop, but our existing frame owns its visual border.
             if(m.Msg==0x83) {m.Result=IntPtr.Zero;return;}
+            // With DWM decoration disabled, DefWindowProc otherwise paints a
+            // classic thick frame on activation (including modal settings return).
+            // Preserve activation processing, but suppress its nonclient paint.
+            if(m.Msg==0x85) {m.Result=IntPtr.Zero;return;}
+            if(m.Msg==0x86&&WindowState!=FormWindowState.Minimized) {
+                m.LParam=new IntPtr(-1);base.WndProc(ref m);return;
+            }
             if((m.Msg==0x214||m.Msg==0x216)&&m.LParam!=IntPtr.Zero&&smoothFrame!=null) {
                 var rect=(Native.RECT)System.Runtime.InteropServices.Marshal.PtrToStructure(m.LParam,typeof(Native.RECT));
                 if(smoothFrame.TrySetBounds(Rectangle.FromLTRB(rect.left,rect.top,rect.right,rect.bottom))){m.Result=new IntPtr(1);return;}
