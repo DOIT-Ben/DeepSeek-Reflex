@@ -56,6 +56,7 @@ namespace DeepSeekFloat
         [DataMember] public int windowIconWidth;
         [DataMember] public int trayIconWidth;
         [DataMember] public bool iconBackgroundTransparent;
+        [DataMember] public string taskbarAppId;
     }
 
     internal sealed class ChatWindow : Form
@@ -230,6 +231,15 @@ namespace DeepSeekFloat
             LayoutContent();
         }
         private int S(int value) { return Math.Max(1,(int)Math.Round(value*dpiScale)); }
+        protected override CreateParams CreateParams {
+            get {
+                var value=base.CreateParams;
+                // Keep native taskbar minimize/restore semantics without adding a caption or border.
+                value.Style|=0x000a0000; // WS_SYSMENU | WS_MINIMIZEBOX
+                value.ExStyle|=0x00040000; // WS_EX_APPWINDOW
+                return value;
+            }
+        }
         private void LayoutContent()
         {
             if (chrome == null||layingOut) return;
@@ -554,6 +564,7 @@ namespace DeepSeekFloat
             if (diagnostics==null || !IsHandleCreated || IsDisposed) return;
             health.pinned=TopMost; health.minimized=WindowState==FormWindowState.Minimized; health.visible=Visible;
             health.pid=System.Diagnostics.Process.GetCurrentProcess().Id; health.hwnd=Handle.ToInt64();
+            health.taskbarAppId=ShellIdentity.CurrentId;
             health.chromeHeight=chrome.Bottom; health.webHeight=browser.Height; health.clientHeight=ClientSize.Height;
             health.captureHotkeyRegistered=hotkeys!=null&&hotkeys.CaptureRegistered;
             health.captureShortcut=HotkeyBindings.Format(settings.CaptureKeys);

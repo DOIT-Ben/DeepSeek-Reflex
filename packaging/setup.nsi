@@ -91,6 +91,8 @@ install_files:
   WriteUninstaller "$INSTDIR\uninstall.exe"
   CreateDirectory "$SMPROGRAMS\DeepSeek-Reflex"
   CreateShortcut "$SMPROGRAMS\DeepSeek-Reflex\DeepSeek-Reflex.lnk" "$INSTDIR\DeepSeekFloat.exe"
+  StrCpy $0 "$SMPROGRAMS\DeepSeek-Reflex\DeepSeek-Reflex.lnk"
+  Call RegisterTaskbarShortcut
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "DisplayName" "DeepSeek-Reflex"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "DisplayVersion" "${APP_VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "Publisher" "DOIT-Ben and contributors"
@@ -105,11 +107,24 @@ SectionEnd
 
 Section /o "桌面快捷方式 / Desktop shortcut"
   CreateShortcut "$DESKTOP\DeepSeek-Reflex.lnk" "$INSTDIR\DeepSeekFloat.exe"
+  StrCpy $0 "$DESKTOP\DeepSeek-Reflex.lnk"
+  Call RegisterTaskbarShortcut
 SectionEnd
 
 Section /o "登录后驻留托盘 / Start on sign-in"
   CreateShortcut "$SMSTARTUP\DeepSeek-Reflex.lnk" "$INSTDIR\DeepSeekFloat.exe" "--background"
+  StrCpy $0 "$SMSTARTUP\DeepSeek-Reflex.lnk"
+  Call RegisterTaskbarShortcut
 SectionEnd
+
+Function RegisterTaskbarShortcut
+  ExecWait '"$INSTDIR\DeepSeekFloat.exe" "--register-shortcut=$0"' $1
+  StrCmp $1 0 registered
+  MessageBox MB_OK|MB_ICONSTOP "Shortcut registration failed / 快捷方式注册失败，请重试安装。" /SD IDOK
+  SetErrorLevel 1
+  Abort
+registered:
+FunctionEnd
 
 Function un.onInit
   SetShellVarContext current

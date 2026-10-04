@@ -10,6 +10,11 @@ namespace DeepSeekFloat
         [STAThread]
         private static void Main(string[] args)
         {
+            if(args.Length==1&&args[0].StartsWith("--register-shortcut=",StringComparison.Ordinal)) {
+                try{ShellIdentity.RegisterShortcut(args[0].Substring("--register-shortcut=".Length));}
+                catch(Exception){Environment.ExitCode=1;}
+                return;
+            }
             bool created;
             using (var mutex = new Mutex(true, @"Local\DeepSeekFloat.Host", out created))
             {
@@ -20,6 +25,7 @@ namespace DeepSeekFloat
                     if (previous != IntPtr.Zero) Native.PostMessage(previous, Native.OpenMessage, IntPtr.Zero, IntPtr.Zero);
                     return;
                 }
+                ShellIdentity.InitializeProcess();
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);

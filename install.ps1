@@ -71,6 +71,8 @@ foreach ($shortcutPath in @($DesktopLnk,$StartLnk,$StartupLnk)) {
     $shortcut.Hotkey = ''
     $shortcut.IconLocation = Join-Path $InstallDir 'icon.ico'
     $shortcut.Save()
+    $registration=Start-Process -FilePath $ExeDst -ArgumentList ('"--register-shortcut='+$shortcutPath+'"') -WindowStyle Hidden -Wait -PassThru
+    if($registration.ExitCode -ne 0){throw "Shortcut taskbar identity could not be saved: $shortcutPath"}
 }
 # Notify only the application's changed resources and links; do not clear the
 # machine-wide icon cache or restart Explorer to refresh one application.

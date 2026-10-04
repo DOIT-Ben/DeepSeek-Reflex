@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.5 — 2026-10-04
+
+- Borderless chat retains the native system-menu and minimize styles required for taskbar minimize / restore; the custom caption, rounded frame and cached corner surfaces stay unchanged.
+- Process and managed shortcuts explicitly share the unique `DOITBen.DeepSeekReflex` AppUserModelID so Windows can associate the taskbar button with this application.
+- Local updates and the installer register the identity on each shortcut through a helper that rejects shortcuts targeting another executable.
+- Regressions exercise actual native minimize / restore commands with pinning on and off, verify cached corners after restoration, and verify real shortcut identity persistence without overwriting other shortcut properties.
+
 ## 1.0.4 — 2026-10-04
 
 - Transparent blue-fish logo without the exterior white square; retain the approved fish silhouette and internal white artwork.

@@ -22,6 +22,31 @@ internal static class SettingsTests {
  static void Check(bool value,string name) { if(!value)throw new Exception(name);passed++;Console.WriteLine("PASS "+name); }
  static int K(Keys key) { return (int)(Keys.Control|Keys.Alt|Keys.Shift|key); }
  static object Field(object obj,string name) { return obj.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic).GetValue(obj); }
+ static object Com(object obj,string name,BindingFlags flags,params object[] args){return obj.GetType().InvokeMember(name,flags,null,obj,args);}
+ static void TestShortcutIdentity(string directory) {
+  var path=Path.Combine(directory,"identity with spaces.lnk");
+  var other=Path.Combine(directory,"unrelated.lnk");
+  object shell=Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell"));
+  try {
+   object link=Com(shell,"CreateShortcut",BindingFlags.InvokeMethod,path);
+   try {
+    Com(link,"TargetPath",BindingFlags.SetProperty,Assembly.GetEntryAssembly().Location);
+    Com(link,"Arguments",BindingFlags.SetProperty,"--background");
+    Com(link,"Description",BindingFlags.SetProperty,"identity sentinel");
+    Com(link,"IconLocation",BindingFlags.SetProperty,Path.Combine(directory,"icon.ico"));
+    Com(link,"Save",BindingFlags.InvokeMethod);
+   }finally{System.Runtime.InteropServices.Marshal.FinalReleaseComObject(link);}
+   ShellIdentity.RegisterShortcut(path);
+   Check(ShellIdentity.ShortcutId(path)==ShellIdentity.AppId,"real shortcut persists the process taskbar identity in a path with spaces");
+   link=Com(shell,"CreateShortcut",BindingFlags.InvokeMethod,path);
+   try{Check((string)Com(link,"Arguments",BindingFlags.GetProperty)=="--background"&&(string)Com(link,"Description",BindingFlags.GetProperty)=="identity sentinel"&&((string)Com(link,"IconLocation",BindingFlags.GetProperty)).StartsWith(Path.Combine(directory,"icon.ico")),"registering shortcut identity preserves arguments description and icon");}finally{System.Runtime.InteropServices.Marshal.FinalReleaseComObject(link);}
+   link=Com(shell,"CreateShortcut",BindingFlags.InvokeMethod,other);
+   try{Com(link,"TargetPath",BindingFlags.SetProperty,Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"notepad.exe"));Com(link,"Save",BindingFlags.InvokeMethod);}finally{System.Runtime.InteropServices.Marshal.FinalReleaseComObject(link);}
+   var before=File.ReadAllBytes(other);bool rejected=false;
+   try{ShellIdentity.RegisterShortcut(other);}catch(InvalidOperationException){rejected=true;}
+   Check(rejected&&before.SequenceEqual(File.ReadAllBytes(other)),"shortcut registration rejects another application's target without modifying its file");
+  }finally{System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell);}
+ }
  static string IconPixels(IntPtr icon,Size size) {
   using(var bitmap=new Bitmap(size.Width,size.Height)) {
    using(var graphics=Graphics.FromImage(bitmap)) {
@@ -36,6 +61,8 @@ internal static class SettingsTests {
  static System.Collections.Generic.IEnumerable<Control> Children(Control parent) { foreach(Control child in parent.Controls) { yield return child;foreach(var descendant in Children(child))yield return descendant; } }
  [STAThread] static void Main(string[] args) {
   try {
+   ShellIdentity.InitializeProcess();Check(ShellIdentity.CurrentId==ShellIdentity.AppId,"process publishes the unique DeepSeek-Reflex taskbar identity before UI creation");
+   TestShortcutIdentity(args[0]);
    Application.EnableVisualStyles();
    var root=Path.Combine(args[0],"test-preferences-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
    typeof(Preferences).GetField("Root",BindingFlags.NonPublic|BindingFlags.Static).SetValue(null,root);
@@ -171,6 +198,16 @@ internal static class SettingsTests {
     Check(bigIcon!=IntPtr.Zero&&IconPixels(bigIcon,window.Icon.Size)==IconPixels(window.Icon.Handle,window.Icon.Size),"actual taskbar HWND icon pixels match the selected window fish icon");
     Check(smallIcon!=IntPtr.Zero&&IconPixels(smallIcon,trayIcon.Size)==IconPixels(trayIcon.Handle,trayIcon.Size),"actual small window icon pixels match the selected tray fish icon");
     Check(smooth.Ready&&smooth.Aligned,"actual chat host has four cached corners before native sizing message");
+    int style=GetWindowLong(window.Handle,-16);
+    Check((style&0xa0000)==0xa0000&&(style&0xc00000)==0&&(GetWindowLong(window.Handle,-20)&0x40000)!=0,"borderless chat retains native system menu minimize and app taskbar styles without a caption");
+    var restoredBounds=window.Bounds;
+    for(int cycle=0;cycle<2;cycle++) {
+     window.TopMost=cycle==1;
+     Native.SendMessage(window.Handle,0x112,new IntPtr(0xf020),IntPtr.Zero);Application.DoEvents();
+     Check(window.WindowState==FormWindowState.Minimized&&!smooth.Visible,"native system command minimizes chat and hides all corner surfaces: pinned="+window.TopMost);
+     Native.SendMessage(window.Handle,0x112,new IntPtr(0xf120),IntPtr.Zero);Application.DoEvents();
+     Check(window.WindowState==FormWindowState.Normal&&window.Visible&&window.Bounds==restoredBounds&&smooth.Visible&&smooth.Aligned&&smooth.UploadCount==4,"native system command restores chat with aligned cached corners and original bounds: pinned="+window.TopMost);
+    }
     var next=new Rectangle(window.Left+6,window.Top+6,window.Width+10,window.Height-12);var rect=new Native.RECT{left=next.Left,top=next.Top,right=next.Right,bottom=next.Bottom};
     var buffer=System.Runtime.InteropServices.Marshal.AllocHGlobal(System.Runtime.InteropServices.Marshal.SizeOf(typeof(Native.RECT)));
     try {
