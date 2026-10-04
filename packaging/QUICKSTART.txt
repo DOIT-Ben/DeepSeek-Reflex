@@ -1,0 +1,20 @@
+DeepSeek-Reflex 1.0.0 — Windows x64
+
+ZIP: extract the entire DeepSeek-Reflex folder, then double-click DeepSeekFloat.exe.
+EXE: run the Setup installer; no administrator privileges are required.
+
+Requires Windows 10/11 x64, .NET Framework 4.8 and WebView2 Evergreen Runtime.
+Runtime download: https://developer.microsoft.com/microsoft-edge/webview2/
+
+Ctrl+Space: show / minimize the chat window.
+Ctrl+Shift+D: import selected text as a draft, then confirm and send yourself.
+Settings: customize hotkeys, close behavior, focus and window size.
+Tray right-click: open / pin / settings / exit. Exit before upgrading.
+
+The ZIP is standalone but not data-isolated: both packages keep preferences
+and website login under %APPDATA%\cloud.doitbenai.deepseekfloat.
+Uninstall preserves these data. No API key is needed; sign in to DeepSeek normally.
+This client is independent of DeepSeek and uses the official website directly.
+
+Source, releases, issues and MIT license:
+https://github.com/DOIT-Ben/DeepSeek-Reflex

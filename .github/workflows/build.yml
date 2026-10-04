@@ -1,0 +1,41 @@
+name: Build Windows release
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Parse PowerShell scripts
+        shell: pwsh
+        run: |
+          foreach ($file in Get-ChildItem -Recurse -Filter *.ps1) {
+            $tokens=$null; $errors=$null
+            [Management.Automation.Language.Parser]::ParseFile($file.FullName,[ref]$tokens,[ref]$errors) | Out-Null
+            if ($errors) { throw ($errors | Out-String) }
+          }
+      - name: Build and package
+        shell: pwsh
+        run: |
+          choco install nsis --version=3.12 -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS installation failed' }
+          ./packaging/build-release.ps1
+      - name: Verify ZIP contents and hashes
+        shell: pwsh
+        run: |
+          $version=(Get-Content VERSION -Raw).Trim()
+          ./packaging/test-package.ps1 -ZipPath "release/DeepSeek-Reflex-$version-Windows-x64.zip"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: DeepSeek-Reflex-Windows-x64
+          path: |
+            release/*.exe
+            release/*.zip
+            release/SHA256SUMS.txt
+          if-no-files-found: error

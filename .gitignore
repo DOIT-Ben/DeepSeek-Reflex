@@ -1,0 +1,14 @@
+# Generated release, dependency cache and local test output
+webview-host/dist/
+webview-host/vendor/
+webview-host/tests/results/
+release/
+*.log
+*.pdb
+*.local
+
+# Editor state
+.vscode/
+.idea/
+*.suo
+*.sw?
