@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.6 — 2026-10-04
+
+- Native host and shortcuts use the stable `DOITBen.DeepSeekReflex.Windows` Shell identity, distinct from earlier cached entries. Local installation now creates full-brand `DeepSeek-Reflex.lnk` shortcuts, matching the installer, and backs up only verified legacy shortcuts before retiring them.
+- Replace the legacy `DeepSeek.exe` 0.1.0 entry point, which still contained the default circle icon, with a small blue-fish launcher for `DeepSeekFloat.exe`.
+- Both executable entry points now carry the current brand, version and fish icon. Existing calls to the old filename use the current single-instance window and settings.
+- The launcher forwards arguments without corrupting spaces, quotes, Unicode, empty values or trailing backslashes; a real isolated receiver verifies the argument boundary.
+- Local upgrades back up and update the old entry point and notify the Shell about it. Installer packages include it, verify both executable icons and versions, and check that neither entry point is busy before upgrading.
+
 ## 1.0.5 — 2026-10-04
 
 - Borderless chat retains the native system-menu and minimize styles required for taskbar minimize / restore; the custom caption, rounded frame and cached corner surfaces stay unchanged.

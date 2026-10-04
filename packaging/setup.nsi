@@ -74,16 +74,22 @@ FunctionEnd
 
 Section "DeepSeek-Reflex (必需 / required)"
   SectionIn RO
-  IfFileExists "$INSTDIR\DeepSeekFloat.exe" 0 install_files
+  IfFileExists "$INSTDIR\DeepSeekFloat.exe" 0 check_legacy_busy
   ClearErrors
   FileOpen $0 "$INSTDIR\DeepSeekFloat.exe" a
   IfErrors install_busy
   FileClose $0
-  Goto install_files
+  Goto check_legacy_busy
 install_busy:
   MessageBox MB_OK|MB_ICONSTOP "Please exit from the tray menu before upgrading / 请在托盘菜单中退出后重试。" /SD IDOK
   SetErrorLevel 1
   Abort
+check_legacy_busy:
+  IfFileExists "$INSTDIR\DeepSeek.exe" 0 install_files
+  ClearErrors
+  FileOpen $0 "$INSTDIR\DeepSeek.exe" a
+  IfErrors install_busy
+  FileClose $0
 install_files:
   SetOutPath "$INSTDIR"
   SetOverwrite on

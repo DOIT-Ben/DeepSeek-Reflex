@@ -17,7 +17,7 @@ New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $Stage = Join-Path $OutputDirectory ('stage-'+[Guid]::NewGuid().ToString('N'))
 $Payload = Join-Path $Stage 'DeepSeek-Reflex'
 New-Item -ItemType Directory -Path $Payload -Force | Out-Null
-$Files = @('DeepSeekFloat.exe','DeepSeekFloat.exe.config','Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','icon.ico','LICENSE','THIRD-PARTY-NOTICES.md','WebView2-LICENSE.txt','WebView2-NOTICE.txt','VERSION')
+$Files = @('DeepSeekFloat.exe','DeepSeek.exe','DeepSeekFloat.exe.config','Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','icon.ico','LICENSE','THIRD-PARTY-NOTICES.md','WebView2-LICENSE.txt','WebView2-NOTICE.txt','VERSION')
 try {
     foreach ($Name in $Files) { Copy-Item -LiteralPath (Join-Path $Dist $Name) -Destination $Payload }
     Copy-Item -LiteralPath (Join-Path $Project 'README.md') -Destination (Join-Path $Payload 'README.md')
@@ -36,7 +36,7 @@ try {
     $Setup = Join-Path $OutputDirectory ("DeepSeek-Reflex-$Version-Setup-x64.exe")
     & $MakeNsisPath /WX /INPUTCHARSET UTF8 ("/DAPP_VERSION=$Version") ("/DPAYLOAD_DIR=$Payload") ("/DOUTPUT_FILE=$Setup") (Join-Path $PSScriptRoot 'setup.nsi')
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
-    & (Join-Path $PSScriptRoot 'test-icons.ps1') -IconPath (Join-Path $Payload 'icon.ico') -BinaryPaths @((Join-Path $Payload 'DeepSeekFloat.exe'),$Setup)
+    & (Join-Path $PSScriptRoot 'test-icons.ps1') -IconPath (Join-Path $Payload 'icon.ico') -BinaryPaths @((Join-Path $Payload 'DeepSeekFloat.exe'),(Join-Path $Payload 'DeepSeek.exe'),$Setup)
     $Setup = Join-Path $OutputDirectory ("DeepSeek-Reflex-$Version-Setup-x64.exe")
     @($Setup,$Zip) | ForEach-Object {
         '{0}  {1}' -f (Get-FileHash -LiteralPath $_).Hash.ToLowerInvariant(),(Split-Path -Leaf $_)

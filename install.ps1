@@ -8,7 +8,7 @@ $InstallDir = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Programs\Deep
 $ExeDst = Join-Path $InstallDir 'DeepSeekFloat.exe'
 if (-not (Test-Path -LiteralPath $ExeSrc -PathType Leaf)) { throw "release exe not found: $ExeSrc" }
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-$ManagedFiles = @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','DeepSeekFloat.exe.config','WebView2-LICENSE.txt','WebView2-NOTICE.txt','LICENSE','THIRD-PARTY-NOTICES.md','VERSION','icon.ico','DeepSeekFloat.exe')
+$ManagedFiles = @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','DeepSeekFloat.exe.config','WebView2-LICENSE.txt','WebView2-NOTICE.txt','LICENSE','THIRD-PARTY-NOTICES.md','VERSION','icon.ico','DeepSeek.exe','DeepSeekFloat.exe')
 $StageDir = Join-Path $InstallDir ('.update-'+[Guid]::NewGuid().ToString('N'))
 $RollbackDir = Join-Path $StageDir 'rollback'
 New-Item -ItemType Directory -Path $RollbackDir -Force | Out-Null
@@ -26,8 +26,8 @@ foreach ($Name in $ManagedFiles) {
     }
 }
 # All managed files are verified before stopping this exact installed application.
-Get-Process -Name 'DeepSeekFloat' -ErrorAction SilentlyContinue | Where-Object {
-    $_.Path -and [IO.Path]::GetFullPath($_.Path) -eq $ExeDst
+Get-Process -Name 'DeepSeekFloat','DeepSeek' -ErrorAction SilentlyContinue | Where-Object {
+    $_.Path -and [IO.Path]::GetFullPath($_.Path) -in @($ExeDst,(Join-Path $InstallDir 'DeepSeek.exe'))
 } | ForEach-Object {
     $HostProcess = $_
     Stop-Process -Id $HostProcess.Id -ErrorAction Stop
@@ -56,9 +56,9 @@ $Desktop = [Environment]::GetFolderPath('Desktop')
 $StartDir = Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs'
 $StartupDir = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'
 New-Item -ItemType Directory -Path $StartupDir -Force | Out-Null
-$DesktopLnk = Join-Path $Desktop 'DeepSeek.lnk'
-$StartLnk = Join-Path $StartDir 'DeepSeek.lnk'
-$StartupLnk = Join-Path $StartupDir 'DeepSeek.lnk'
+$DesktopLnk = Join-Path $Desktop 'DeepSeek-Reflex.lnk'
+$StartLnk = Join-Path $StartDir 'DeepSeek-Reflex.lnk'
+$StartupLnk = Join-Path $StartupDir 'DeepSeek-Reflex.lnk'
 $shell = New-Object -ComObject WScript.Shell
 foreach ($shortcutPath in @($DesktopLnk,$StartLnk,$StartupLnk)) {
     if (-not (Test-Path -LiteralPath (Split-Path -Parent $shortcutPath))) { continue }
@@ -74,6 +74,18 @@ foreach ($shortcutPath in @($DesktopLnk,$StartLnk,$StartupLnk)) {
     $registration=Start-Process -FilePath $ExeDst -ArgumentList ('"--register-shortcut='+$shortcutPath+'"') -WindowStyle Hidden -Wait -PassThru
     if($registration.ExitCode -ne 0){throw "Shortcut taskbar identity could not be saved: $shortcutPath"}
 }
+# Retire only verified shortcuts belonging to our two installed entry points.
+# Keep each original link in this update's rollback folder rather than deleting it.
+$RetiredLinks=@()
+foreach ($directory in @($Desktop,$StartDir,$StartupDir)) {
+    $oldLink=Join-Path $directory 'DeepSeek.lnk'
+    if (-not (Test-Path -LiteralPath $oldLink -PathType Leaf)) { continue }
+    $oldShortcut=$shell.CreateShortcut($oldLink)
+    if ($oldShortcut.TargetPath -notin @($ExeDst,(Join-Path $InstallDir 'DeepSeek.exe'))) { continue }
+    $backupName=if($directory -eq $Desktop){'desktop-DeepSeek.lnk'}elseif($directory -eq $StartDir){'start-DeepSeek.lnk'}else{'startup-DeepSeek.lnk'}
+    Move-Item -LiteralPath $oldLink -Destination (Join-Path $RollbackDir $backupName)
+    $RetiredLinks += $oldLink
+}
 # Notify only the application's changed resources and links; do not clear the
 # machine-wide icon cache or restart Explorer to refresh one application.
 if (-not ('ReflexShellRefresh' -as [type])) {
@@ -86,7 +98,10 @@ public static class ReflexShellRefresh {
 }
 '@
 }
-foreach ($changedPath in @($ExeDst,(Join-Path $InstallDir 'icon.ico'),$DesktopLnk,$StartLnk,$StartupLnk)) {
+foreach ($retiredPath in $RetiredLinks) {
+    [ReflexShellRefresh]::SHChangeNotify(0x4,0x1005,$retiredPath,[IntPtr]::Zero)
+}
+foreach ($changedPath in @($ExeDst,(Join-Path $InstallDir 'DeepSeek.exe'),(Join-Path $InstallDir 'icon.ico'),$DesktopLnk,$StartLnk,$StartupLnk)) {
     if(Test-Path -LiteralPath $changedPath){[ReflexShellRefresh]::SHChangeNotify(0x2000,0x2005,$changedPath,[IntPtr]::Zero)}
 }
 if (-not $NoLaunch) { Start-Process -FilePath $ExeDst -WindowStyle Hidden }

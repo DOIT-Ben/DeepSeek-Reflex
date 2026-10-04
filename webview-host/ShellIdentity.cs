@@ -6,7 +6,8 @@ using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 namespace DeepSeekFloat {
  internal static class ShellIdentity {
-  internal const string AppId="DOITBen.DeepSeekReflex";
+  // One stable native-host identity, separate from previous cached Shell entries.
+  internal const string AppId="DOITBen.DeepSeekReflex.Windows";
   [DllImport("shell32.dll",CharSet=CharSet.Unicode)] static extern int SetCurrentProcessExplicitAppUserModelID(string id);
   [DllImport("shell32.dll")] static extern int GetCurrentProcessExplicitAppUserModelID(out IntPtr id);
   [DllImport("ole32.dll")] static extern int PropVariantClear(ref Variant value);

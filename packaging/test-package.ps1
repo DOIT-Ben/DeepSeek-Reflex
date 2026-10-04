@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path ([IO.Path]::GetTempPath()) ('DeepSeek-Reflex-package-test-'+[Guid]::NewGuid().ToString('N')) }
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $OutputDirectory) { throw 'Package test output must be a new directory' }
-$Expected = @('DeepSeekFloat.exe','DeepSeekFloat.exe.config','Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','icon.ico','LICENSE','THIRD-PARTY-NOTICES.md','WebView2-LICENSE.txt','WebView2-NOTICE.txt','VERSION','README.md','QUICKSTART.txt','SHA256SUMS.txt')
+$Expected = @('DeepSeekFloat.exe','DeepSeek.exe','DeepSeekFloat.exe.config','Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','icon.ico','LICENSE','THIRD-PARTY-NOTICES.md','WebView2-LICENSE.txt','WebView2-NOTICE.txt','VERSION','README.md','QUICKSTART.txt','SHA256SUMS.txt')
 $Archive = [IO.Compression.ZipFile]::OpenRead([IO.Path]::GetFullPath($ZipPath))
 try {
     $Names = @($Archive.Entries | ForEach-Object {
@@ -27,5 +27,7 @@ foreach ($Line in $Lines) {
 $Version = (Get-Content -LiteralPath (Join-Path $Payload 'VERSION') -Raw).Trim()
 $Info = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $Payload 'DeepSeekFloat.exe'))
 if ($Info.ProductVersion -ne $Version -or $Info.FileVersion -ne "$Version.0" -or $Info.ProductName -ne 'DeepSeek-Reflex') { throw 'ZIP executable version mismatch' }
+$LegacyInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $Payload 'DeepSeek.exe'))
+if ($LegacyInfo.ProductVersion -ne $Version -or $LegacyInfo.FileVersion -ne "$Version.0" -or $LegacyInfo.ProductName -ne 'DeepSeek-Reflex') { throw 'ZIP legacy launcher version mismatch' }
 if ((Get-Content -LiteralPath (Join-Path $Payload 'README.md') -Raw) -match 'C:\\Users\\HB|E:\\Codex-worksapce|AppData\\Roaming\\[^%]') { throw 'Local machine information found in public README' }
 Write-Output "PASS package allowlist ($($Expected.Count) entries), all payload hashes and executable version $Version"

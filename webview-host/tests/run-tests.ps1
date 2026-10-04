@@ -37,4 +37,5 @@ foreach ($Dpi in @('default','high-dpi')) {
     & $Node "$PSScriptRoot\focus-tests.cjs" $RunDirectory | Tee-Object -FilePath (Join-Path $RunDirectory 'focus.log')
     if ($LASTEXITCODE -ne 0) { throw "Focus script regression failed: $Dpi" }
 }
+& (Join-Path $PSScriptRoot 'test-legacy-launcher.ps1') -OutputDirectory $OutputDirectory
 Write-Output "Test evidence: $OutputDirectory"
