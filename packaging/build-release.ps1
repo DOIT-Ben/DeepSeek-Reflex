@@ -36,6 +36,7 @@ try {
     $Setup = Join-Path $OutputDirectory ("DeepSeek-Reflex-$Version-Setup-x64.exe")
     & $MakeNsisPath /WX /INPUTCHARSET UTF8 ("/DAPP_VERSION=$Version") ("/DPAYLOAD_DIR=$Payload") ("/DOUTPUT_FILE=$Setup") (Join-Path $PSScriptRoot 'setup.nsi')
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+    & (Join-Path $PSScriptRoot 'test-icons.ps1') -IconPath (Join-Path $Payload 'icon.ico') -BinaryPaths @((Join-Path $Payload 'DeepSeekFloat.exe'),$Setup)
     $Setup = Join-Path $OutputDirectory ("DeepSeek-Reflex-$Version-Setup-x64.exe")
     @($Setup,$Zip) | ForEach-Object {
         '{0}  {1}' -f (Get-FileHash -LiteralPath $_).Hash.ToLowerInvariant(),(Split-Path -Leaf $_)

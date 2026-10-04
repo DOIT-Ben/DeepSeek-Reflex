@@ -61,10 +61,10 @@ internal static class SettingsTests {
    var area=new Rectangle(-1920,0,1920,1080);var current=new Rectangle(-300,100,420,740);
    var compact=WindowModes.Calculate("compact",current,area,1);var reading=WindowModes.Calculate("reading",current,area,1);
    Check(compact.Size==new Size(410,616)&&area.Contains(compact),"compact geometry on negative-coordinate monitor");
-   Check(reading.Size==new Size(760,720)&&area.Contains(reading),"wider reading geometry stays on monitor");
+   Check(reading.Size==new Size(752,720)&&area.Contains(reading),"reading preset stays below its previous width and on monitor");
    var smallArea=new Rectangle(100,100,500,600);Check(smallArea.Contains(WindowModes.Calculate("reading",current,smallArea,2)),"large DPI preset clamps to small monitor");
    Check(WindowModes.Calculate("compact",new Rectangle(0,0,780,1120),new Rectangle(0,0,3840,2160),2).Size==new Size(820,1232),"compact preset matches screenshot proportions at 200 percent");
-   Check(WindowModes.Calculate("reading",new Rectangle(0,0,840,1480),new Rectangle(0,0,3840,2160),2).Size==new Size(1520,1440),"200 percent DPI geometry");
+   Check(WindowModes.Calculate("reading",new Rectangle(0,0,840,1480),new Rectangle(0,0,3840,2160),2).Size==new Size(1504,1440),"200 percent DPI geometry");
    var original=WindowSettings.Defaults();int calls=0;WindowSettings applied=null;
    using(var dialog=new SettingsDialog(original,delegate(WindowSettings next) { calls++;applied=next;return null; })) {
     var toggle=(HotkeyBox)Field(dialog,"toggle");
@@ -151,7 +151,7 @@ internal static class SettingsTests {
      var next=prior.Clone();next.ToggleKeys=K(Keys.F23);next.Mode="reading";next.HideToTrayOnToggle=true;
      var apply=typeof(ChatWindow).GetMethod("ApplySettings",BindingFlags.Instance|BindingFlags.NonPublic);
      Check(apply.Invoke(window,new object[]{next})==null&&WindowSettings.Load().ToggleKeys==K(Keys.F23)&&((WindowSettings)Field(window,"settings")).HideToTrayOnToggle&&button.Active,"window applies and persists accepted settings");
-     Check(window.Width>=760&&window.Height>=720,"window preset updates actual form bounds");
+     Check(window.Width>=752&&window.Height>=720,"window preset updates actual form bounds");
      var newPath=Path.Combine(root,"window-settings.json");File.Move(newPath,newPath+".save-test");Directory.CreateDirectory(newPath);
      try {
       var bad=next.Clone();bad.ToggleKeys=K(Keys.F24);bad.HideToTrayOnToggle=false;
@@ -259,6 +259,10 @@ internal static class SettingsTests {
     Check(reusable,"thirty real tray popup open and Escape close cycles stay reusable");
     outside.Close();icon.Visible=false;
    }   foreach(float scale in new[]{1f,2f})using(var image=SmoothFrame.Render(new Size((int)(410*scale),(int)(616*scale)),scale)) {
+    int stroke=WindowFrame.OutlineWidth(scale),middle=image.Width/2;
+    bool solid=true;for(int y=0;y<stroke;y++)solid&=image.GetPixel(middle,y).ToArgb()==WindowFrame.Outline.ToArgb();
+    Check(solid&&image.GetPixel(middle,stroke).ToArgb()==Color.White.ToArgb(),"outline has one logical pixel of solid contrast with no extra band at scale "+scale);
+    Check(WindowFrame.Outline.R<=180&&WindowFrame.Outline.G<=190,"outline remains visible against white at scale "+scale);
     int partial=0;for(int y=0;y<(int)(WindowFrame.Radius*scale);y++)for(int x=0;x<(int)(WindowFrame.Radius*scale);x++){int alpha=image.GetPixel(x,y).A;if(alpha>0&&alpha<255)partial++;}
     Check(partial>20,"outer curve has actual partial alpha coverage at scale "+scale);
     Check(image.GetPixel(0,0).A==0&&image.GetPixel(image.Width/2,image.Height/2).A==0&&image.GetPixel(image.Width/2,2).A==255,"outside and browser center transparent while border remains opaque at scale "+scale);

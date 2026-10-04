@@ -6,7 +6,7 @@ namespace DeepSeekFloat
     {
         internal static Rectangle Calculate(string mode,Rectangle current,Rectangle area,float scale)
         {
-            int width=(int)Math.Round((mode=="reading"?760:410)*scale);
+            int width=(int)Math.Round((mode=="reading"?752:410)*scale);
             int height=(int)Math.Round((mode=="reading"?720:616)*scale);
             width=Math.Min(width,area.Width);height=Math.Min(height,area.Height);
             int x=current.X+(current.Width-width)/2,y=current.Y+(current.Height-height)/2;

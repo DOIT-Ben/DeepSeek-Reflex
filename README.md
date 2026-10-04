@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo.png" width="240" alt="DeepSeek-Reflex logo: blue whale, floating window and quick-access lightning" />
+  <img src="docs/assets/logo.png" width="240" alt="Reflex logo: plump blue fish with an integrated floating window" />
 </p>
 
 <h1 align="center">DeepSeek-Reflex</h1>
@@ -12,9 +12,11 @@
 
 你正在看文档、备课、写代码，突然有一个问题：按一下快捷键，DeepSeek 就出现在身边；问完再按一下，继续手头的工作。**Reflex** 取自“快速响应”，希望把来回寻找浏览器标签页的动作，缩短成一次按键。
 
-**[下载 V1 →](https://github.com/DOIT-Ben/DeepSeek-Reflex/releases/latest)** · [问题反馈](https://github.com/DOIT-Ben/DeepSeek-Reflex/issues) · [更新记录](CHANGELOG.md)
+**[下载最新版 →](https://github.com/DOIT-Ben/DeepSeek-Reflex/releases/latest)** · [问题反馈](https://github.com/DOIT-Ben/DeepSeek-Reflex/issues) · [更新记录](CHANGELOG.md)
 
 这是独立的社区开源工具，直接加载 [DeepSeek 官网](https://chat.deepseek.com)，没有与 DeepSeek 官方的隶属或背书关系。
+
+1.0.1 统一采用蓝鱼与小窗标识，同时加强窗口外框并稍微收窄阅读尺寸。程序、托盘、任务栏、快捷方式和安装器使用同一图标来源。
 
 ## 为什么用它
 
@@ -37,8 +39,8 @@
 
 | 文件 | 怎么用 |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.0-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
-| `DeepSeek-Reflex-1.0.0-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
+| `DeepSeek-Reflex-1.0.1-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
+| `DeepSeek-Reflex-1.0.1-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
 | `SHA256SUMS.txt` | 对照下载文件的 SHA-256。源码压缩包由 GitHub 自动提供。 |
 
 要求 **Windows 10/11 x64、.NET Framework 4.8、WebView2 Evergreen Runtime**。V1 在 Windows 11 上验证；Windows 10 兼容性尚未逐机验收。安装器会检查运行环境，缺少时提示安装 [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) 或 [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48)。安装包不静默下载其他软件。ARM64 原生版本尚未提供。
@@ -46,7 +48,7 @@
 首版未使用商业代码签名证书，Windows 可能显示未知发布者提示。请从本仓库 Releases 下载，并核对哈希：
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.0-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.0.1-Setup-x64.exe -Algorithm SHA256
 ```
 
 升级前先从托盘右键菜单选择 **退出**。卸载保留个人设置和官网登录资料，重新安装可以继续使用。ZIP 也使用同一用户数据目录；它是免安装版本，数据不会跟着 ZIP 文件夹移动。
@@ -59,7 +61,7 @@ Get-FileHash .\DeepSeek-Reflex-1.0.0-Setup-x64.exe -Algorithm SHA256
 4. 标题栏左侧依次为最小化、置顶、尺寸切换；右侧为设置和收起。关闭或 Alt+F4 收进托盘，托盘菜单的“退出”才结束程序。
 5. 热键与其他软件冲突时，在设置面板录入新组合键并保存。
 
-小窗为 410×616 DIP，阅读模式为 760×720 DIP；实际尺寸按屏幕空间和 Windows 缩放调整。网页默认缩放 90%。双击标题栏可以放大 / 恢复，手动拉伸会保存自定义尺寸。
+小窗为 410×616 DIP，阅读模式为 752×720 DIP；实际尺寸按屏幕空间和 Windows 缩放调整。网页默认缩放 90%。双击标题栏可以放大 / 恢复，手动拉伸会保存自定义尺寸。阅读尺寸较 1.0.0 收窄 8 DIP，网页是否展示官网 Logo 由网站自身响应式布局决定。
 
 取词仍是兼容性功能：优先用 Windows UI Automation，必要时尝试复制并恢复剪贴板。Word、浏览器及其他应用能否取词，取决于其是否提供可访问的文字选择。密码框、扫描图片、空选择、超过 20,000 字的输入不支持直接取词；失败时可先复制，再在设置中“导入剪贴板”。**自动选中文字就弹出浮窗的实验功能默认关闭**，V1 没有自动开启它的界面入口。
 
@@ -121,4 +123,4 @@ LICENSE          MIT
 
 本项目采用 [MIT License](LICENSE)，允许个人或企业商用、修改和再分发；分发时保留许可证与版权声明。[MIT 官方许可说明](https://opensource.org/license/mit)。
 
-Microsoft WebView2 等第三方组件保留各自许可证，发行包附带相应许可和声明；DeepSeek 网站、服务及商标不因此变为本项目的 MIT 授权内容，详见 [第三方声明](THIRD-PARTY-NOTICES.md)。Logo 是本项目独立设计的标识，创作与尺寸信息见 [品牌说明](docs/branding.md)。
+Microsoft WebView2 等第三方组件保留各自许可证，发行包附带相应许可和声明；DeepSeek 网站、服务及商标不因此变为本项目的 MIT 授权内容，详见 [第三方声明](THIRD-PARTY-NOTICES.md)。1.0.1 使用蓝鱼与小窗结合的项目图标；原创设计或 MIT 许可不代表第三方商标已获授权，也不构成不侵权保证。图标及项目名称在商业发行前仍需核对相应权利，见 [品牌说明](docs/branding.md)。

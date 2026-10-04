@@ -64,6 +64,7 @@ namespace DeepSeekFloat
                 popup.Close();
             }
             popup=new QuickAnswerWindow(result.Text,anchor);
+            var owner=dispatcher.FindForm();if(owner!=null)popup.Icon=owner.Icon;
             popup.Show();
         }
         public void Dispose()

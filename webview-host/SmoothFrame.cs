@@ -99,15 +99,13 @@ namespace DeepSeekFloat {
                     g.CompositingMode=CompositingMode.SourceCopy;
                     using(var path=PanelTheme.Rounded(new RectangleF(band,band,size.Width-band*2,size.Height-band*2),radius-band))using(var clear=new SolidBrush(Color.Transparent))g.FillPath(clear,path);
                     g.CompositingMode=CompositingMode.SourceOver;
-                    using(var path=PanelTheme.Rounded(new RectangleF(0.5f,0.5f,size.Width-1,size.Height-1),radius-0.5f))using(var pen=new Pen(Color.FromArgb(226,231,238),1))g.DrawPath(pen,path);
-                    // Match the host's crisp 1-pixel straight edges at the
+                    int width=WindowFrame.OutlineWidth(scale);float inset=width/2f;
+                    using(var path=PanelTheme.Rounded(new RectangleF(inset,inset,size.Width-width,size.Height-width),radius-inset))using(var pen=new Pen(WindowFrame.Outline,width))g.DrawPath(pen,path);
+                    // Match the host's crisp DPI-scaled straight edges at the
                     // curve tangents, including the two-pixel patch overlap.
                     g.SmoothingMode=SmoothingMode.None;g.CompositingMode=CompositingMode.SourceCopy;
                     int tangent=(int)Math.Ceiling(radius);
-                    using(var pen=new Pen(Color.FromArgb(226,231,238),1)) {
-                        g.DrawLine(pen,tangent,0,size.Width-tangent-1,0);g.DrawLine(pen,tangent,size.Height-1,size.Width-tangent-1,size.Height-1);
-                        g.DrawLine(pen,0,tangent,0,size.Height-tangent-1);g.DrawLine(pen,size.Width-1,tangent,size.Width-1,size.Height-tangent-1);
-                    }
+                    WindowFrame.DrawStraightOutline(g,size,scale,tangent);
                 }
                 return bitmap;
             }catch{bitmap.Dispose();throw;}

@@ -24,4 +24,4 @@ https://nsis.sourceforge.io/Docs/AppendixI.html
 
 DeepSeek-Reflex is an independent community desktop client and is not an official DeepSeek application or endorsed by DeepSeek. It directly displays the official website at https://chat.deepseek.com. The website, service, models and DeepSeek marks remain subject to their owners' terms and rights. MIT licenses this client, not the hosted service.
 
-The repository logo is an original AI-assisted design combining a blue whale, floating window and quick-access gesture. It does not redistribute the official DeepSeek logo. Artwork provenance is documented in `docs/branding.md`.
+The current project mark is the user-approved AI-assisted plump blue fish with an integrated floating window. The upper body, belly and fins use the same blue. The project does not redistribute the official DeepSeek logo as its application icon. Artwork provenance and rights boundaries are documented in `docs/branding.md`.

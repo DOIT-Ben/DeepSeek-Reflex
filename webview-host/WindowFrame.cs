@@ -6,6 +6,25 @@ namespace DeepSeekFloat {
     internal sealed class WindowFrame : Control {
         internal const int Radius=22;
         internal const double DefaultZoom=0.9;
+        internal static readonly Color Outline=Color.FromArgb(178,188,204);
+        internal static int OutlineWidth(float dpiScale){return Math.Max(1,(int)Math.Round(dpiScale));}
+        internal static void DrawStraightOutline(Graphics graphics,Size size,float dpiScale,int tangent) {
+            int width=OutlineWidth(dpiScale);
+            // Erase the antialias fringe only along the straight tangents so
+            // cached corners join the opaque host without an extra gray seam.
+            using(var brush=new SolidBrush(Color.White)) {
+                graphics.FillRectangle(brush,tangent,0,size.Width-tangent*2,width+1);
+                graphics.FillRectangle(brush,tangent,size.Height-width-1,size.Width-tangent*2,width+1);
+                graphics.FillRectangle(brush,0,tangent,width+1,size.Height-tangent*2);
+                graphics.FillRectangle(brush,size.Width-width-1,tangent,width+1,size.Height-tangent*2);
+            }
+            using(var brush=new SolidBrush(Outline)) {
+                graphics.FillRectangle(brush,tangent,0,size.Width-tangent*2,width);
+                graphics.FillRectangle(brush,tangent,size.Height-width,size.Width-tangent*2,width);
+                graphics.FillRectangle(brush,0,tangent,width,size.Height-tangent*2);
+                graphics.FillRectangle(brush,size.Width-width,tangent,width,size.Height-tangent*2);
+            }
+        }
         private float scale=1;
         private bool square,smooth;
         private Size shapedSize;
@@ -104,15 +123,12 @@ namespace DeepSeekFloat {
         protected override void OnPaint(PaintEventArgs e) {
             if(smooth) {
                 int side=SmoothFrame.PatchSize(scale);
-                using(var pen=new Pen(Color.FromArgb(226,231,238),1)) {
-                    e.Graphics.DrawLine(pen,side,0,Width-side-1,0);e.Graphics.DrawLine(pen,side,Height-1,Width-side-1,Height-1);
-                    e.Graphics.DrawLine(pen,0,side,0,Height-side-1);e.Graphics.DrawLine(pen,Width-1,side,Width-1,Height-side-1);
-                }
+                DrawStraightOutline(e.Graphics,Size,scale,side);
                 return;
             }
             e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
-            float inset=scale/2;var rect=new RectangleF(inset,inset,Width-scale,Height-scale);
-            using(var pen=new Pen(Color.FromArgb(226,231,238),scale)) {
+            int width=OutlineWidth(scale);float inset=width/2f;var rect=new RectangleF(inset,inset,Width-width,Height-width);
+            using(var pen=new Pen(Outline,width)) {
                 if(square)e.Graphics.DrawRectangle(pen,rect.X,rect.Y,rect.Width,rect.Height);
                 else using(var path=PanelTheme.Rounded(rect,Radius*scale-inset))e.Graphics.DrawPath(pen,path);
             }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1 — 2026-10-04
+
+- Reading preset narrowed from 760 to 752 DIP, with height and website zoom unchanged.
+- A darker, DPI-scaled one-DIP outline shared by the main and settings windows; cached antialiased corners and resize batching retained.
+- User-approved Reflex plump blue fish with an integrated floating window; body and belly use the same blue in project branding, embedded executable, tray, taskbar and installer.
+- Settings and experimental auxiliary windows inherit the application icon; release packaging checks embedded program and installer icon pixels against the shared multi-resolution ICO.
+- Branding documentation distinguishes original artwork from third-party trademark clearance. Historical 1.0.0 release assets remain unchanged.
+
 ## 1.0.0 — 2026-10-04
 
 First public release as **DeepSeek-Reflex**.

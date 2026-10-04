@@ -12,6 +12,10 @@ Unicode true
   !error "OUTPUT_FILE is required"
 !endif
 
+; Modern UI macros set their own icon during page generation. Configure
+; those sources as well so they cannot replace the Reflex executable icon.
+!define MUI_ICON "${PAYLOAD_DIR}\icon.ico"
+!define MUI_UNICON "${PAYLOAD_DIR}\icon.ico"
 Name "DeepSeek-Reflex ${APP_VERSION}"
 OutFile "${OUTPUT_FILE}"
 InstallDir "$LOCALAPPDATA\Programs\DeepSeekFloat"

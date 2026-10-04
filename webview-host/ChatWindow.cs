@@ -387,7 +387,7 @@ namespace DeepSeekFloat
                         if(action=="refresh"&&browser.CoreWebView2!=null)browser.Reload();
                         if(action=="import")await PresentSelection(SelectionCapture.FromClipboard());
                     }));
-                }))dialog.ShowDialog(this);
+                })) { dialog.Icon=Icon;dialog.ShowDialog(this); }
             }
             finally {
                 settingsOpen=false;
