@@ -368,13 +368,32 @@ internal static class SettingsTests {
     try {
      System.Runtime.InteropServices.Marshal.StructureToPtr(rect,buffer,false);Native.SendMessage(window.Handle,0x231,IntPtr.Zero,IntPtr.Zero);
      Check(smooth.Ready&&smooth.Visible,"holding native chat resize retains antialiasing before any movement");
-     Check(Native.SendMessage(window.Handle,0x214,new IntPtr(8),buffer).ToInt32()==1&&window.Bounds==next&&smooth.Aligned,"actual WM SIZING handler batches chat owner and corners to proposed rectangle");
+     var ownerBefore=window.Bounds;var site=(Microsoft.Web.WebView2.WinForms.WebView2)Field(window,"browser");var webBefore=site.Bounds;
+     var outline=(WindowFrame)Field(window,"frame");int shapesBefore=outline.ShapeUpdates,batchesBefore=smooth.MoveBatches;
+     Native.SendMessage(window.Handle,0x214,new IntPtr(8),buffer);
+     Check(window.Bounds==ownerBefore&&site.Bounds==webBefore&&smooth.Aligned,"WM SIZING proposal leaves owner, website and cached corners at committed geometry");
+     bool proposalsStable=true;
+     for(int cycle=0;cycle<60;cycle++) {
+      var proposal=new Native.RECT{left=ownerBefore.Left+cycle%3*8,top=ownerBefore.Top+cycle%4*6,right=ownerBefore.Right+cycle%3*26,bottom=ownerBefore.Bottom+cycle%4*22};
+      System.Runtime.InteropServices.Marshal.StructureToPtr(proposal,buffer,false);
+      Native.SendMessage(window.Handle,cycle%2==0?0x216:0x214,new IntPtr(8),buffer);
+      proposalsStable&=window.Bounds==ownerBefore&&site.Bounds==webBefore&&smooth.Aligned;
+     }
+     Check(proposalsStable&&outline.ShapeUpdates==shapesBefore&&smooth.MoveBatches==batchesBefore&&smooth.UploadCount==4,"sixty uncommitted drag / layout proposals perform no geometry, clipping or pixel updates");
+     var tooSmall=new Native.RECT{left=ownerBefore.Left,top=ownerBefore.Top,right=ownerBefore.Left+window.MinimumSize.Width-10,bottom=ownerBefore.Top+window.MinimumSize.Height-10};
+     System.Runtime.InteropServices.Marshal.StructureToPtr(tooSmall,buffer,false);Native.SendMessage(window.Handle,0x214,new IntPtr(8),buffer);
+     Check(window.Bounds==ownerBefore&&smooth.Aligned,"undersized drag proposal also leaves actual geometry to Windows validation");
+     Check(Native.SetWindowPos(window.Handle,IntPtr.Zero,next.X,next.Y,next.Width,next.Height,0x214)&&window.Bounds==next&&smooth.Aligned,"native geometry commit resizes chat and aligns cached corners without positioning the owner again");
      var moved=new Rectangle(next.Left+12,next.Top+10,next.Width,next.Height);rect.left=moved.Left;rect.top=moved.Top;rect.right=moved.Right;rect.bottom=moved.Bottom;System.Runtime.InteropServices.Marshal.StructureToPtr(rect,buffer,false);
-     Check(Native.SendMessage(window.Handle,0x216,IntPtr.Zero,buffer).ToInt32()==1&&window.Bounds==moved&&smooth.Aligned,"actual WM MOVING handler moves chat and antialiased corners together");
+     Native.SendMessage(window.Handle,0x216,IntPtr.Zero,buffer);
+     Check(window.Bounds==next&&smooth.Aligned,"WM MOVING preview does not move the committed chat rectangle");
+     Check(Native.SetWindowPos(window.Handle,IntPtr.Zero,moved.X,moved.Y,moved.Width,moved.Height,0x214)&&window.Bounds==moved&&smooth.Aligned,"native move commit positions cached antialiased corners after the actual owner move");
+     bool nativeAligned=true;for(int corner=0;corner<4;corner++){Native.RECT actual;GetWindowRect(smooth.Surfaces[corner].Handle,out actual);nativeAligned&=Rectangle.FromLTRB(actual.left,actual.top,actual.right,actual.bottom)==smooth.Surfaces[corner].Bounds;}
+     Check(nativeAligned,"all four layered HWND positions match managed geometry after native resize and move commits");
      Native.SendMessage(window.Handle,0x232,IntPtr.Zero,IntPtr.Zero);
      float fixtureScale;using(var g=window.CreateGraphics())fixtureScale=g.DpiX/96f;
      Check(!smooth.InteractiveResize&&smooth.UploadCount==4&&((WindowFrame)Field(window,"frame")).NativeResizeSurfaceReady(window,fixtureScale,smooth),"native drag exit preserves cached pixels and both curved and straight hit surfaces");
-     var site=(Microsoft.Web.WebView2.WinForms.WebView2)Field(window,"browser");Check(site.CoreWebView2==null&&site.Source==null,"layout fixture never initialized a website session");
+     Check(site.CoreWebView2==null&&site.Source==null,"layout fixture never initialized a website session");
     }finally{System.Runtime.InteropServices.Marshal.FreeHGlobal(buffer);window.Hide();}
    }
    using(var dialog=new SettingsDialog(original,delegate(WindowSettings next) { calls++;return "冲突测试"; })) {
@@ -579,7 +598,7 @@ internal static class SettingsTests {
      owner.Location=new Point(240,220);Application.DoEvents();Check(smooth.Aligned,"moving owner keeps alpha edge aligned");
      int stableUploads=smooth.UploadCount;for(int i=0;i<20;i++)smooth.SyncOwner();Check(smooth.UploadCount==stableUploads,"repeated sync without geometry changes does not upload pixels");
      Native.SendMessage(owner.Handle,0x231,IntPtr.Zero,IntPtr.Zero);Check(smooth.InteractiveResize&&smooth.Ready&&smooth.Visible,"native live resize keeps four cached antialiased corners visible");
-     for(int i=0;i<30;i++){Check(smooth.TrySetBounds(new Rectangle(240-i%3,220-i%4,(int)(410*scale)+i%7,(int)(616*scale)+i%8)),"batched live geometry accepted "+i);Application.DoEvents();}
+     for(int i=0;i<30;i++){Check(Native.SetWindowPos(owner.Handle,IntPtr.Zero,240-i%3,220-i%4,(int)(410*scale)+i%7,(int)(616*scale)+i%8,0x214),"native live geometry commit accepted "+i);Application.DoEvents();}
      Check(smooth.UploadCount==stableUploads&&WindowFrame.NativeCornersClipped(owner),"thirty live drag updates preserve rounded owner without bitmap work");
      bool nativeAligned=true;for(int i=0;i<4;i++){Native.RECT rect;GetWindowRect(smooth.Surfaces[i].Handle,out rect);nativeAligned&=Rectangle.FromLTRB(rect.left,rect.top,rect.right,rect.bottom)==SmoothFrame.PatchBounds(owner.Bounds,i,SmoothFrame.PatchSize(scale));}
      Check(nativeAligned&&smooth.Aligned&&smooth.Ready&&smooth.Visible,"native HWND rectangles remain aligned with host while all corners stay antialiased");

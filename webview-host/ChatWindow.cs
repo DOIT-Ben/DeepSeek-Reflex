@@ -602,10 +602,10 @@ namespace DeepSeekFloat
             if(m.Msg==0x86&&WindowState!=FormWindowState.Minimized) {
                 m.LParam=new IntPtr(-1);base.WndProc(ref m);return;
             }
-            if((m.Msg==0x214||m.Msg==0x216)&&m.LParam!=IntPtr.Zero&&smoothFrame!=null) {
-                var rect=(Native.RECT)System.Runtime.InteropServices.Marshal.PtrToStructure(m.LParam,typeof(Native.RECT));
-                if(smoothFrame.TrySetBounds(Rectangle.FromLTRB(rect.left,rect.top,rect.right,rect.bottom))){m.Result=new IntPtr(1);return;}
-            }
+            // WM_MOVING / WM_SIZING describe the system's drag rectangle.
+            // Let Windows commit it (including Snap previews) before following
+            // the resulting move / size events. Applying it here competes with
+            // the native move loop and also lays out uncommitted proposals.
             if(m.Msg==0x10 && !quitting) { Hide(); WriteHealth(); return; }
             if(m.Msg==0x84 && WindowState==FormWindowState.Normal)
             {

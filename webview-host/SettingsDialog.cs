@@ -127,10 +127,6 @@ namespace DeepSeekFloat {
         }
         private void Drag(object sender,MouseEventArgs e){if(e.Button==MouseButtons.Left){Native.ReleaseCapture();Native.SendMessage(Handle,0xA1,new IntPtr(2),IntPtr.Zero);}}
         protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);WindowFrame.ConfigureNativeBorder(Handle);frame.UpdateShape(this,scale,smoothFrame!=null&&smoothFrame.Ready);}
-        protected override void WndProc(ref Message m) {
-            if(m.Msg==0x216&&m.LParam!=IntPtr.Zero&&smoothFrame!=null){var rect=(Native.RECT)System.Runtime.InteropServices.Marshal.PtrToStructure(m.LParam,typeof(Native.RECT));if(smoothFrame.TrySetBounds(Rectangle.FromLTRB(rect.left,rect.top,rect.right,rect.bottom))){m.Result=new IntPtr(1);return;}}
-            base.WndProc(ref m);
-        }
         protected override void Dispose(bool disposing){if(disposing&&smoothFrame!=null)smoothFrame.Dispose();base.Dispose(disposing);}
     }
 }

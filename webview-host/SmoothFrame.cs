@@ -63,7 +63,7 @@ namespace DeepSeekFloat {
                     var corner=corners[i];if(corner.Owner!=host)corner.Owner=host;if(corner.TopMost!=topmost)corner.TopMost=topmost;
                     if(!corner.Uploaded){using(var image=RenderCorner(i,scale))corner.Upload(image,PatchBounds(host.Bounds,i,side).Location);UploadCount++;}
                 }
-                MoveTogether(host.Bounds,false);
+                MoveCorners(host.Bounds);
                 const uint bandFlags=0x213; // NOMOVE | NOSIZE | NOACTIVATE | NOOWNERZORDER
                 foreach(var corner in corners) {
                     if(!corner.Visible)corner.Show(host);
@@ -77,31 +77,14 @@ namespace DeepSeekFloat {
             finally{synchronizing=false;}
         }
         private void Fail(Exception error){LastError=error.GetType().Name;Hide();}
-        // WM_SIZING/WM_MOVING include the owner in the same screen-refresh batch.
-        internal bool TrySetBounds(Rectangle bounds) {
-            if(disposed||synchronizing||!ready||!Visible||host.WindowState!=FormWindowState.Normal)return false;
-            if(bounds.Width<host.MinimumSize.Width||bounds.Height<host.MinimumSize.Height)return false;
-            synchronizing=true;
-            try{MoveTogether(bounds,true);LastError=null;return true;}
-            catch(Win32Exception e){Fail(e);return false;}
-            finally{synchronizing=false;}
-        }
-        private void MoveTogether(Rectangle bounds,bool includeOwner) {
-            int side=PatchSize(scale),count=includeOwner?1:0;
-            for(int i=0;i<4;i++)if(corners[i].Bounds!=PatchBounds(bounds,i,side))count++;
-            if(count==0)return;
-            var batch=Native.BeginDeferWindowPos(count);if(batch==IntPtr.Zero)throw new Win32Exception();
-            const uint flags=0x214; // NOZORDER | NOACTIVATE | NOOWNERZORDER
-            if(includeOwner)batch=Native.DeferWindowPos(batch,host.Handle,IntPtr.Zero,bounds.X,bounds.Y,bounds.Width,bounds.Height,flags);
-            if(batch==IntPtr.Zero)throw new Win32Exception();
+        // Only follow committed owner geometry; never position the host here.
+        private void MoveCorners(Rectangle bounds) {
+            int side=PatchSize(scale);bool moved=false;
             for(int i=0;i<4;i++) {
                 var target=PatchBounds(bounds,i,side);if(corners[i].Bounds==target)continue;
-                batch=Native.DeferWindowPos(batch,corners[i].Handle,IntPtr.Zero,target.X,target.Y,side,side,flags);
-                if(batch==IntPtr.Zero)throw new Win32Exception();
+                corners[i].MoveTo(target.Location);corners[i].RefreshGeometry(target);moved=true;
             }
-            if(!Native.EndDeferWindowPos(batch))throw new Win32Exception();
-            for(int i=0;i<4;i++)corners[i].RefreshGeometry(PatchBounds(bounds,i,side));
-            MoveBatches++;
+            if(moved)MoveBatches++;
         }
         internal static Bitmap RenderCorner(int index,float scale) {
             int side=PatchSize(scale);
@@ -144,6 +127,12 @@ namespace DeepSeekFloat {
         protected override bool ShowWithoutActivation {get{return true;}}
         protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle|=0x80000|0x8000000|0x80;return value;}}
         internal void RefreshGeometry(Rectangle bounds){UpdateBounds(bounds.X,bounds.Y,bounds.Width,bounds.Height,bounds.Width,bounds.Height);}
+        internal void MoveTo(Point location) {
+            // Reposition the cached layered bitmap without a DC, new pixels,
+            // resize or synchronous repaint of the underlying WebView host.
+            var destination=new Native.POINT{x=location.X,y=location.Y};
+            if(!Native.MoveLayeredWindow(Handle,IntPtr.Zero,ref destination,IntPtr.Zero,IntPtr.Zero,IntPtr.Zero,0,IntPtr.Zero,0))throw new Win32Exception();
+        }
         internal void Upload(Bitmap bitmap,Point position) {
             var dc=Native.CreateCompatibleDC(IntPtr.Zero);if(dc==IntPtr.Zero)throw new Win32Exception();
             IntPtr image=IntPtr.Zero,previous=IntPtr.Zero;

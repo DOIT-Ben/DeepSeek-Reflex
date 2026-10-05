@@ -53,10 +53,8 @@ namespace DeepSeekFloat
         [DllImport("gdi32.dll")] internal static extern IntPtr SelectObject(IntPtr dc,IntPtr value);
         [DllImport("gdi32.dll")] internal static extern bool DeleteDC(IntPtr dc);
         [DllImport("user32.dll",SetLastError=true)] internal static extern bool UpdateLayeredWindow(IntPtr hwnd,IntPtr destinationDc,ref POINT destination,ref SIZE size,IntPtr sourceDc,ref POINT source,uint color,ref BLENDFUNCTION blend,uint flags);
+        [DllImport("user32.dll",EntryPoint="UpdateLayeredWindow",SetLastError=true)] internal static extern bool MoveLayeredWindow(IntPtr hwnd,IntPtr destinationDc,ref POINT destination,IntPtr size,IntPtr sourceDc,IntPtr source,uint color,IntPtr blend,uint flags);
         [StructLayout(LayoutKind.Sequential)] internal struct RECT {internal int left,top,right,bottom;}
-        [DllImport("user32.dll",SetLastError=true)] internal static extern IntPtr BeginDeferWindowPos(int count);
-        [DllImport("user32.dll",SetLastError=true)] internal static extern IntPtr DeferWindowPos(IntPtr batch,IntPtr hwnd,IntPtr after,int x,int y,int width,int height,uint flags);
-        [DllImport("user32.dll",SetLastError=true)] internal static extern bool EndDeferWindowPos(IntPtr batch);
         [DllImport("user32.dll")] internal static extern bool SystemParametersInfo(uint action,uint parameter,ref bool value,uint flags);
     }
 }

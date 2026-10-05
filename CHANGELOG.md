@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.13 — 2026-10-05
+
+- Stop applying Windows' candidate drag rectangles to the main window during `WM_MOVING` / `WM_SIZING`. Windows now owns the geometry commit; uncommitted layout proposals no longer resize the website or rebuild the rounded clipping region.
+- Reposition the four cached alpha corners through the position-only layered-window API, without uploading images or requesting extra repaints of the underlying window. Apply the same native drag ownership to the settings panel.
+- Add regressions for repeated uncommitted proposals, undersized proposals and actual native move / size commits. Retain the existing default / high-DPI corner, modal, resize, shortcut and taskbar checks. See [verification scope and manual Snap check](docs/testing/snap-layouts.md).
+
 ## 1.0.12 — 2026-10-05
 
 - Restore the missing curved outline in settings and introduction dialogs opened from a pinned chat window. Synchronize the four cached corner surfaces with the dialog's actual native topmost band when it is shown or activated, including stale native states that differ from WinForms properties.
