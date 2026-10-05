@@ -2,9 +2,9 @@
 
 ## Current status
 
-As of 2026-10-04, DeepSeek-Reflex releases are **unsigned**. A SHA-256 checksum checks file integrity against the published checksum; it is not a trusted publisher signature. Application preparation does not mean a signing subscription or certificate has been approved.
+As of 2026-10-05, DeepSeek-Reflex releases are **unsigned**. A SHA-256 checksum checks file integrity against the published checksum; it is not a trusted publisher signature.
 
-An application to the [SignPath Foundation open-source program](https://signpath.org/apply.html) was submitted on 2026-10-04; the form confirmed successful submission. Provider review is pending. Approval is at the provider's discretion, including project reputation, dependencies and verifiable build origin. The application disclosed the bundled WebView2 SDK libraries and separately installed Microsoft runtime for eligibility review. No signing credentials, account permissions or provider subscription are configured in this repository yet.
+An application to the [SignPath Foundation open-source program](https://signpath.org/apply.html) was submitted on 2026-10-04. Submission is not approval; the current review status must be confirmed through the provider's portal or notification. The application disclosed the bundled WebView2 SDK libraries and separately installed Microsoft runtime. This repository does not yet have a configured signing pipeline or signing credentials.
 
 ## Responsibilities
 

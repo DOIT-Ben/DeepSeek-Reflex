@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.9 — 2026-10-05
+
+- Polish the repository description and documentation, presenting the MIT license without repeated promotional claims.
+- Shorten the README and consolidate branding guidance around the current shared icon and taskbar identity.
+- Clarify signing status: a submitted application does not establish provider approval or a signed release.
+
 ## 1.0.8 — 2026-10-05
 
 - Prevent Windows' classic sizing frame from painting over the custom rounded border when opening or returning from settings, or switching active windows. Keep native resizing and minimized activation processing intact.

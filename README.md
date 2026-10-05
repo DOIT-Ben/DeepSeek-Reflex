@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo.png" width="240" alt="DeepSeek-Reflex logo: plump blue fish with an integrated floating window" />
+  <img src="docs/assets/logo.png" width="240" alt="DeepSeek-Reflex 蓝鱼与小窗标识" />
 </p>
 
 <h1 align="center">DeepSeek-Reflex</h1>
@@ -10,26 +10,25 @@
   <img src="https://img.shields.io/badge/platform-Windows%20x64-4563F5" alt="Windows x64" />
 </p>
 
-你正在看文档、备课、写代码，突然有一个问题：按一下快捷键，DeepSeek-Reflex 就出现在身边；问完再按一下，继续手头的工作。品牌名 **DeepSeek-Reflex** 中的 Reflex 取自“快速响应”，希望把来回寻找浏览器标签页的动作，缩短成一次按键。
+看文档、备课或写代码时，按一下快捷键就能打开 DeepSeek-Reflex；问完再按一下，继续手头的工作。Reflex 意为“快速响应”，让一次按键代替寻找浏览器标签页。
 
 **[下载最新版 →](https://github.com/DOIT-Ben/DeepSeek-Reflex/releases/latest)** · [问题反馈](https://github.com/DOIT-Ben/DeepSeek-Reflex/issues) · [更新记录](CHANGELOG.md)
 
 这是独立的社区开源工具，直接加载 [DeepSeek 官网](https://chat.deepseek.com)，没有与 DeepSeek 官方的隶属或背书关系。
 
-1.0.8 修复从设置返回或切换窗口时出现粗灰边的问题，保留原生拖动缩放、平滑圆角和任务栏行为。1.0.7 已恢复边框拉伸，并避免置顶后最小化再恢复时尺寸变大。此前 1.0.6 已统一本机安装与发行安装器的 **DeepSeek-Reflex** 快捷方式及任务栏标识，旧版 DeepSeek.exe 也更新为蓝鱼兼容启动入口。主窗、引导、设置、托盘和安装器统一使用完整品牌名及蓝鱼与小窗标识。首次使用的四步引导可跳过，也可以在设置中重新查看。
+首次打开有可跳过的使用引导，设置中也能重新查看。版本变化见 [更新记录](CHANGELOG.md)。
 
 ## 为什么用它
 
 | 能力 | 带来的便利 |
 | --- | --- |
-| 随时唤起 | 全局快捷键打开 / 收起同一个聊天窗口，少一次找标签页、切浏览器的操作。 |
+| 随时唤起 | 全局快捷键打开 / 收起同一个聊天窗口，保留当前对话。 |
 | 置顶陪伴 | 一边看 Word、网页或代码，一边问问题；置顶开关就在标题栏。 |
 | 正常登录 | 使用官网账号、历史对话和附件功能；不需要单独申请 API Key。收起窗口保留当前网页。 |
-| 选中文字带入 | 按取词快捷键，把文字带到小窗做翻译、学生解释或理解提问；保留已有草稿，由你确认后发送。 |
+| 选中文字带入 | 用快捷键把文字带入小窗，翻译、解释或继续提问；保留已有草稿，由你确认后发送。 |
 | 小窗与阅读模式 | 小窗随手问，阅读模式看长回答；支持拖动和四边四角拉伸。 |
 | 顺手的设置 | 独立设置面板配置唤起键、取词键、收起方式、自动聚焦和窗口尺寸。 |
-| 平滑的外框 | 缓存抗锯齿圆角和原生窗口批量定位，拖动时保留圆角；设置按钮、开关带有限时动画。 |
-| 开源可商用 | 项目源码、文档和原创 Logo 采用 MIT，允许商用、修改、分发和二次开发。 |
+| 平滑的外框 | 拖动时保留圆角，按钮和开关带有平滑的交互反馈。 |
 
 适合查资料时快速追问、教师备课时解释概念、阅读外文时翻译段落，以及写代码时问一个短问题。官网、模型服务与登录仍需要联网，网站本身的功能和可用性由 DeepSeek 提供。
 
@@ -39,16 +38,16 @@
 
 | 文件 | 怎么用 |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.8-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
-| `DeepSeek-Reflex-1.0.8-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
+| `DeepSeek-Reflex-1.0.9-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
+| `DeepSeek-Reflex-1.0.9-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
 | `SHA256SUMS.txt` | 对照下载文件的 SHA-256。源码压缩包由 GitHub 自动提供。 |
 
 要求 **Windows 10/11 x64、.NET Framework 4.8、WebView2 Evergreen Runtime**。V1 在 Windows 11 上验证；Windows 10 兼容性尚未逐机验收。安装器会检查运行环境，缺少时提示安装 [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) 或 [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48)。安装包不静默下载其他软件。ARM64 原生版本尚未提供。
 
-当前发行包尚未进行受信任代码签名，Windows 可能显示未知发布者提示。已于 2026-10-04 提交 SignPath Foundation 免费开源签名申请，等待审核；申请已提交不等于已签名。接入方案见 [Code signing policy](docs/code-signing.md)。请从本仓库 Releases 下载，并核对哈希：
+当前发行包未签名，Windows 可能显示未知发布者提示。签名申请与接入情况见 [签名说明](docs/code-signing.md)。请从本仓库 Releases 下载，并核对哈希：
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.8-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.0.9-Setup-x64.exe -Algorithm SHA256
 ```
 
 升级前先从托盘右键菜单选择 **退出**。卸载保留个人设置和官网登录资料，重新安装可以继续使用。ZIP 也使用同一用户数据目录；它是免安装版本，数据不会跟着 ZIP 文件夹移动。
@@ -65,7 +64,7 @@ Get-FileHash .\DeepSeek-Reflex-1.0.8-Setup-x64.exe -Algorithm SHA256
 4. 标题栏左侧依次为最小化、置顶、尺寸切换；右侧为设置和收起。关闭或 Alt+F4 收进托盘，托盘菜单的“退出”才结束程序。
 5. 热键与其他软件冲突时，在设置面板录入新组合键并保存。
 
-小窗为 410×616 DIP，阅读模式为 752×720 DIP；实际尺寸按屏幕空间和 Windows 缩放调整。网页默认缩放 90%。双击标题栏可以放大 / 恢复，手动拉伸会保存自定义尺寸。阅读尺寸较 1.0.0 收窄 8 DIP，网页是否展示官网 Logo 由网站自身响应式布局决定。
+小窗为 410×616 DIP，阅读模式为 752×720 DIP；实际尺寸按屏幕空间和 Windows 缩放调整。网页默认缩放 90%。双击标题栏可以放大 / 恢复，手动拉伸会保存自定义尺寸。
 
 取词仍是兼容性功能：优先用 Windows UI Automation，必要时尝试复制并恢复剪贴板。Word、浏览器及其他应用能否取词，取决于其是否提供可访问的文字选择。密码框、扫描图片、空选择、超过 20,000 字的输入不支持直接取词；失败时可先复制，再在设置中“导入剪贴板”。**自动选中文字就弹出浮窗的实验功能默认关闭**，V1 没有自动开启它的界面入口。
 
@@ -125,6 +124,6 @@ LICENSE          MIT
 
 ## 开源许可
 
-本项目采用 [MIT License](LICENSE)，允许个人或企业商用、修改和再分发；分发时保留许可证与版权声明。[MIT 官方许可说明](https://opensource.org/license/mit)。
+本项目采用 [MIT License](LICENSE)。分发时请保留许可证与版权声明。
 
-Microsoft WebView2 等第三方组件保留各自许可证，发行包附带相应许可和声明；DeepSeek 网站、服务及商标不因此变为本项目的 MIT 授权内容，详见 [第三方声明](THIRD-PARTY-NOTICES.md)。1.0.1 使用蓝鱼与小窗结合的项目图标；原创设计或 MIT 许可不代表第三方商标已获授权，也不构成不侵权保证。图标及项目名称在商业发行前仍需核对相应权利，见 [品牌说明](docs/branding.md)。
+第三方组件保留各自许可证，发行包附带相应声明；DeepSeek 网站、服务及商标不属于本项目的 MIT 授权范围。详见 [第三方声明](THIRD-PARTY-NOTICES.md) 和 [品牌说明](docs/branding.md)。
