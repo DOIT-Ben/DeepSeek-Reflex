@@ -38,8 +38,8 @@
 
 | 文件 | 怎么用 |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.9-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
-| `DeepSeek-Reflex-1.0.9-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
+| `DeepSeek-Reflex-1.0.10-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
+| `DeepSeek-Reflex-1.0.10-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
 | `SHA256SUMS.txt` | 对照下载文件的 SHA-256。源码压缩包由 GitHub 自动提供。 |
 
 要求 **Windows 10/11 x64、.NET Framework 4.8、WebView2 Evergreen Runtime**。V1 在 Windows 11 上验证；Windows 10 兼容性尚未逐机验收。安装器会检查运行环境，缺少时提示安装 [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) 或 [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48)。安装包不静默下载其他软件。ARM64 原生版本尚未提供。
@@ -47,7 +47,7 @@
 当前发行包未签名，Windows 可能显示未知发布者提示。签名申请与接入情况见 [签名说明](docs/code-signing.md)。请从本仓库 Releases 下载，并核对哈希：
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.9-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.0.10-Setup-x64.exe -Algorithm SHA256
 ```
 
 升级前先从托盘右键菜单选择 **退出**。卸载保留个人设置和官网登录资料，重新安装可以继续使用。ZIP 也使用同一用户数据目录；它是免安装版本，数据不会跟着 ZIP 文件夹移动。
@@ -127,3 +127,10 @@ LICENSE          MIT
 本项目采用 [MIT License](LICENSE)。分发时请保留许可证与版权声明。
 
 第三方组件保留各自许可证，发行包附带相应声明；DeepSeek 网站、服务及商标不属于本项目的 MIT 授权范围。详见 [第三方声明](THIRD-PARTY-NOTICES.md) 和 [品牌说明](docs/branding.md)。
+
+<details>
+<summary>关于这个小窗的一点缘起</summary>
+
+我之前常用豆包随手问问题。它推出[付费服务](https://www.doubao.com/legal/ey01)后，我开始更多使用 DeepSeek：喜欢快速问答时的利落，也喜欢遇到复杂问题时能切到[深度思考](https://www.deepseek.com/news/deepseek-v3-1/)。于是做了这个小窗，让喜欢的问答体验随时唤起、问完收起——少一点切换，多一点顺手。
+
+</details>
