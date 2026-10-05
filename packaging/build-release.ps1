@@ -21,6 +21,7 @@ $Files = @('DeepSeekFloat.exe','DeepSeek.exe','DeepSeekFloat.exe.config','Micros
 try {
     foreach ($Name in $Files) { Copy-Item -LiteralPath (Join-Path $Dist $Name) -Destination $Payload }
     Copy-Item -LiteralPath (Join-Path $Project 'README.md') -Destination (Join-Path $Payload 'README.md')
+    Copy-Item -LiteralPath (Join-Path $Project 'README.en.md') -Destination (Join-Path $Payload 'README.en.md')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'QUICKSTART.txt') -Destination $Payload
     $Info = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $Payload 'DeepSeekFloat.exe'))
     if ($Info.ProductVersion -ne $Version -or $Info.ProductName -ne 'DeepSeek-Reflex') { throw 'Executable version does not match release metadata' }

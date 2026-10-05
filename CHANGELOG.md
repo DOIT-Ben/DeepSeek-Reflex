@@ -3,6 +3,7 @@
 ## 1.0.10 — 2026-10-05
 
 - Add a collapsed README note about the project's origin and the maintainer's preference for quick everyday answers and optional deeper reasoning.
+- Add an English README, language-switch links, and both README files to the installer and ZIP.
 
 ## 1.0.9 — 2026-10-05
 

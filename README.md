@@ -1,3 +1,5 @@
+简体中文 · [English](README.en.md)
+
 <p align="center">
   <img src="docs/assets/logo.png" width="240" alt="DeepSeek-Reflex 蓝鱼与小窗标识" />
 </p>
