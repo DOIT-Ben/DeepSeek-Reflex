@@ -116,6 +116,8 @@ pwsh -NoProfile -File .\webview-host\tests\run-tests.ps1
 webview-host/     C# / WinForms / WebView2 源码、应用图标、构建与测试
 packaging/        安装器定义、发行包构建与快速说明
 docs/assets/     原创高清 Logo
+docs/adr/        贴边收纳与快捷指令的方案、证据和独立审查
+docs/design/     自包含交互预览
 docs/branding.md Logo 创作说明
 .github/         公开构建工作流
 VERSION          发行版本
@@ -123,6 +125,13 @@ LICENSE          MIT
 ```
 
 欢迎通过 Issue 或 Pull Request 贡献。请参阅 [贡献说明](CONTRIBUTING.md)。
+
+<details>
+<summary>下一步：贴边收纳与快捷指令</summary>
+
+想先试试小窗贴边收起，以及自己定义取词指令？可以打开[交互预览与操作说明](docs/design/0001-reflex/README.md)。方案见 [ADR-0001](docs/adr/0001-edge-dock-and-custom-prompts.md)，[独立审查记录](docs/adr/0001-review.md)已通过。本轮只交付设计，尚未接入当前安装版。
+
+</details>
 
 ## 开源许可
 

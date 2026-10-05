@@ -116,6 +116,8 @@ Tests cover settings persistence, shortcut conflict rollback, native window geom
 webview-host/     C# / WinForms / WebView2 source, application icon, build and tests
 packaging/        Installer definition, release build and quick-start notes
 docs/assets/     Original high-resolution logo
+docs/adr/        Edge docking and custom command decisions and independent review
+docs/design/     Standalone interaction preview
 docs/branding.md Logo notes (Chinese)
 .github/         Public build workflow
 VERSION          Release version
@@ -123,6 +125,13 @@ LICENSE          MIT
 ```
 
 Issues and pull requests are welcome. See the [contributing guide](CONTRIBUTING.md) (Chinese).
+
+<details>
+<summary>What's next: edge docking and custom commands</summary>
+
+Try tucking the window to an edge and defining your own selected-text commands in the [interaction preview](docs/design/0001-reflex/README.md). [ADR-0001](docs/adr/0001-edge-dock-and-custom-prompts.md) has passed [independent design review](docs/adr/0001-review.md). This is a design preview; these features are not included in the current installed release.
+
+</details>
 
 ## License
 
