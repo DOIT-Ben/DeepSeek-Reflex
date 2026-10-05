@@ -93,7 +93,7 @@ check_legacy_busy:
 install_files:
   SetOutPath "$INSTDIR"
   SetOverwrite on
-  File "${PAYLOAD_DIR}\*"
+  File /r "${PAYLOAD_DIR}\*"
   WriteUninstaller "$INSTDIR\uninstall.exe"
   CreateDirectory "$SMPROGRAMS\DeepSeek-Reflex"
   CreateShortcut "$SMPROGRAMS\DeepSeek-Reflex\DeepSeek-Reflex.lnk" "$INSTDIR\DeepSeekFloat.exe"

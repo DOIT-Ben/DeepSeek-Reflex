@@ -34,14 +34,47 @@
 
 适合查资料时快速追问、教师备课时解释概念、阅读外文时翻译段落，以及写代码时问一个短问题。官网、模型服务与登录仍需要联网，网站本身的功能和可用性由 DeepSeek 提供。
 
+## 看看实际界面
+
+小窗随手问，长回答切到阅读模式。下面的图片是当前 Windows 版本重新截取的真实界面，登录后的新对话与演示文字不包含私人资料；英文说明使用同一组截图，程序界面目前为中文。
+
+<table>
+  <tr>
+    <td align="center"><strong>置顶聊天小窗</strong><br>标题栏直接置顶、收起或切换尺寸。<br><br><img src="docs/assets/screenshots/compact.png" width="360" alt="DeepSeek-Reflex 置顶聊天小窗的实际界面" /></td>
+    <td align="center"><strong>阅读模式</strong><br>同一个网页，切换为更宽的阅读空间。<br><br><img src="docs/assets/screenshots/reading.png" width="540" alt="DeepSeek-Reflex 阅读模式的实际界面" /></td>
+  </tr>
+</table>
+
+<details>
+<summary>展开更多截图：取词栏、设置和引导</summary>
+
+### 文字带入，确认后再发送
+
+翻译、解释和提问在同一条工具栏里选择。已有草稿会保留，填入不会自动发送。
+
+<img src="docs/assets/screenshots/selected-text.png" width="430" alt="DeepSeek-Reflex 的翻译、解释、提问取词栏及草稿提示" />
+
+### 设置与快速上手
+
+快捷键、收起方式和窗口尺寸集中在独立面板里；首次使用有可跳过的四步引导。
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/assets/screenshots/settings.png" width="380" alt="DeepSeek-Reflex 设置：快捷键、聚焦、收起方式和窗口尺寸" /></td>
+    <td align="center"><img src="docs/assets/screenshots/getting-started.png" width="380" alt="DeepSeek-Reflex 第一步使用引导：官网登录，无需 API Key" /></td>
+  </tr>
+</table>
+
+</details>
+
 ## 下载与安装
 
 在 [Releases](https://github.com/DOIT-Ben/DeepSeek-Reflex/releases/latest) 选择：
 
 | 文件 | 怎么用 |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.13-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
-| `DeepSeek-Reflex-1.0.13-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
+| `DeepSeek-Reflex-1.0.14-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
+| `DeepSeek-Reflex-1.0.14-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
 | `SHA256SUMS.txt` | 对照下载文件的 SHA-256。源码压缩包由 GitHub 自动提供。 |
 
 要求 **Windows 10/11 x64、.NET Framework 4.8、WebView2 Evergreen Runtime**。V1 在 Windows 11 上验证；Windows 10 兼容性尚未逐机验收。安装器会检查运行环境，缺少时提示安装 [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) 或 [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48)。安装包不静默下载其他软件。ARM64 原生版本尚未提供。
@@ -49,7 +82,7 @@
 当前发行包未签名，Windows 可能显示未知发布者提示。签名申请与接入情况见 [签名说明](docs/code-signing.md)。请从本仓库 Releases 下载，并核对哈希：
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.13-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.0.14-Setup-x64.exe -Algorithm SHA256
 ```
 
 升级前先从托盘右键菜单选择 **退出**。卸载保留个人设置和官网登录资料，重新安装可以继续使用。ZIP 也使用同一用户数据目录；它是免安装版本，数据不会跟着 ZIP 文件夹移动。
@@ -115,7 +148,7 @@ pwsh -NoProfile -File .\webview-host\tests\run-tests.ps1
 ```text
 webview-host/     C# / WinForms / WebView2 源码、应用图标、构建与测试
 packaging/        安装器定义、发行包构建与快速说明
-docs/assets/     原创高清 Logo
+docs/assets/     原创高清 Logo 与真实界面截图
 docs/adr/        贴边收纳与快捷指令的方案、证据和独立审查
 docs/design/     自包含交互预览
 docs/branding.md Logo 创作说明

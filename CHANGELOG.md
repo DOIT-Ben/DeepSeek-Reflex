@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.14 — 2026-10-06
+
+- Add newly captured application screenshots to both READMEs: compact chat, reading layout, selected-text toolbar, settings, and first-use introduction.
+- Include the README image assets in the installer and ZIP, and verify their paths and hashes in the package allowlist. Uninstall removes only managed assets and empty documentation directories.
+- Keep native window behavior unchanged.
+
 ## 1.0.13 — 2026-10-05
 
 - Stop applying Windows' candidate drag rectangles to the main window during `WM_MOVING` / `WM_SIZING`. Windows now owns the geometry commit; uncommitted layout proposals no longer resize the website or rebuild the rounded clipping region.

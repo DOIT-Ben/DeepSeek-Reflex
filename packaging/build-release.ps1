@@ -23,17 +23,28 @@ try {
     Copy-Item -LiteralPath (Join-Path $Project 'README.md') -Destination (Join-Path $Payload 'README.md')
     Copy-Item -LiteralPath (Join-Path $Project 'README.en.md') -Destination (Join-Path $Payload 'README.en.md')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'QUICKSTART.txt') -Destination $Payload
+    $ImageFiles = @('logo.png','screenshots/compact.png','screenshots/reading.png','screenshots/selected-text.png','screenshots/settings.png','screenshots/getting-started.png')
+    foreach ($Name in $ImageFiles) {
+        $Relative = 'docs/assets/'+$Name
+        $Destination = Join-Path $Payload $Relative
+        New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $Project $Relative) -Destination $Destination
+    }
     $Info = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $Payload 'DeepSeekFloat.exe'))
     if ($Info.ProductVersion -ne $Version -or $Info.ProductName -ne 'DeepSeek-Reflex') { throw 'Executable version does not match release metadata' }
-    $PayloadHashes = @(Get-ChildItem -LiteralPath $Payload -File | Sort-Object Name | ForEach-Object {
-        '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName).Hash.ToLowerInvariant(),$_.Name
+    $PayloadHashes = @(Get-ChildItem -LiteralPath $Payload -File -Recurse | Sort-Object FullName | ForEach-Object {
+        $Relative = [IO.Path]::GetRelativePath($Payload,$_.FullName).Replace('\','/')
+        '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName).Hash.ToLowerInvariant(),$Relative
     })
     $PayloadHashes | Set-Content -LiteralPath (Join-Path $Payload 'SHA256SUMS.txt') -Encoding utf8
     $Zip = Join-Path $OutputDirectory ("DeepSeek-Reflex-$Version-Windows-x64.zip")
     Compress-Archive -LiteralPath $Payload -DestinationPath $Zip -Force
-    Get-ChildItem -LiteralPath $Payload -File | Sort-Object Name | ForEach-Object {
-        'Delete "$INSTDIR\'+$_.Name+'"'
-    } | Set-Content -LiteralPath (Join-Path $Stage 'uninstall-files.nsh') -Encoding utf8
+    $Uninstall = @(Get-ChildItem -LiteralPath $Payload -File -Recurse | Sort-Object FullName | ForEach-Object {
+        'Delete "$INSTDIR\'+[IO.Path]::GetRelativePath($Payload,$_.FullName)+'"'
+    })
+    # Remove only empty documentation directories after their exact managed files.
+    $Uninstall += @('RMDir "$INSTDIR\docs\assets\screenshots"','RMDir "$INSTDIR\docs\assets"','RMDir "$INSTDIR\docs"')
+    $Uninstall | Set-Content -LiteralPath (Join-Path $Stage 'uninstall-files.nsh') -Encoding utf8
     $Setup = Join-Path $OutputDirectory ("DeepSeek-Reflex-$Version-Setup-x64.exe")
     & $MakeNsisPath /WX /INPUTCHARSET UTF8 ("/DAPP_VERSION=$Version") ("/DPAYLOAD_DIR=$Payload") ("/DOUTPUT_FILE=$Setup") (Join-Path $PSScriptRoot 'setup.nsi')
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }

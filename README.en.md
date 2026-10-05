@@ -34,14 +34,47 @@ A skippable introduction appears on first use and can be reopened from Settings.
 
 Useful for follow-up questions while researching, lesson preparation, translating passages, and quick coding questions. Sign-in and the hosted model service require internet access. Website features and availability are provided by DeepSeek.
 
+## See it in action
+
+Use the compact window for quick questions and switch to the reading layout for longer answers. These are freshly captured screenshots of the current Windows application, showing a fresh signed-in conversation and demonstration text without private information. The application UI is currently in Chinese; both READMEs show the same interface.
+
+<table>
+  <tr>
+    <td align="center"><strong>Always-on-top chat</strong><br>Pin, hide, or change the layout from the title bar.<br><br><img src="docs/assets/screenshots/compact.png" width="360" alt="Actual DeepSeek-Reflex compact chat window with pin controls" /></td>
+    <td align="center"><strong>Reading layout</strong><br>The same website, with more room for longer answers.<br><br><img src="docs/assets/screenshots/reading.png" width="540" alt="Actual DeepSeek-Reflex wider reading layout" /></td>
+  </tr>
+</table>
+
+<details>
+<summary>More screenshots: selected text, settings, and introduction</summary>
+
+### Bring text into a draft, then review and send
+
+Choose Translate, Explain, or Ask in one toolbar. Existing drafts are preserved, and inserting a request never sends it automatically.
+
+<img src="docs/assets/screenshots/selected-text.png" width="430" alt="DeepSeek-Reflex selected-text toolbar with translation, explanation, and draft status" />
+
+### Settings and first-use introduction
+
+An independent panel groups shortcuts, hide behavior, and window layouts. A skippable four-step introduction helps on first use.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/assets/screenshots/settings.png" width="380" alt="DeepSeek-Reflex settings for shortcuts, focus, hide behavior, and window size" /></td>
+    <td align="center"><img src="docs/assets/screenshots/getting-started.png" width="380" alt="DeepSeek-Reflex introduction: official website sign-in without an API key" /></td>
+  </tr>
+</table>
+
+</details>
+
 ## Download and install
 
 Choose a file from [Releases](https://github.com/DOIT-Ben/DeepSeek-Reflex/releases/latest):
 
 | File | How to use it |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.13-Setup-x64.exe` | Run the installer. It installs for the current user without administrator privileges, with optional desktop and startup shortcuts. Uninstall through Windows Apps. |
-| `DeepSeek-Reflex-1.0.13-Windows-x64.zip` | Extract the entire folder and run `DeepSeekFloat.exe`. Keep all dependency DLLs beside the executable. |
+| `DeepSeek-Reflex-1.0.14-Setup-x64.exe` | Run the installer. It installs for the current user without administrator privileges, with optional desktop and startup shortcuts. Uninstall through Windows Apps. |
+| `DeepSeek-Reflex-1.0.14-Windows-x64.zip` | Extract the entire folder and run `DeepSeekFloat.exe`. Keep all dependency DLLs beside the executable. |
 | `SHA256SUMS.txt` | Verify the downloaded files against their SHA-256 checksums. GitHub also provides source archives. |
 
 Requires **Windows 10/11 x64, .NET Framework 4.8, and WebView2 Evergreen Runtime**. V1 has been verified on Windows 11; Windows 10 has not been validated across devices. The installer checks prerequisites and points to [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) or [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48) if needed. It does not silently download other software. A native ARM64 build is not available.
@@ -49,7 +82,7 @@ Requires **Windows 10/11 x64, .NET Framework 4.8, and WebView2 Evergreen Runtime
 Current releases are unsigned, so Windows may display an unknown-publisher prompt. See the [signing policy](docs/code-signing.md). Download from this repository's Releases and verify the checksum:
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.13-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.0.14-Setup-x64.exe -Algorithm SHA256
 ```
 
 Before upgrading, choose **Exit** from the tray menu. Uninstalling preserves settings and website sign-in data. The ZIP uses the same user data directory as the installed application; moving the extracted folder does not move those data.
@@ -115,7 +148,7 @@ Tests cover settings persistence, shortcut conflict rollback, native window geom
 ```text
 webview-host/     C# / WinForms / WebView2 source, application icon, build and tests
 packaging/        Installer definition, release build and quick-start notes
-docs/assets/     Original high-resolution logo
+docs/assets/     Original logo and application screenshots
 docs/adr/        Edge docking and custom command decisions and independent review
 docs/design/     Standalone interaction preview
 docs/branding.md Logo notes (Chinese)
