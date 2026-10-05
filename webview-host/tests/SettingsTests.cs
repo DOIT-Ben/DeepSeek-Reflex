@@ -17,6 +17,7 @@ internal static class SettingsTests {
  [System.Runtime.InteropServices.DllImport("user32.dll")] static extern int GetWindowLong(IntPtr handle,int index);
  [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr GetWindowDC(IntPtr handle);
  [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool IsWindowEnabled(IntPtr handle);
+ [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr handle);
  [System.Runtime.InteropServices.DllImport("user32.dll")] static extern int ReleaseDC(IntPtr handle,IntPtr dc);
  [System.Runtime.InteropServices.DllImport("gdi32.dll")] static extern uint GetPixel(IntPtr dc,int x,int y);
  [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr handle,out Native.RECT rect);
@@ -38,6 +39,16 @@ internal static class SettingsTests {
   }finally {ReleaseDC(window.Handle,dc);}
  }
  static object Field(object obj,string name) { return obj.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic).GetValue(obj); }
+ static bool AboveWindow(IntPtr surface,IntPtr owner) {
+  var previous=Native.GetWindow(owner,3);for(int i=0;i<512&&previous!=IntPtr.Zero;i++,previous=Native.GetWindow(previous,3))if(previous==surface)return true;
+  return false;
+ }
+ static bool ModalCornersAbove(Form dialog) {
+  var smooth=(SmoothFrame)Field(dialog,"smoothFrame");
+  Console.WriteLine("Modal corners "+dialog.GetType().Name+": ready="+smooth.Ready+" visible="+smooth.Visible+" aligned="+smooth.Aligned+" modalTop="+((GetWindowLong(dialog.Handle,-20)&8)!=0)+" "+String.Join(";",smooth.Surfaces.Select(c=>"visible="+IsWindowVisible(c.Handle)+",enabled="+IsWindowEnabled(c.Handle)+",above="+AboveWindow(c.Handle,dialog.Handle)+",owner="+(Native.GetWindow(c.Handle,4)==dialog.Handle)+",top="+((GetWindowLong(c.Handle,-20)&8)!=0))));
+  int band=GetWindowLong(dialog.Handle,-20)&8;
+  return smooth.Ready&&smooth.Aligned&&smooth.UploadCount==4&&smooth.Surfaces.All(c=>IsWindowVisible(c.Handle)&&Native.GetWindow(c.Handle,4)==dialog.Handle&&(GetWindowLong(c.Handle,-20)&8)==band&&AboveWindow(c.Handle,dialog.Handle));
+ }
  static object Com(object obj,string name,BindingFlags flags,params object[] args){return obj.GetType().InvokeMember(name,flags,null,obj,args);}
  static void TestShortcutIdentity(string directory) {
   var path=Path.Combine(directory,"identity with spaces.lnk");
@@ -165,14 +176,15 @@ internal static class SettingsTests {
    using(var window=new ChatWindow(new[]{"--background"}))using(var dismiss=new Timer {Interval=20}) {
     window.Text="Reflex 引导自有测试";typeof(ChatWindow).GetField("initializing",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(window,true);
     window.Show();Application.DoEvents();Check(!window.Visible&&GettingStarted.NeedsIntroduction,"background startup defers introduction and does not acknowledge it");
-    bool opened=false,suspended=false;var timeout=System.Diagnostics.Stopwatch.StartNew();
+    bool opened=false,suspended=false,guideCorners=true;var timeout=System.Diagnostics.Stopwatch.StartNew();
     dismiss.Tick+=delegate {
      var guide=Application.OpenForms.OfType<GettingStartedDialog>().FirstOrDefault();
-     if(guide!=null){opened=true;suspended=!((HotkeyBindings)Field(window,"hotkeys")).ToggleRegistered;Native.SendMessage(window.Handle,0x312,new IntPtr(Native.HotkeyId),IntPtr.Zero);Check(window.Visible&&guide.Visible,"queued hotkey cannot hide host under the modal introduction");guide.SetStep(3);((PanelButton)Field(guide,"next")).PerformClick();dismiss.Stop();}
+     if(guide!=null){opened=true;guideCorners&=ModalCornersAbove(guide);suspended=!((HotkeyBindings)Field(window,"hotkeys")).ToggleRegistered;Native.SendMessage(window.Handle,0x312,new IntPtr(Native.HotkeyId),IntPtr.Zero);Check(window.Visible&&guide.Visible,"queued hotkey cannot hide host under the modal introduction");guide.SetStep(3);((PanelButton)Field(guide,"next")).PerformClick();dismiss.Stop();}
      else if(timeout.ElapsedMilliseconds>4000){dismiss.Stop();window.Close();}
     };
     dismiss.Start();typeof(ChatWindow).GetMethod("ShowChat",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(window,null);Application.DoEvents();
     Check(opened&&suspended&&!GettingStarted.NeedsIntroduction,"first explicit wake opens guide, suspends hotkeys and persists dismissal");
+    Check(guideCorners,"real modal guide keeps all four alpha corners above the dialog");
     Check(((HotkeyBindings)Field(window,"hotkeys")).ToggleRegistered,"closing introduction restores wake hotkey");
     typeof(ChatWindow).GetMethod("ShowChat",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(window,null);Application.DoEvents();Check(!Application.OpenForms.OfType<GettingStartedDialog>().Any(),"subsequent wake does not repeat acknowledged introduction");
     typeof(ChatWindow).GetField("quitting",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(window,true);window.Close();
@@ -292,22 +304,45 @@ internal static class SettingsTests {
     Check(CleanStraightEdges(window),"native reactivation does not draw a gray sizing frame over custom margins");
     Native.SendMessage(window.Handle,0x85,new IntPtr(1),IntPtr.Zero);
     Check(CleanStraightEdges(window),"native nonclient repaint leaves all four custom straight edges intact");
-    var modalBounds=window.Bounds;bool modalDisabledOwner=false;int modalClosed=0;
+    var modalBounds=window.Bounds;bool modalDisabledOwner=false,settingsCorners=true;int modalClosed=0;
     using(var closeSettings=new Timer {Interval=30}) {
      closeSettings.Tick+=delegate {
       foreach(var dialog in Application.OpenForms.OfType<SettingsDialog>().ToArray()) {
-       modalDisabledOwner|=!IsWindowEnabled(window.Handle)&&Native.GetWindow(dialog.Handle,4)==window.Handle;modalClosed++;dialog.Close();
+       modalDisabledOwner|=!IsWindowEnabled(window.Handle)&&Native.GetWindow(dialog.Handle,4)==window.Handle;
+       settingsCorners&=ModalCornersAbove(dialog)&&((GetWindowLong(dialog.Handle,-20)&8)!=0)==window.TopMost;
+       dialog.Location=new Point(dialog.Left+8,dialog.Top+6);settingsCorners&=ModalCornersAbove(dialog);modalClosed++;dialog.Close();
       }
      };
      closeSettings.Start();
      try {for(int cycle=0;cycle<3;cycle++) {
       window.TopMost=cycle%2==1;
+      Check(((GetWindowLong(window.Handle,-20)&8)!=0)==window.TopMost&&smooth.Surfaces.All(c=>(GetWindowLong(c.Handle,-20)&8)==(GetWindowLong(window.Handle,-20)&8)),"actual chat pin transition preserves native owner and corner bands: cycle="+cycle);
       typeof(ChatWindow).GetMethod("ShowSettings",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);
       Application.DoEvents();
       Check(IsWindowEnabled(window.Handle)&&window.Bounds==modalBounds&&CleanStraightEdges(window),"actual modal settings return preserves geometry and white margins: cycle="+cycle);
      }}finally {closeSettings.Stop();}
     }
     Check(modalDisabledOwner&&modalClosed==3&&((HotkeyBindings)Field(window,"hotkeys")).ToggleRegistered,"real settings modal disables owner then closes and resumes shortcut binding on every cycle");
+    Check(settingsCorners,"real modal settings keep all four cached alpha corners above the dialog before and after moving with pinning on and off");
+    bool helpDisabledOwner=false,helpCorners=true;int helpClosed=0;
+    using(var closeHelp=new Timer {Interval=30}) {
+     closeHelp.Tick+=delegate {
+      foreach(var guide in Application.OpenForms.OfType<GettingStartedDialog>().ToArray()) {
+       helpDisabledOwner|=!IsWindowEnabled(window.Handle)&&Native.GetWindow(guide.Handle,4)==window.Handle;
+       helpCorners&=ModalCornersAbove(guide)&&((GetWindowLong(guide.Handle,-20)&8)!=0)==window.TopMost;
+       guide.Location=new Point(guide.Left+8,guide.Top+6);helpCorners&=ModalCornersAbove(guide);helpClosed++;guide.Close();
+      }
+     };
+     closeHelp.Start();
+     try {for(int cycle=0;cycle<3;cycle++) {
+      window.TopMost=cycle%2==1;
+      typeof(ChatWindow).GetMethod("ShowHelp",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);
+      Application.DoEvents();
+      Check(IsWindowEnabled(window.Handle)&&window.Bounds==modalBounds&&CleanStraightEdges(window),"actual modal guide return preserves geometry and white margins: cycle="+cycle);
+     }}finally {closeHelp.Stop();}
+    }
+    Check(helpDisabledOwner&&helpClosed==3&&((HotkeyBindings)Field(window,"hotkeys")).ToggleRegistered,"real guide modal disables owner then closes and resumes shortcut binding on every cycle");
+    Check(helpCorners,"real modal guide keeps all four cached alpha corners above the dialog before and after moving with pinning on and off");
     bool nativeSizingStarted=false;
     EventHandler resizeStarted=delegate {nativeSizingStarted=true;};
     window.ResizeBegin+=resizeStarted;
@@ -521,8 +556,10 @@ internal static class SettingsTests {
     }finally{Native.DeleteObject(nativeImage);}
    }
    using(var owner=new ResizeProbeForm())using(var ring=new WindowFrame()) {
-    float scale;using(var g=owner.CreateGraphics())scale=g.DpiX/96f;
+    // Match production: configure the borderless form before CreateGraphics
+    // creates its first HWND, avoiding a stale style in this fixture.
     owner.FormBorderStyle=FormBorderStyle.None;owner.AutoScaleMode=AutoScaleMode.None;owner.StartPosition=FormStartPosition.Manual;
+    float scale;using(var g=owner.CreateGraphics())scale=g.DpiX/96f;
     owner.Bounds=new Rectangle(200,200,(int)(410*scale),(int)(616*scale));owner.Controls.Add(ring);
     SmoothFrame smooth=null;
     try {
@@ -559,7 +596,15 @@ internal static class SettingsTests {
      int gdiAfter=GetGuiResources(new IntPtr(-1),0);
      Console.WriteLine("GDI objects before="+gdiBefore+" after="+gdiAfter);
      Console.WriteLine("Alpha resize ready="+smooth.Ready+" aligned="+smooth.Aligned+" host="+owner.Bounds+" error="+smooth.LastError);Check(smooth.Ready&&smooth.Aligned&&gdiAfter-gdiBefore<=4,"thirty resize uploads retain alignment and bounded GDI resources");
-     owner.TopMost=true;smooth.SyncOwner();Check(smooth.Surfaces.All(s=>s.TopMost),"pin state also applies to owned alpha surface");owner.TopMost=false;smooth.SyncOwner();
+     for(int cycle=0;cycle<4;cycle++) {
+      bool pinned=cycle%2==0;owner.TopMost=pinned;smooth.SyncOwner();Application.DoEvents();
+      int band=GetWindowLong(owner.Handle,-20)&8;
+      Check(smooth.Surfaces.All(s=>s.TopMost==(band!=0)&&(GetWindowLong(s.Handle,-20)&8)==band&&AboveWindow(s.Handle,owner.Handle)),"pin transition synchronizes corners to the actual owner HWND band and stacking order: cycle="+cycle);
+     }
+     var stale=smooth.Surfaces[0];
+     Check(Native.SetWindowPos(stale.Handle,new IntPtr(-1),0,0,0,0,0x213)&&!stale.TopMost&&(GetWindowLong(stale.Handle,-20)&8)!=0&&(GetWindowLong(owner.Handle,-20)&8)==0,"fixture creates a stale corner HWND band without changing managed TopMost or the owner band");
+     smooth.SyncOwner();Application.DoEvents();
+     Check(smooth.Aligned&&smooth.UploadCount==stableUploads&&smooth.Surfaces.All(s=>(GetWindowLong(s.Handle,-20)&8)==0&&AboveWindow(s.Handle,owner.Handle)),"sync repairs stale native corner band without activating or reuploading pixels");
      owner.Hide();Application.DoEvents();Check(!smooth.Visible&&!smooth.Ready,"hiding owner removes alpha surface");
      owner.Show();Application.DoEvents();Check(smooth.Visible&&smooth.Ready,"showing owner restores alpha surface");
      owner.WindowState=FormWindowState.Minimized;Application.DoEvents();Check(!smooth.Visible&&!smooth.Ready,"minimize removes owned alpha surface");

@@ -13,7 +13,7 @@ namespace DeepSeekFloat {
         private readonly float scale;
         private readonly Action stateChanged;
         private readonly CornerSurface[] corners=new CornerSurface[4];
-        private bool synchronizing,ready,disposed,interactiveResize;
+        private bool synchronizing,ready,disposed,interactiveResize,activationQueued;
         internal bool Ready {get{return ready;}}
         internal bool Visible {get{return corners[0].Visible&&corners[1].Visible&&corners[2].Visible&&corners[3].Visible;}}
         internal bool InteractiveResize {get{return interactiveResize;}}
@@ -25,8 +25,15 @@ namespace DeepSeekFloat {
             host=owner;scale=dpiScale;stateChanged=changed;
             for(int i=0;i<4;i++)corners[i]=new CornerSurface(host,scale,resizable);
             host.LocationChanged+=OwnerChanged;host.SizeChanged+=OwnerChanged;host.VisibleChanged+=OwnerChanged;
+            host.Shown+=OwnerChanged;host.Activated+=OwnerActivated;
         }
         private void OwnerChanged(object sender,EventArgs e){SyncOwner();}
+        private void OwnerActivated(object sender,EventArgs e) {
+            if(activationQueued||disposed||!host.IsHandleCreated)return;
+            // Activation can run inside Windows' topmost transition. Wait for
+            // that transition to finish before adjusting the owned patches.
+            activationQueued=true;host.BeginInvoke(new Action(delegate{activationQueued=false;SyncOwner();}));
+        }
         private void SetReady(bool value){if(ready==value)return;ready=value;if(stateChanged!=null)stateChanged();}
         internal void BeginInteractiveResize(){interactiveResize=true;SyncOwner();}
         internal void EndInteractiveResize(){interactiveResize=false;SyncOwner();}
@@ -48,12 +55,23 @@ namespace DeepSeekFloat {
             try {
                 if(!host.Visible||host.WindowState!=FormWindowState.Normal){Hide();return;}
                 int side=PatchSize(scale);
+                // Windows promotes dialogs owned by a pinned window even when
+                // WinForms' TopMost property remains false. The alpha patches
+                // must follow the actual HWND band rather than that property.
+                bool topmost=(Native.GetWindowLong(host.Handle,-20)&0x8)!=0;
                 for(int i=0;i<4;i++) {
-                    var corner=corners[i];if(corner.Owner!=host)corner.Owner=host;if(corner.TopMost!=host.TopMost)corner.TopMost=host.TopMost;
+                    var corner=corners[i];if(corner.Owner!=host)corner.Owner=host;if(corner.TopMost!=topmost)corner.TopMost=topmost;
                     if(!corner.Uploaded){using(var image=RenderCorner(i,scale))corner.Upload(image,PatchBounds(host.Bounds,i,side).Location);UploadCount++;}
                 }
                 MoveTogether(host.Bounds,false);
-                foreach(var corner in corners)if(!corner.Visible)corner.Show(host);
+                const uint bandFlags=0x213; // NOMOVE | NOSIZE | NOACTIVATE | NOOWNERZORDER
+                foreach(var corner in corners) {
+                    if(!corner.Visible)corner.Show(host);
+                    // Inherited native band changes do not update Form.TopMost.
+                    // Repair a stale HWND even when the managed value matches.
+                    if(((Native.GetWindowLong(corner.Handle,-20)&0x8)!=0)!=topmost
+                        &&!Native.SetWindowPos(corner.Handle,new IntPtr(topmost?-1:-2),0,0,0,0,bandFlags))throw new Win32Exception();
+                }
                 LastError=null;SetReady(true);
             }catch(Win32Exception e){Fail(e);}catch(ExternalException e){Fail(e);}catch(OutOfMemoryException e){Fail(e);}
             finally{synchronizing=false;}
@@ -112,6 +130,7 @@ namespace DeepSeekFloat {
         }
         public void Dispose() {
             if(disposed)return;disposed=true;host.LocationChanged-=OwnerChanged;host.SizeChanged-=OwnerChanged;host.VisibleChanged-=OwnerChanged;
+            host.Shown-=OwnerChanged;host.Activated-=OwnerActivated;
             foreach(var corner in corners)corner.Dispose();ready=false;
         }
     }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.12 — 2026-10-05
+
+- Restore the missing curved outline in settings and introduction dialogs opened from a pinned chat window. Synchronize the four cached corner surfaces with the dialog's actual native topmost band when it is shown or activated, including stale native states that differ from WinForms properties.
+- Add real modal settings and guide regressions with pinning off, on and off again, including native visibility, ownership, stacking order, cached uploads and alignment after moving. Verify the main window's geometry, white margins and shortcut registration after each return under default and high DPI.
+
 ## 1.0.11 — 2026-10-05
 
 - Share button, switch and title-bar feedback colors, timings and rounded keyboard focus indicators; animate pin-state changes and retain Windows animation preferences.

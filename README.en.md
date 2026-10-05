@@ -40,8 +40,8 @@ Choose a file from [Releases](https://github.com/DOIT-Ben/DeepSeek-Reflex/releas
 
 | File | How to use it |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.11-Setup-x64.exe` | Run the installer. It installs for the current user without administrator privileges, with optional desktop and startup shortcuts. Uninstall through Windows Apps. |
-| `DeepSeek-Reflex-1.0.11-Windows-x64.zip` | Extract the entire folder and run `DeepSeekFloat.exe`. Keep all dependency DLLs beside the executable. |
+| `DeepSeek-Reflex-1.0.12-Setup-x64.exe` | Run the installer. It installs for the current user without administrator privileges, with optional desktop and startup shortcuts. Uninstall through Windows Apps. |
+| `DeepSeek-Reflex-1.0.12-Windows-x64.zip` | Extract the entire folder and run `DeepSeekFloat.exe`. Keep all dependency DLLs beside the executable. |
 | `SHA256SUMS.txt` | Verify the downloaded files against their SHA-256 checksums. GitHub also provides source archives. |
 
 Requires **Windows 10/11 x64, .NET Framework 4.8, and WebView2 Evergreen Runtime**. V1 has been verified on Windows 11; Windows 10 has not been validated across devices. The installer checks prerequisites and points to [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) or [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48) if needed. It does not silently download other software. A native ARM64 build is not available.
@@ -49,7 +49,7 @@ Requires **Windows 10/11 x64, .NET Framework 4.8, and WebView2 Evergreen Runtime
 Current releases are unsigned, so Windows may display an unknown-publisher prompt. See the [signing policy](docs/code-signing.md). Download from this repository's Releases and verify the checksum:
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.11-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.0.12-Setup-x64.exe -Algorithm SHA256
 ```
 
 Before upgrading, choose **Exit** from the tray menu. Uninstalling preserves settings and website sign-in data. The ZIP uses the same user data directory as the installed application; moving the extracted folder does not move those data.
