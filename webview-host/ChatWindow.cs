@@ -77,11 +77,11 @@ namespace DeepSeekFloat
         private readonly Icon windowIcon, trayIcon;
         private readonly Timer healthTimer = new Timer();
         private readonly Panel selectionBar = new Panel();
-        private readonly ComboBox selectionAction = new ComboBox();
+        private readonly PanelChoices selectionAction = new PanelChoices("翻译","解释","提问");
         private readonly Label selectionStatus = new Label();
-        private readonly Button insertSelection = new Button();
-        private readonly Button copySelection = new Button();
-        private readonly Button dismissSelection = new Button();
+        private readonly PanelButton insertSelection = new PanelButton("填入") {Chosen=true};
+        private readonly PanelButton copySelection = new PanelButton("复制请求") {Ghost=true};
+        private readonly ChromeButton dismissSelection = new ChromeButton("close","收起取词栏");
         private bool capturing, inserting, settingsOpen, pendingComposerFocus,layingOut,guideOpen,guideQueued;
         private int focusVersion;
         private WindowSettings settings;
@@ -172,20 +172,17 @@ namespace DeepSeekFloat
             status.Click += async delegate { await InitializeBrowser(); };
             browser.DefaultBackgroundColor = Color.White;
             browser.AccessibleName = "DeepSeek 官网聊天";
-            selectionBar.BackColor=Color.FromArgb(246,248,253);
+            selectionBar.BackColor=Color.White;
+            selectionBar.Font=new Font("Microsoft YaHei UI",9f);
+            selectionBar.Paint+=delegate(object sender,PaintEventArgs e){using(var pen=new Pen(PanelTheme.Border))e.Graphics.DrawLine(pen,S(10),selectionBar.Height-1,selectionBar.Width-S(10),selectionBar.Height-1);};
             selectionBar.Visible=false;
-            selectionAction.DropDownStyle=ComboBoxStyle.DropDownList;
-            selectionAction.Items.AddRange(new object[]{"翻译","学生解释","理解提问"});
+            selectionAction.AccessibleName="文字处理方式";
+            selectionAction.Controls[1].AccessibleName="学生解释";selectionAction.Controls[2].AccessibleName="理解提问";
             selectionAction.SelectedIndex=0;
             selectionAction.SelectedIndexChanged += async delegate { selectionVersion++; if(selectedText!=null) await FillSelection(); };
-            selectionStatus.ForeColor=Color.FromArgb(69,77,92);
+            selectionStatus.ForeColor=PanelTheme.Muted;
             selectionStatus.AutoEllipsis=true;
             selectionStatus.TextAlign=ContentAlignment.MiddleLeft;
-            insertSelection.Text="填入"; copySelection.Text="复制请求"; dismissSelection.Text="×";
-            foreach(var button in new[]{insertSelection,copySelection,dismissSelection}) {
-                button.FlatStyle=FlatStyle.Flat; button.FlatAppearance.BorderSize=0;
-                button.BackColor=Color.FromArgb(234,239,252); button.ForeColor=Color.FromArgb(61,92,187);
-            }
             insertSelection.Click += async delegate { await FillSelection(); };
             copySelection.Click += delegate {
                 if(selectedText==null) return;
@@ -257,10 +254,11 @@ namespace DeepSeekFloat
             for(int i=0;i<rightButtons.Length;i++)rightButtons[i].SetBounds(ClientSize.Width-S(8)-width*(i+1),0,width,S(28));
             if(selectionBar.Visible) {
                 selectionBar.SetBounds(edge,height,Math.Max(0,ClientSize.Width-edge*2),S(76));
-                selectionAction.SetBounds(S(10),S(8),S(108),S(28));
-                insertSelection.SetBounds(S(128),S(8),S(48),S(28));
-                copySelection.SetBounds(S(182),S(8),S(84),S(28));
-                dismissSelection.SetBounds(selectionBar.Width-S(36),S(8),S(26),S(28));
+                int choicesWidth=Math.Max(1,selectionBar.Width-S(192));
+                selectionAction.SetBounds(S(10),S(8),choicesWidth,S(32));
+                insertSelection.SetBounds(S(18)+choicesWidth,S(8),S(48),S(32));
+                copySelection.SetBounds(S(72)+choicesWidth,S(8),S(76),S(32));
+                dismissSelection.SetBounds(selectionBar.Width-S(38),S(10),S(28),S(28));
                 selectionStatus.SetBounds(S(10),S(40),Math.Max(0,selectionBar.Width-S(20)),S(28));
                 height+=selectionBar.Height;
             }

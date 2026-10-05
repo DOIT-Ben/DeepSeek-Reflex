@@ -29,7 +29,7 @@ A skippable introduction appears on first use and can be reopened from Settings.
 | Regular website sign-in | Use your DeepSeek account, conversation history, and attachments. No separate API key is needed. |
 | Selected-text import | Bring selected text into a draft to translate, explain, or ask about it. Existing drafts are preserved; you review and send. |
 | Compact and reading layouts | Use the compact window for quick questions and the wider layout for longer answers. Resize from any edge or corner. |
-| Settings panel | Customize shortcuts, shortcut hide behavior, automatic input focus, and window size. |
+| Settings panel | Customize shortcuts, hide behavior, input focus, and window size. Content scrolls on smaller screens while the save controls stay visible. |
 | Smooth window frame | Rounded corners stay visible while dragging, with animated feedback on buttons and switches. |
 
 Useful for follow-up questions while researching, lesson preparation, translating passages, and quick coding questions. Sign-in and the hosted model service require internet access. Website features and availability are provided by DeepSeek.
@@ -40,8 +40,8 @@ Choose a file from [Releases](https://github.com/DOIT-Ben/DeepSeek-Reflex/releas
 
 | File | How to use it |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.10-Setup-x64.exe` | Run the installer. It installs for the current user without administrator privileges, with optional desktop and startup shortcuts. Uninstall through Windows Apps. |
-| `DeepSeek-Reflex-1.0.10-Windows-x64.zip` | Extract the entire folder and run `DeepSeekFloat.exe`. Keep all dependency DLLs beside the executable. |
+| `DeepSeek-Reflex-1.0.11-Setup-x64.exe` | Run the installer. It installs for the current user without administrator privileges, with optional desktop and startup shortcuts. Uninstall through Windows Apps. |
+| `DeepSeek-Reflex-1.0.11-Windows-x64.zip` | Extract the entire folder and run `DeepSeekFloat.exe`. Keep all dependency DLLs beside the executable. |
 | `SHA256SUMS.txt` | Verify the downloaded files against their SHA-256 checksums. GitHub also provides source archives. |
 
 Requires **Windows 10/11 x64, .NET Framework 4.8, and WebView2 Evergreen Runtime**. V1 has been verified on Windows 11; Windows 10 has not been validated across devices. The installer checks prerequisites and points to [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) or [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48) if needed. It does not silently download other software. A native ARM64 build is not available.
@@ -49,7 +49,7 @@ Requires **Windows 10/11 x64, .NET Framework 4.8, and WebView2 Evergreen Runtime
 Current releases are unsigned, so Windows may display an unknown-publisher prompt. See the [signing policy](docs/code-signing.md). Download from this repository's Releases and verify the checksum:
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.10-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.0.11-Setup-x64.exe -Algorithm SHA256
 ```
 
 Before upgrading, choose **Exit** from the tray menu. Uninstalling preserves settings and website sign-in data. The ZIP uses the same user data directory as the installed application; moving the extracted folder does not move those data.
@@ -64,7 +64,7 @@ The first visible launch offers a four-step introduction. You can skip it, or re
 2. Press **Ctrl+Space** to open or minimize it. You can change the hide action to the tray in Settings.
 3. Select text in another application and press **Ctrl+Shift+D**. Choose translation, a student-friendly explanation, or a question about the text; review the draft before sending.
 4. The title bar has minimize, pin, and layout controls on the left; Settings and hide are on the right. Closing the window or pressing Alt+F4 hides it to the tray. Choose **退出 (Exit)** in the tray menu to quit.
-5. If a shortcut conflicts with another application, record and save a different key combination in Settings.
+5. If a shortcut conflicts with another application, click its field in Settings and press a new combination, then save. During recording, Esc cancels and Tab moves to the next control. Duplicate combinations and occupied shortcuts show explicit feedback.
 
 The compact layout is 410×616 DIP and the reading layout is 752×720 DIP, adjusted for available screen space and Windows scaling. Website zoom defaults to 90%. Double-click the title bar to enlarge or restore the window; dragging an edge saves a custom size.
 

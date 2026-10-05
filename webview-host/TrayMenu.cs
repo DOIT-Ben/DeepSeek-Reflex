@@ -28,7 +28,7 @@ namespace DeepSeekFloat {
             var old=Region;Region=null;
             if(old!=null)old.Dispose();
             if(IsHandleCreated) {
-                int corner=2,border=226|(231<<8)|(238<<16);
+                int corner=2,border=PanelTheme.Border.R|(PanelTheme.Border.G<<8)|(PanelTheme.Border.B<<16);
                 NativeCornersRequested=Native.DwmSetWindowAttribute(Handle,33,ref corner,4)==0;
                 if(NativeCornersRequested)Native.DwmSetWindowAttribute(Handle,34,ref border,4);
             }
@@ -49,7 +49,7 @@ namespace DeepSeekFloat {
         }
         protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e) {
             if(!e.Item.Selected||!e.Item.Enabled)return;e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
-            using(var path=PanelTheme.Rounded(new RectangleF(0,0,e.Item.Width-1,e.Item.Height-1),8*scale))using(var brush=new SolidBrush(PanelTheme.Surface))e.Graphics.FillPath(brush,path);
+            using(var path=PanelTheme.Rounded(new RectangleF(0,0,e.Item.Width-1,e.Item.Height-1),8*scale))using(var brush=new SolidBrush(PanelTheme.Hover))e.Graphics.FillPath(brush,path);
         }
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e){
             int inset=(int)Math.Round(16*scale);

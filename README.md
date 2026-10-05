@@ -29,7 +29,7 @@
 | 正常登录 | 使用官网账号、历史对话和附件功能；不需要单独申请 API Key。收起窗口保留当前网页。 |
 | 选中文字带入 | 用快捷键把文字带入小窗，翻译、解释或继续提问；保留已有草稿，由你确认后发送。 |
 | 小窗与阅读模式 | 小窗随手问，阅读模式看长回答；支持拖动和四边四角拉伸。 |
-| 顺手的设置 | 独立设置面板配置唤起键、取词键、收起方式、自动聚焦和窗口尺寸。 |
+| 顺手的设置 | 独立面板配置快捷键、收起方式、自动聚焦和尺寸；小屏幕可滚动，保存按钮始终可见。 |
 | 平滑的外框 | 拖动时保留圆角，按钮和开关带有平滑的交互反馈。 |
 
 适合查资料时快速追问、教师备课时解释概念、阅读外文时翻译段落，以及写代码时问一个短问题。官网、模型服务与登录仍需要联网，网站本身的功能和可用性由 DeepSeek 提供。
@@ -40,8 +40,8 @@
 
 | 文件 | 怎么用 |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.10-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
-| `DeepSeek-Reflex-1.0.10-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
+| `DeepSeek-Reflex-1.0.11-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
+| `DeepSeek-Reflex-1.0.11-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
 | `SHA256SUMS.txt` | 对照下载文件的 SHA-256。源码压缩包由 GitHub 自动提供。 |
 
 要求 **Windows 10/11 x64、.NET Framework 4.8、WebView2 Evergreen Runtime**。V1 在 Windows 11 上验证；Windows 10 兼容性尚未逐机验收。安装器会检查运行环境，缺少时提示安装 [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) 或 [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48)。安装包不静默下载其他软件。ARM64 原生版本尚未提供。
@@ -49,7 +49,7 @@
 当前发行包未签名，Windows 可能显示未知发布者提示。签名申请与接入情况见 [签名说明](docs/code-signing.md)。请从本仓库 Releases 下载，并核对哈希：
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.10-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.0.11-Setup-x64.exe -Algorithm SHA256
 ```
 
 升级前先从托盘右键菜单选择 **退出**。卸载保留个人设置和官网登录资料，重新安装可以继续使用。ZIP 也使用同一用户数据目录；它是免安装版本，数据不会跟着 ZIP 文件夹移动。
@@ -64,7 +64,7 @@ Get-FileHash .\DeepSeek-Reflex-1.0.10-Setup-x64.exe -Algorithm SHA256
 2. 默认按 **Ctrl+Space** 唤出 / 最小化小窗；设置中可改成“收进托盘”。
 3. 在其他应用选中文字后，按 **Ctrl+Shift+D** 带入小窗；选择翻译、学生解释或理解提问，检查草稿后发送。
 4. 标题栏左侧依次为最小化、置顶、尺寸切换；右侧为设置和收起。关闭或 Alt+F4 收进托盘，托盘菜单的“退出”才结束程序。
-5. 热键与其他软件冲突时，在设置面板录入新组合键并保存。
+5. 热键与其他软件冲突时，点设置中的按键框，再按新组合键；提示录入成功后保存。录入时按 Esc 取消，Tab 切换；重复组合键或已被占用的按键会明确提示。
 
 小窗为 410×616 DIP，阅读模式为 752×720 DIP；实际尺寸按屏幕空间和 Windows 缩放调整。网页默认缩放 90%。双击标题栏可以放大 / 恢复，手动拉伸会保存自定义尺寸。
 

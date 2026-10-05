@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.11 — 2026-10-05
+
+- Share button, switch and title-bar feedback colors, timings and rounded keyboard focus indicators; animate pin-state changes and retain Windows animation preferences.
+- Use compact segmented choices in settings and the selected-text toolbar, keeping the draft protection and explicit send behavior.
+- Fit settings to the current working area, scroll the content when space is limited, and keep Save and Cancel visible.
+- Show shortcut recording, invalid-input and duplicate-binding feedback inline. Escape cancels active recording; Tab moves on without changing the pending shortcut.
+- Add native queued-key, constrained-layout, segmented-navigation and animation regressions under default and high DPI. Preserve the existing native resize, taskbar and settings-return frame checks.
+
 ## 1.0.10 — 2026-10-05
 
 - Add a collapsed README note about the project's origin and the maintainer's preference for quick everyday answers and optional deeper reasoning.

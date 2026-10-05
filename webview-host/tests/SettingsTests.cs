@@ -75,6 +75,67 @@ internal static class SettingsTests {
   }
  }
  static System.Collections.Generic.IEnumerable<Control> Children(Control parent) { foreach(Control child in parent.Controls) { yield return child;foreach(var descendant in Children(child))yield return descendant; } }
+ static void PressKey(Control control,Keys keys) {typeof(Control).GetMethod("OnKeyDown",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(control,new object[]{new KeyEventArgs(keys)});}
+ static void TestInteractionPolish(string directory) {
+  var original=WindowSettings.Defaults();original.ToggleKeys=K(Keys.F20);original.CaptureKeys=K(Keys.F21);
+  using(var dialog=new SettingsDialog(original,delegate(WindowSettings next){return null;},delegate(string action){})) {
+   dialog.Show();Application.DoEvents();var toggle=(HotkeyBox)Field(dialog,"toggle");var capture=(HotkeyBox)Field(dialog,"capture");var save=(PanelButton)Field(dialog,"save");var hint=(Label)Field(dialog,"hint");
+   toggle.Focus();Check(toggle.Recording&&toggle.Text.Contains("请按")&&hint.Text.Contains("Esc"),"focusing a shortcut shows recording instructions without changing its binding");
+   PressKey(toggle,Keys.D);Check(toggle.Invalid&&toggle.Combination==original.ToggleKeys&&hint.Text.Contains("Ctrl"),"modifierless input reports a useful error and preserves the shortcut");
+   Native.PostMessage(toggle.Handle,0x100,new IntPtr((int)Keys.Escape),IntPtr.Zero);Pump(35);
+   Check(dialog.Visible&&!toggle.Recording&&toggle.Combination==original.ToggleKeys&&hint.Text.Contains("取消"),"first real queued Escape cancels recording and keeps settings open");
+   PressKey(toggle,(Keys)original.CaptureKeys);Check(!save.Enabled&&hint.Text.Contains("不能相同"),"duplicate shortcuts are reported inline before save");
+   PressKey(toggle,(Keys)K(Keys.F22));Check(save.Enabled&&hint.Text.Contains("保存后生效")&&toggle.Text==HotkeyBindings.Format(K(Keys.F22)),"valid replacement clears duplicate feedback and remains pending until save");
+   capture.Focus();Native.PostMessage(capture.Handle,0x100,new IntPtr((int)Keys.Tab),IntPtr.Zero);Pump(35);
+   Check(!capture.Focused&&!capture.Recording&&capture.Combination==original.CaptureKeys,"Tab leaves shortcut recording and preserves the unedited binding");
+   var choices=(PanelChoices)Field(dialog,"windowMode");choices.SelectedIndex=0;var buttons=choices.Controls.OfType<PanelButton>().ToArray();buttons[0].Focus();PressKey(buttons[0],Keys.Right);
+   Check(choices.SelectedIndex==1&&buttons[1].Focused&&buttons.Count(b=>b.TabStop)==1,"segmented choices support arrow navigation and one keyboard tab stop");
+   PressKey(buttons[1],Keys.End);Check(choices.SelectedIndex==2,"segmented choices support End without moving the panel geometry");
+   float scale=(float)Field(dialog,"scale");var body=(Panel)Field(dialog,"body");var footer=(Panel)Field(dialog,"footer");
+   var preferred=dialog.ClientSize;var sizes=new[]{new Size((int)(440*scale),(int)(644*scale)),new Size((int)(360*scale),(int)(480*scale)),new Size((int)(340*scale),(int)(390*scale))};
+   foreach(var size in sizes) {
+    dialog.ClientSize=size;Application.DoEvents();
+    Check(dialog.ClientRectangle.Contains(footer.Bounds)&&footer.ClientRectangle.Contains(save.Bounds)&&footer.ClientRectangle.Contains(((PanelButton)Field(dialog,"cancel")).Bounds),"settings save and cancel stay visible at "+size);
+    Check(!body.HorizontalScroll.Visible&&body.Width>0&&choices.Width<=body.ClientSize.Width,"settings content fits horizontally at "+size);
+   }
+   Check(body.VerticalScroll.Visible,"short settings viewport scrolls while the footer remains fixed");
+   body.AutoScrollPosition=new Point(0,body.VerticalScroll.Maximum);Application.DoEvents();
+   var help=Children(body).OfType<Button>().Single(b=>b.Text=="使用帮助");var helpRect=body.RectangleToClient(help.RectangleToScreen(help.ClientRectangle));
+   Check(body.ClientRectangle.Contains(helpRect),"the last settings action remains reachable by scrolling");
+   var surface=(Panel)Field(dialog,"surface");using(var bitmap=new Bitmap(surface.Width,surface.Height)){surface.DrawToBitmap(bitmap,surface.ClientRectangle);bitmap.Save(Path.Combine(directory,"settings-compact-preview.png"));}
+   dialog.ClientSize=preferred;body.AutoScrollPosition=Point.Empty;Application.DoEvents();
+   ((ChromeButton)Field(dialog,"close")).Focus();Application.DoEvents();using(var bitmap=new Bitmap(surface.Width,surface.Height)){surface.DrawToBitmap(bitmap,surface.ClientRectangle);bitmap.Save(Path.Combine(directory,"settings-polished-preview.png"));}
+   Native.PostMessage(((ChromeButton)Field(dialog,"close")).Handle,0x100,new IntPtr((int)Keys.Escape),IntPtr.Zero);Pump(35);
+   Check(!dialog.Visible&&dialog.DialogResult==DialogResult.Cancel,"Escape outside recording dismisses settings without applying edits");
+  }
+  foreach(float scale in new[]{1f,1.5f,2f}) {
+   var area=new Rectangle(-1280,40,1280,680);var fitted=SettingsDialog.FitBounds(new Rectangle(-1400,-20,(int)(440*scale),(int)(644*scale)),area,scale);
+   Check(area.Contains(fitted)&&fitted.Width>0&&fitted.Height>0,"settings fit a constrained negative-coordinate working area at DPI "+scale);
+  }
+  using(var window=new ChatWindow(new[]{"--background"})) {
+   typeof(ChatWindow).GetField("initializing",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);typeof(ChatWindow).GetField("allowShow",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);
+   window.Show();Application.DoEvents();var bar=(Panel)Field(window,"selectionBar");bar.Show();var action=(PanelChoices)Field(window,"selectionAction");
+   foreach(int width in new[]{window.MinimumSize.Width,window.Width,window.Width+140}) {
+    window.Width=width;typeof(ChatWindow).GetMethod("LayoutContent",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
+    var fill=(PanelButton)Field(window,"insertSelection");var copy=(PanelButton)Field(window,"copySelection");var close=(ChromeButton)Field(window,"dismissSelection");
+    Check(bar.ClientRectangle.Contains(action.Bounds)&&bar.ClientRectangle.Contains(close.Bounds)&&action.Right<=fill.Left&&fill.Right<=copy.Left&&copy.Right<=close.Left,"selection controls fit without overlaps at width "+width);
+    using(var bitmap=new Bitmap(bar.Width,bar.Height)){bar.DrawToBitmap(bitmap,bar.ClientRectangle);bitmap.Save(Path.Combine(directory,"selection-bar-"+width+".png"));}
+   }
+   Check(Children(bar).OfType<ComboBox>().Count()==0&&action.Controls[1].AccessibleName=="学生解释","selection actions use the shared segmented control and keep their meaning");
+   var browser=(Control)Field(window,"browser");int withBar=browser.Height;((ChromeButton)Field(window,"dismissSelection")).PerformClick();Check(!bar.Visible&&browser.Height>withBar,"dismissing the selection bar returns its space to chat");
+   typeof(ChatWindow).GetField("quitting",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);window.Close();
+  }
+  using(var shell=new Form())using(var pin=new ChromeButton("pin","测试置顶"))using(var toggle=new PanelSwitch("测试开关")) {
+   shell.Controls.Add(pin);shell.Controls.Add(toggle);pin.SetBounds(8,8,32,28);toggle.SetBounds(8,44,240,36);shell.Show();Application.DoEvents();
+   typeof(Control).GetMethod("OnMouseEnter",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(toggle,new object[]{EventArgs.Empty});Pump(160);
+   Check(((UiMotion)Field(toggle,"hoverMotion")).Value==1&&!((UiMotion)Field(toggle,"hoverMotion")).Running,"switch hover shares the button feedback and settles without a continuous timer");
+   typeof(Control).GetMethod("OnMouseDown",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(toggle,new object[]{new MouseEventArgs(MouseButtons.Left,1,10,10,0)});
+   typeof(Control).GetMethod("OnMouseLeave",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(toggle,new object[]{EventArgs.Empty});Pump(160);
+   Check(((UiMotion)Field(toggle,"pressMotion")).Value==0&&((UiMotion)Field(toggle,"hoverMotion")).Value==0,"switch feedback clears when the pointer leaves during a press");
+   pin.Active=true;pin.Active=false;pin.Active=true;Pump(160);var selected=(UiMotion)Field(pin,"choiceMotion");
+   Check(pin.Active&&selected.Value==1&&!selected.Running,"rapid pin changes settle at the actual pinned state and stop animating");shell.Close();
+  }
+ }
  [STAThread] static void Main(string[] args) {
   try {
    ShellIdentity.InitializeProcess();Check(ShellIdentity.CurrentId==ShellIdentity.AppId,"process publishes the unique DeepSeek-Reflex taskbar identity before UI creation");
@@ -165,6 +226,7 @@ internal static class SettingsTests {
     Check(toggle.Combination==K(Keys.F20)&&toggle.ReadOnly,"shortcut field records valid key combination");
     typeof(Control).GetMethod("OnKeyDown",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(toggle,new object[]{new KeyEventArgs(Keys.Alt|Keys.F4)});
     Check(toggle.Combination==K(Keys.F20),"shortcut field ignores Alt F4");
+    toggle.CancelCapture();
     ((PanelChoices)Field(dialog,"windowMode")).SelectedIndex=2;((PanelChoices)Field(dialog,"hideMode")).SelectedIndex=1;((PanelSwitch)Field(dialog,"focus")).Checked=false;
     // Headless render of our own controls, no desktop capture or browser inspection.
     var panel=dialog.Controls.OfType<Panel>().Single(p=>p.Name=="settings-surface");dialog.Controls.Remove(panel);panel.Font=dialog.Font;panel.Size=dialog.ClientSize;panel.PerformLayout();
@@ -286,6 +348,7 @@ internal static class SettingsTests {
     Check(((Label)Field(dialog,"error")).Text=="冲突测试"&&dialog.DialogResult!=DialogResult.OK,"save failure remains editable with explicit error");
    }
    int before=calls;using(var dialog=new SettingsDialog(original,delegate(WindowSettings next) { calls++;return null; }))dialog.Dispose();Check(calls==before,"cancel does not apply settings");
+   TestInteractionPolish(args[0]);
    using(var window=new ChatWindow(new[]{"--background"})) {
     var method=typeof(ChatWindow).GetMethod("BuildMenu",BindingFlags.Instance|BindingFlags.NonPublic);var menu=(ContextMenuStrip)method.Invoke(window,null);
     bool same=true;for(int i=0;i<30;i++)same&=Object.ReferenceEquals(menu,method.Invoke(window,null));
