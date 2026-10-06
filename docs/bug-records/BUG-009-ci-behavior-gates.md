@@ -1,6 +1,6 @@
 # BUG-009 发布 CI 未接入已有核心行为回归
 
-- 状态：已修复待验收
+- 状态：已修复关闭
 - 优先级：P2
 - 发现时间与方式：2026-10-06，全项目审查 F09。
 - 受检版本：v1.0.14；提交 `c1475a9a7cb57f01f51aaa4086a217e0535dcb05`。
@@ -42,6 +42,6 @@
 
 ## v1.0.16 实施与验证（2026-10-06）
 
-GitHub Actions 新增 CoreOnly 行为门禁：生产代码生成的草稿／聚焦脚本、剪贴板适配器、偏好与故障分类；本机同入口通过。交互桌面检查仍由本机完整入口负责，CI 明确跳过；公开 CI 结果确认后再关闭。
+GitHub Actions 新增 CoreOnly 行为门禁：生产代码生成的草稿／聚焦脚本、剪贴板适配器、偏好与故障分类；本机同入口通过。交互桌面检查仍由本机完整入口负责，CI 明确跳过；公开 [CI 37421086727](https://github.com/DOIT-Ben/DeepSeek-Reflex/actions/runs/37421086727) 已通过，包含打包、包验证和 Core behavior gates；据此关闭。
 
 修复源码：[v1.0.16](https://github.com/DOIT-Ben/DeepSeek-Reflex/tree/v1.0.16)。统一证据与范围：[本轮回归说明](../testing/1.0.16-regressions.md)。发现时源码快照仍保留。
