@@ -7,10 +7,11 @@ namespace DeepSeekFloat
 {
     internal static class Preferences
     {
+        internal static bool IsStorageFailure(Exception error){return error is IOException||error is UnauthorizedAccessException;}
         internal static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "cloud.doitbenai.deepseekfloat");
         internal static bool ReadBool(string name)
         {
-            try { return File.ReadAllText(Path.Combine(Root,name)).Trim() == "true"; } catch (IOException) { return false; }
+            try { return File.ReadAllText(Path.Combine(Root,name)).Trim() == "true"; } catch (Exception error) { if(!IsStorageFailure(error))throw;return false; }
         }
         internal static bool AutomaticSelectionEnabled()
         {
@@ -18,7 +19,7 @@ namespace DeepSeekFloat
             // Existing explicit preference is retained for compatibility.
             string path = Path.Combine(Root,"selection-popup-disabled.json");
             try { return File.ReadAllText(path).Trim() == "false"; }
-            catch (IOException) { return false; }
+            catch (Exception error) { if(!IsStorageFailure(error))throw;return false; }
         }
         internal static void Write(string name, string value)
         {
@@ -39,7 +40,7 @@ namespace DeepSeekFloat
                 if (parts.Length==4 && int.TryParse(parts[0],out x) && int.TryParse(parts[1],out y) && int.TryParse(parts[2],out w) && int.TryParse(parts[3],out h))
                     result = new Rectangle(x,y,Math.Max((int)(360*scale),w),Math.Max((int)(480*scale),h));
             }
-            catch (IOException) { }
+            catch (Exception error) { if(!IsStorageFailure(error))throw; }
             area = Screen.FromRectangle(result).WorkingArea;
             result.Width = Math.Min(result.Width,area.Width);
             result.Height = Math.Min(result.Height,area.Height);
@@ -54,7 +55,7 @@ namespace DeepSeekFloat
                 var uri = new Uri(File.ReadAllText(Path.Combine(Root,"webview-last-page.txt")));
                 if (uri.Scheme == "https" && uri.Host == "chat.deepseek.com") return uri.GetLeftPart(UriPartial.Path);
             }
-            catch (Exception e) { if (!(e is IOException || e is UriFormatException)) throw; }
+            catch (Exception e) { if (!(IsStorageFailure(e) || e is UriFormatException)) throw; }
             return "https://chat.deepseek.com/";
         }
     }

@@ -319,6 +319,7 @@ internal static class SettingsTests {
       Check(((GetWindowLong(window.Handle,-20)&8)!=0)==window.TopMost&&smooth.Surfaces.All(c=>(GetWindowLong(c.Handle,-20)&8)==(GetWindowLong(window.Handle,-20)&8)),"actual chat pin transition preserves native owner and corner bands: cycle="+cycle);
       typeof(ChatWindow).GetMethod("ShowSettings",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);
       Application.DoEvents();
+      Console.WriteLine("Modal return: actual="+window.Bounds+" expected="+modalBounds+" enabled="+IsWindowEnabled(window.Handle)+" edges="+CleanStraightEdges(window)+" dpi="+Field(window,"dpiScale"));
       Check(IsWindowEnabled(window.Handle)&&window.Bounds==modalBounds&&CleanStraightEdges(window),"actual modal settings return preserves geometry and white margins: cycle="+cycle);
      }}finally {closeSettings.Stop();}
     }

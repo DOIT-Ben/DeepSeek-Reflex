@@ -18,7 +18,7 @@ namespace DeepSeekFloat {
         private readonly ChromeButton close=new ChromeButton("close","关闭设置");
         private readonly Label heading,subtitle;
         private readonly WindowSettings original;
-        private readonly float scale;
+        private float scale;
         private readonly WindowFrame frame=new WindowFrame();
         private SmoothFrame smoothFrame;
         private bool arranging;
@@ -109,6 +109,18 @@ namespace DeepSeekFloat {
             }finally{arranging=false;}
         }
         private int S(int value){return Math.Max(1,(int)Math.Round(value*scale));}
+        internal void ApplyDpi(float value,Rectangle bounds) {
+            if(value<=0)return;
+            float ratio=value/scale;scale=value;
+            surface.Scale(new SizeF(ratio,ratio));
+            Bounds=FitBounds(bounds,Screen.FromRectangle(bounds).WorkingArea,scale);
+            if(smoothFrame!=null)smoothFrame.UpdateScale(value);
+            Arrange();frame.UpdateShape(this,scale,smoothFrame!=null&&smoothFrame.Ready);
+        }
+        protected override void WndProc(ref Message m) {
+            if(m.Msg==0x2e0){ApplyDpi(WindowDpi.MessageScale(m.WParam),WindowDpi.Suggested(m.LParam));m.Result=IntPtr.Zero;return;}
+            base.WndProc(ref m);
+        }
         private void Place(Control parent,Control child,int x,int y,int w,int h){child.SetBounds(S(x),S(y),S(w),S(h));parent.Controls.Add(child);}
         private Label LabelAt(Control parent,string text,int x,int y,int w,int h,float size,bool bold) {
             var label=new Label {Text=text,Font=new Font(Font.FontFamily,size,bold?FontStyle.Bold:FontStyle.Regular),ForeColor=PanelTheme.Ink,BackColor=Color.White,TextAlign=ContentAlignment.MiddleLeft};Place(parent,label,x,y,w,h);if(parent==content)label.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;return label;

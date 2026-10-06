@@ -10,7 +10,7 @@ namespace DeepSeekFloat {
     internal sealed class SmoothFrame : IDisposable {
         internal const int ContentInset=3;
         private readonly Form host;
-        private readonly float scale;
+        private float scale;
         private readonly Action stateChanged;
         private readonly CornerSurface[] corners=new CornerSurface[4];
         private bool synchronizing,ready,disposed,interactiveResize,activationQueued;
@@ -37,6 +37,12 @@ namespace DeepSeekFloat {
         private void SetReady(bool value){if(ready==value)return;ready=value;if(stateChanged!=null)stateChanged();}
         internal void BeginInteractiveResize(){interactiveResize=true;SyncOwner();}
         internal void EndInteractiveResize(){interactiveResize=false;SyncOwner();}
+        internal void UpdateScale(float value) {
+            if(value<=0||Math.Abs(scale-value)<0.001f)return;
+            scale=value;
+            foreach(var corner in corners)corner.UpdateScale(value);
+            SyncOwner();
+        }
         internal static int PatchSize(float scale){return (int)Math.Ceiling(WindowFrame.Radius*scale)+2;}
         internal static Rectangle PatchBounds(Rectangle bounds,int index,int side){return new Rectangle(index%2==0?bounds.Left:bounds.Right-side,index<2?bounds.Top:bounds.Bottom-side,side,side);}
         internal bool Aligned {
@@ -118,8 +124,9 @@ namespace DeepSeekFloat {
         }
     }
     internal sealed class CornerSurface : Form {
-        private readonly Form host;private readonly float scale;private readonly bool resizable;
+        private readonly Form host;private float scale;private readonly bool resizable;
         internal bool Uploaded {get;private set;}
+        internal void UpdateScale(float value){scale=value;Uploaded=false;}
         internal CornerSurface(Form owner,float dpiScale,bool allowResize) {
             host=owner;scale=dpiScale;resizable=allowResize;AutoScaleMode=AutoScaleMode.None;FormBorderStyle=FormBorderStyle.None;
             ShowInTaskbar=false;StartPosition=FormStartPosition.Manual;Text="DeepSeek-Reflex 圆角绘制层";

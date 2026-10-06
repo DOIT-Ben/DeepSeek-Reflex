@@ -20,8 +20,18 @@ New-Item -ItemType Directory -Path $Payload -Force | Out-Null
 $Files = @('DeepSeekFloat.exe','DeepSeek.exe','DeepSeekFloat.exe.config','Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','icon.ico','LICENSE','THIRD-PARTY-NOTICES.md','WebView2-LICENSE.txt','WebView2-NOTICE.txt','VERSION')
 try {
     foreach ($Name in $Files) { Copy-Item -LiteralPath (Join-Path $Dist $Name) -Destination $Payload }
-    Copy-Item -LiteralPath (Join-Path $Project 'README.md') -Destination (Join-Path $Payload 'README.md')
-    Copy-Item -LiteralPath (Join-Path $Project 'README.en.md') -Destination (Join-Path $Payload 'README.en.md')
+    foreach ($Name in @('README.md','README.en.md')) {
+        $Readme=Get-Content -LiteralPath (Join-Path $Project $Name) -Raw
+        # Preserve packaged files; source/design links point at this release's
+        # source snapshot instead of absent files inside the portable ZIP.
+        $Readme=[regex]::Replace($Readme,'\]\(([^)]+)\)',[Text.RegularExpressions.MatchEvaluator]{
+            param($Match)
+            $Target=$Match.Groups[1].Value
+            if($Target -match '^(https?://|#|mailto:)' -or $Target -in @('README.md','README.en.md','LICENSE','THIRD-PARTY-NOTICES.md')) { return $Match.Value }
+            return ']('+ 'https://github.com/DOIT-Ben/DeepSeek-Reflex/blob/v'+$Version+'/'+$Target+')'
+        })
+        [IO.File]::WriteAllText((Join-Path $Payload $Name),$Readme,[Text.UTF8Encoding]::new($false))
+    }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'QUICKSTART.txt') -Destination $Payload
     $ImageFiles = @('logo.png','screenshots/compact.png','screenshots/reading.png','screenshots/selected-text.png','screenshots/settings.png','screenshots/getting-started.png')
     foreach ($Name in $ImageFiles) {

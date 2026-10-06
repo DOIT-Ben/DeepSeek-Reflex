@@ -34,6 +34,19 @@
 
 适合查资料时快速追问、教师备课时解释概念、阅读外文时翻译段落，以及写代码时问一个短问题。官网、模型服务与登录仍需要联网，网站本身的功能和可用性由 DeepSeek 提供。
 
+## 适用范围与限制
+
+它解决的是“问一个问题，还要切换到浏览器找聊天标签页”的小麻烦：快捷键随时唤出同一个窗口，问完收起，继续工作。它提供窗口和取词交互，回答、账户与历史对话由 DeepSeek 官网提供。
+
+- **目前仅支持 Windows x64，暂不支持 macOS。** 当前使用 WinForms、WebView2 和 Windows 原生窗口接口；Mac 需要另做窗口宿主，不能直接安装这个 EXE。
+- 需要联网和官网账号；不提供离线模型、独立 API 服务或其他模型切换。官网调整、网络或服务繁忙仍会影响使用。
+- 取词只在你主动操作时执行。填入不会自动发送；已有个人草稿会保留，可改用复制请求。各应用的取词兼容性不同，失败时可手动复制后导入。
+- 当前发行包未签名。跨显示器不同缩放比例的实体设备验收仍待补充；确认问题与修复证据见[缺陷档案](https://github.com/DOIT-Ben/DeepSeek-Reflex/tree/main/docs/bug-records)。
+
+## 一起把小窗磨好
+
+欢迎分享你在哪种工作场景用它，以及哪里还不顺手。报告问题时请附应用版本、Windows 版本、缩放比例、复现步骤和期望结果；截图请去掉私人对话。先搜索[已有 Issue](https://github.com/DOIT-Ben/DeepSeek-Reflex/issues)，也欢迎提交小范围修复、文档改进和兼容性测试结果。参与方式见[贡献指南](CONTRIBUTING.md)。
+
 ## 看看实际界面
 
 小窗随手问，长回答切到阅读模式。下面的图片是当前 Windows 版本重新截取的真实界面，登录后的新对话与演示文字不包含私人资料；英文说明使用同一组截图，程序界面目前为中文。
@@ -73,8 +86,8 @@
 
 | 文件 | 怎么用 |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.15-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
-| `DeepSeek-Reflex-1.0.15-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
+| `DeepSeek-Reflex-1.0.16-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
+| `DeepSeek-Reflex-1.0.16-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeekFloat.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
 | `SHA256SUMS.txt` | 对照下载文件的 SHA-256。源码压缩包由 GitHub 自动提供。 |
 
 要求 **Windows 10/11 x64、.NET Framework 4.8、WebView2 Evergreen Runtime**。V1 在 Windows 11 上验证；Windows 10 兼容性尚未逐机验收。安装器会检查运行环境，缺少时提示安装 [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) 或 [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48)。安装包不静默下载其他软件。ARM64 原生版本尚未提供。
@@ -82,7 +95,7 @@
 当前发行包未签名，Windows 可能显示未知发布者提示。签名申请与接入情况见 [签名说明](docs/code-signing.md)。请从本仓库 Releases 下载，并核对哈希：
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.15-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.0.16-Setup-x64.exe -Algorithm SHA256
 ```
 
 升级前先从托盘右键菜单选择 **退出**。卸载保留个人设置和官网登录资料，重新安装可以继续使用。ZIP 也使用同一用户数据目录；它是免安装版本，数据不会跟着 ZIP 文件夹移动。

@@ -38,4 +38,5 @@ foreach ($Dpi in @('default','high-dpi')) {
     if ($LASTEXITCODE -ne 0) { throw "Focus script regression failed: $Dpi" }
 }
 & (Join-Path $PSScriptRoot 'test-legacy-launcher.ps1') -OutputDirectory $OutputDirectory
+& (Join-Path $PSScriptRoot 'run-boundary-tests.ps1') -OutputDirectory (Join-Path $OutputDirectory 'boundary')
 Write-Output "Test evidence: $OutputDirectory"

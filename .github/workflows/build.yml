@@ -31,6 +31,9 @@ jobs:
         run: |
           $version=(Get-Content VERSION -Raw).Trim()
           ./packaging/test-package.ps1 -ZipPath "release/DeepSeek-Reflex-$version-Windows-x64.zip"
+      - name: Core behavior gates
+        shell: pwsh
+        run: ./webview-host/tests/run-boundary-tests.ps1 -CoreOnly
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: DeepSeek-Reflex-Windows-x64

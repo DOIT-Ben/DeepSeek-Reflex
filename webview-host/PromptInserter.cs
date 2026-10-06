@@ -28,13 +28,24 @@ const editors=Array.from(document.querySelectorAll('textarea,[contenteditable=tr
 if(!editors.length)return 'no-editor';if(editors.length!==1)return 'ambiguous';
 const e=editors[0],old=e.tagName==='TEXTAREA'?e.value:e.innerText;
 const owned=window.__deepSeekFloatDraft;
-if(old.trim() && old!==previous && !(owned&&owned.element===e&&owned.prompt===previous&&owned.actual===old))return 'draft';
+if(old.trim() && !(owned&&owned.element===e&&owned.url===location.href&&owned.prompt===previous&&owned.actual===old&&owned.valid))return 'draft';
+if(owned){owned.valid=false;if(owned.revoke)owned.revoke();}
 e.focus();
 if(e.tagName==='TEXTAREA'){Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(e,text);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));}
 else{const range=document.createRange();range.selectNodeContents(e);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);if(!document.execCommand('insertText',false,text))return 'failed';e.dispatchEvent(new Event('input',{bubbles:true}));}
 const current=e.tagName==='TEXTAREA'?e.value:e.innerText;
 const normalize=s=>s.replace(/\r\n/g,'\n').replace(/\n{3,}/g,'\n\n');
-if(current===text || (e.tagName!=='TEXTAREA'&&normalize(current)===normalize(text))){window.__deepSeekFloatDraft={element:e,prompt:text,actual:current};return 'filled';}return 'failed';})()";
+if(current===text || (e.tagName!=='TEXTAREA'&&normalize(current)===normalize(text))){
+ const marker={element:e,prompt:text,actual:current,url:location.href,valid:true};
+ window.__deepSeekFloatDraft=marker;
+ const onKey=event=>{if(event.key==='Enter'&&!event.shiftKey)revoke();};
+ const revoke=()=>{marker.valid=false;e.removeEventListener('input',revoke);e.removeEventListener('change',revoke);e.removeEventListener('keydown',onKey);};
+ marker.revoke=revoke;
+ e.addEventListener('input',revoke);
+ e.addEventListener('change',revoke);
+ e.addEventListener('keydown',onKey);
+ return 'filled';
+}return 'failed';})()";
         }
         internal static async Task<string> InsertAsync(CoreWebView2 core,string prompt,string previous)
         {

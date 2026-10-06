@@ -61,7 +61,8 @@ namespace DeepSeekFloat
 
     internal sealed class ChatWindow : Form
     {
-        private readonly WebView2 browser = new WebView2();
+        private WebView2 browser = new WebView2();
+        private bool recreateBrowser,browserExited;
         private readonly Panel chrome = new ResizeChrome();
         private readonly WindowFrame frame = new WindowFrame();
         private SmoothFrame smoothFrame;
@@ -94,7 +95,8 @@ namespace DeepSeekFloat
         private readonly string diagnostics;
         private readonly bool pageDiagnostics;
         private readonly bool background;
-        private readonly float dpiScale;
+        private float dpiScale;
+        private FormWindowState restoreState=FormWindowState.Normal;
         private CoreWebView2Environment environment;
         private bool allowShow, quitting, initializing;
         private readonly Health health = new Health();
@@ -196,14 +198,14 @@ namespace DeepSeekFloat
             Controls.AddRange(new Control[]{browser,status,selectionBar,chrome,frame});
             selectionBar.BringToFront();
             chrome.BringToFront();
-            Resize += delegate { LayoutContent(); };
+            Resize += delegate { if(WindowState!=FormWindowState.Minimized)restoreState=WindowState;LayoutContent(); };
             ResizeBegin += delegate {if(smoothFrame!=null)smoothFrame.BeginInteractiveResize();};
             ResizeEnd += delegate {
                 if(smoothFrame!=null)smoothFrame.EndInteractiveResize();
                 SaveBounds();
                 if(settings.Mode!="custom") {
                     var next=settings.Clone();next.Mode="custom";
-                    try { next.Save();settings=next;RefreshMode(); } catch(IOException) { }
+                    try { next.Save();settings=next;RefreshMode(); } catch(Exception error) {if(!Preferences.IsStorageFailure(error))throw;}
                 }
                 WriteHealth();
             };
@@ -228,6 +230,14 @@ namespace DeepSeekFloat
             LayoutContent();
         }
         private int S(int value) { return Math.Max(1,(int)Math.Round(value*dpiScale)); }
+        internal void ApplyDpi(float value,Rectangle bounds) {
+            if(value<=0)return;
+            dpiScale=value;
+            MinimumSize=new Size(S(360),S(480));
+            Bounds=bounds;
+            if(smoothFrame!=null)smoothFrame.UpdateScale(value);
+            LayoutContent();
+        }
         protected override CreateParams CreateParams {
             get {
                 var value=base.CreateParams;
@@ -327,18 +337,23 @@ namespace DeepSeekFloat
         }
         private void SetPinned(bool value)
         {
+            try { Preferences.Write("pin.json",value ? "true" : "false"); }
+            catch(Exception error) { if(!Preferences.IsStorageFailure(error))throw;tips.SetToolTip(pin,"置顶设置未能保存，请重试。");return; }
             TopMost = value;
             if(smoothFrame!=null)smoothFrame.SyncOwner();
-            Preferences.Write("pin.json",value ? "true" : "false");
             RefreshPin();
             WriteHealth();
         }
         private void ShowChat()
         {
-            if(guideOpen){var guide=OwnedForms.OfType<GettingStartedDialog>().FirstOrDefault();if(guide!=null)guide.Activate();return;}
             allowShow = true;
             Show();
-            if (WindowState == FormWindowState.Minimized) WindowState=FormWindowState.Normal;
+            if (WindowState == FormWindowState.Minimized) WindowState=restoreState;
+            if(settingsOpen||guideOpen) {
+                var dialog=OwnedForms.FirstOrDefault(f=>f is SettingsDialog||f is GettingStartedDialog);
+                if(dialog!=null){if(!dialog.Visible)dialog.Show(this);if(dialog.WindowState==FormWindowState.Minimized)dialog.WindowState=FormWindowState.Normal;dialog.Activate();}
+                return;
+            }
             Activate();
             Native.SetForegroundWindow(Handle);
             browser.Focus();
@@ -348,6 +363,7 @@ namespace DeepSeekFloat
         }
         private void ToggleWindow()
         {
+            if(settingsOpen||guideOpen){ShowChat();return;}
             if (Visible && WindowState != FormWindowState.Minimized) {
                 pendingComposerFocus=false;focusVersion++;
                 if(settings.HideToTrayOnToggle)Hide();else WindowState=FormWindowState.Minimized;
@@ -397,15 +413,16 @@ namespace DeepSeekFloat
         {
             var next=settings.Clone();next.Mode=value;
             try { next.Save();settings=next;ApplyMode(value);RefreshMode();WriteHealth(); }
-            catch(IOException) { MessageBox.Show(this,"尺寸设置未能保存，请重试。","DeepSeek-Reflex"); }
+            catch(Exception error) {if(!Preferences.IsStorageFailure(error))throw;MessageBox.Show(this,"尺寸设置未能保存，请重试。","DeepSeek-Reflex");}
         }
         private string ApplySettings(WindowSettings next)
         {
             string error=hotkeys.Apply(next.ToggleKeys,next.CaptureKeys);if(error!=null)return error;
             try { next.Save(); }
-            catch(IOException) {
-                hotkeys.Apply(settings.ToggleKeys,settings.CaptureKeys);
-                return "设置未能保存，请重试。";
+            catch(Exception failure) {
+                if(!Preferences.IsStorageFailure(failure))throw;
+                string rollback=hotkeys.Apply(settings.ToggleKeys,settings.CaptureKeys);
+                return rollback==null ? "设置未能保存，原快捷键已恢复，请重试。" : "设置未能保存，原快捷键恢复失败："+rollback;
             }
             string previousMode=settings.Mode;settings=next;
             if(previousMode!=settings.Mode)ApplyMode(settings.Mode);
@@ -418,7 +435,7 @@ namespace DeepSeekFloat
             try {
                 using(var dialog=new SettingsDialog(settings,ApplySettings,delegate(string action) {
                     BeginInvoke(new Action(async delegate {
-                        if(action=="refresh"&&browser.CoreWebView2!=null)browser.Reload();
+                        if(action=="refresh")await InitializeBrowser();
                         if(action=="import")await PresentSelection(SelectionCapture.FromClipboard());
                         if(action=="help")ShowHelp();
                     }));
@@ -476,21 +493,42 @@ namespace DeepSeekFloat
         }
         private async Task InitializeBrowser()
         {
-            if (initializing) return;
-            if (browser.CoreWebView2 != null) { browser.Reload(); return; }
+            if (initializing||resourcesDisposed||quitting) return;
+            if(recreateBrowser&&!browserExited){ShowBrowserError("浏览器正在退出，稍后点此重试");return;}
+            if(recreateBrowser) {
+                foreach(var popup in OwnedForms.OfType<PopupWindow>().ToArray())popup.Close();
+                Controls.Remove(browser);browser.Dispose();
+                browser=new WebView2 {DefaultBackgroundColor=Color.White,AccessibleName="DeepSeek 官网聊天"};
+                Controls.Add(browser);recreateBrowser=false;browserExited=false;environment=null;health.initialized=false;
+                lastInserted=null;LayoutContent();chrome.BringToFront();frame.BringToFront();
+            }
+            if (browser.CoreWebView2 != null) {
+                try{browser.Reload();}catch(Exception error){health.navigationError=error.GetType().Name;ShowBrowserError("刷新未完成，点此重试");}
+                return;
+            }
             initializing=true;
             status.Text="正在打开 DeepSeek…";
+            status.Show();status.BringToFront();chrome.BringToFront();frame.BringToFront();
             try
             {
                 // A dedicated, persistent profile; the existing Edge profile is never copied or modified.
                 environment=await CoreWebView2Environment.CreateAsync(null,Path.Combine(Preferences.Root,"webview2-profile"));
+                if(resourcesDisposed||quitting)return;
+                var currentEnvironment=environment;
+                currentEnvironment.BrowserProcessExited+=delegate(object sender,CoreWebView2BrowserProcessExitedEventArgs args) {
+                    if(resourcesDisposed||quitting||!Object.ReferenceEquals(environment,currentEnvironment)||args.BrowserProcessExitKind!=CoreWebView2BrowserProcessExitKind.Failed)return;
+                    recreateBrowser=true;browserExited=true;health.initialized=false;
+                    ShowBrowserError("浏览器已退出，点此重新打开（登录资料保留）");
+                };
                 await browser.EnsureCoreWebView2Async(environment);
+                if(resourcesDisposed||quitting||browser.IsDisposed)return;
                 browser.ZoomFactor=WindowFrame.DefaultZoom;
                 var core=browser.CoreWebView2;
                 core.Settings.AreHostObjectsAllowed=false;
                 core.Settings.IsWebMessageEnabled=false;
                 core.Settings.AreDevToolsEnabled=pageDiagnostics;
                 core.NavigationStarting += delegate(object sender,CoreWebView2NavigationStartingEventArgs e) {
+                    lastInserted=null;
                     Uri uri;
                     if (!Uri.TryCreate(e.Uri,UriKind.Absolute,out uri) || (uri.Scheme!="https" && uri.Scheme!="about")) e.Cancel=true;
                 };
@@ -500,7 +538,10 @@ namespace DeepSeekFloat
                     Uri uri;
                     if (Uri.TryCreate(core.Source,UriKind.Absolute,out uri)) {
                         health.sourceHost=uri.Host;
-                        if (e.IsSuccess && uri.Scheme=="https" && uri.Host=="chat.deepseek.com") Preferences.Write("webview-last-page.txt",uri.GetLeftPart(UriPartial.Path));
+                        if (e.IsSuccess && uri.Scheme=="https" && uri.Host=="chat.deepseek.com") {
+                            try{Preferences.Write("webview-last-page.txt",uri.GetLeftPart(UriPartial.Path));}
+                            catch(Exception error){if(!Preferences.IsStorageFailure(error))throw;}
+                        }
                     }
                     status.Visible=!e.IsSuccess;
                     if (!e.IsSuccess) { status.Text="页面暂时无法打开，点此重试"; status.BringToFront(); chrome.BringToFront(); frame.BringToFront(); }
@@ -509,7 +550,7 @@ namespace DeepSeekFloat
                     WriteHealth();
                 };
                 core.NewWindowRequested += OpenPopup;
-                core.ProcessFailed += delegate { status.Text="页面已停止响应，请在设置中刷新"; status.Show(); status.BringToFront(); chrome.BringToFront(); frame.BringToFront(); };
+                core.ProcessFailed += delegate(object sender,CoreWebView2ProcessFailedEventArgs args){HandleProcessFailure(args.ProcessFailedKind);};
                 health.initialized=true;
                 core.Navigate(Preferences.LastPage());
                 WriteHealth();
@@ -522,27 +563,35 @@ namespace DeepSeekFloat
             }
             finally { initializing=false; }
         }
+        private void ShowBrowserError(string text){if(resourcesDisposed||quitting)return;status.Text=text;status.Show();status.BringToFront();chrome.BringToFront();frame.BringToFront();}
+        internal void HandleProcessFailure(CoreWebView2ProcessFailedKind kind) {
+            var action=BrowserRecovery.For(kind);
+            if(action==RecoveryAction.Ignore)return;
+            health.navigationError=kind.ToString();lastInserted=null;
+            if(action==RecoveryAction.Recreate){recreateBrowser=true;health.initialized=false;ShowBrowserError(browserExited?"浏览器已退出，点此重新打开":"浏览器正在退出，稍后点此重试");}
+            else ShowBrowserError("页面暂时停止响应，点此刷新");
+            WriteHealth();
+        }
         private async void OpenPopup(object sender,CoreWebView2NewWindowRequestedEventArgs e)
         {
             var deferral=e.GetDeferral();
-            Form popup=null;
+            PopupWindow popup=null;
             try
             {
                 Uri uri;
                 if (!Uri.TryCreate(e.Uri,UriKind.Absolute,out uri) || uri.Scheme!="https") { e.Handled=true; return; }
-                popup=new Form { Text="DeepSeek-Reflex · 登录或链接",Size=new Size(S(440),S(640)),StartPosition=FormStartPosition.CenterParent,Icon=Icon };
-                var child=new WebView2 { Dock=DockStyle.Fill,DefaultBackgroundColor=Color.White };
-                popup.Controls.Add(child);
-                popup.FormClosed += delegate { child.Dispose(); };
+                popup=new PopupWindow(uri,dpiScale) {Icon=Icon};
+                var child=popup.Browser;
                 popup.Show(this);
-                await child.EnsureCoreWebView2Async(environment);
+                if(!await popup.InitializeAsync(environment)){e.Handled=true;return;}
+                if(popup.IsDisposed||child.IsDisposed||resourcesDisposed||quitting){e.Handled=true;return;}
                 child.CoreWebView2.Settings.AreHostObjectsAllowed=false;
                 child.CoreWebView2.Settings.IsWebMessageEnabled=false;
-                child.CoreWebView2.WindowCloseRequested += delegate { popup.Close(); };
+                child.CoreWebView2.WindowCloseRequested += delegate { if(!popup.IsDisposed)popup.Close(); };
                 e.NewWindow=child.CoreWebView2;
                 e.Handled=true;
             }
-            catch (Exception) { e.Handled=true; if (popup!=null) popup.Close(); MessageBox.Show("此窗口未能打开，请重试。","DeepSeek-Reflex"); }
+            catch (Exception) { e.Handled=true;bool cancelled=resourcesDisposed||quitting||(popup!=null&&popup.IsDisposed);if(popup!=null&&!popup.IsDisposed)popup.ShowError("此窗口未能打开，请关闭后重试。");if(!cancelled&&popup==null)ShowBrowserError("链接窗口未能打开，请重试。"); }
             finally { deferral.Complete(); }
         }
         private async Task CollectPageFacts()
@@ -557,7 +606,8 @@ namespace DeepSeekFloat
         private void SaveBounds()
         {
             var bounds=WindowState==FormWindowState.Normal ? Bounds : RestoreBounds;
-            if(bounds.Width>0 && bounds.Height>0) Preferences.Write("webview-bounds.txt",string.Join(",",bounds.X,bounds.Y,bounds.Width,bounds.Height));
+            try { if(bounds.Width>0 && bounds.Height>0) Preferences.Write("webview-bounds.txt",string.Join(",",bounds.X,bounds.Y,bounds.Width,bounds.Height)); }
+            catch(Exception error){if(!Preferences.IsStorageFailure(error))throw;}
         }
         private void WriteHealth()
         {
@@ -587,10 +637,11 @@ namespace DeepSeekFloat
             health.automaticSelectionEnabled=autoSelection!=null && autoSelection.Enabled;
             health.automaticSelectionRegistered=autoSelection!=null && autoSelection.Registered;
             try { using(var memory=new MemoryStream()) { new DataContractJsonSerializer(typeof(Health)).WriteObject(memory,health); File.WriteAllText(diagnostics,Encoding.UTF8.GetString(memory.ToArray())); } }
-            catch (IOException) { }
+            catch (Exception error) {if(!Preferences.IsStorageFailure(error))throw;}
         }
         protected override void WndProc(ref Message m)
         {
+            if(m.Msg==0x2e0){ApplyDpi(WindowDpi.MessageScale(m.WParam),WindowDpi.Suggested(m.LParam));m.Result=IntPtr.Zero;return;}
             if(m.Msg==0x7d&&m.WParam.ToInt64()==-16)EnableNativeSizing(m.HWnd);
             // Keep the entire rectangle as client area. WS_THICKFRAME enables
             // Windows' sizing loop, but our existing frame owns its visual border.

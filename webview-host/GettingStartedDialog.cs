@@ -16,7 +16,13 @@ namespace DeepSeekFloat {
         private readonly Label heading,body,key,hint,progress;
         private readonly PanelButton next,previous;
         private readonly string[] headings,bodies,keys,hints;
-        private readonly float scale;
+        private float scale;
+        private readonly Panel viewport=new Panel {Name="guide-body",AutoScroll=true,BackColor=Color.White};
+        private readonly Panel content=new Panel {BackColor=Color.White};
+        private Panel surface;
+        private PanelButton skip;
+        private ChromeButton close;
+        private Label brand,help;
         private readonly WindowFrame frame=new WindowFrame();
         private SmoothFrame smoothFrame;
         internal int Step {get;private set;}
@@ -25,9 +31,9 @@ namespace DeepSeekFloat {
             Text="DeepSeek-Reflex 使用帮助";Font=new Font("Microsoft YaHei UI",10f);BackColor=Color.White;ForeColor=PanelTheme.Ink;
             DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;FormBorderStyle=FormBorderStyle.None;
             ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;ClientSize=new Size(S(400),S(452));
-            var surface=new Panel {Name="guide-surface",Dock=DockStyle.Fill,BackColor=Color.White};Controls.Add(surface);
-            var brand=LabelAt(surface,"DeepSeek-Reflex",24,24,312,30,12f,true);
-            var close=new ChromeButton("close","跳过引导，开始使用");Place(surface,close,344,22,32,28);
+            surface=new Panel {Name="guide-surface",Dock=DockStyle.Fill,BackColor=Color.White};Controls.Add(surface);
+            brand=LabelAt(surface,"DeepSeek-Reflex",24,24,312,30,12f,true);
+            close=new ChromeButton("close","跳过引导，开始使用");Place(surface,close,344,22,32,28);
             close.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
             progress=LabelAt(surface,"",24,68,352,22,9f,false);progress.ForeColor=PanelTheme.Muted;
             heading=LabelAt(surface,"",24,105,352,58,18f,true);
@@ -35,8 +41,8 @@ namespace DeepSeekFloat {
             var card=new PanelCard();Place(surface,card,24,248,352,96);
             key=LabelAt(card,"",16,12,320,30,14f,true);key.ForeColor=PanelTheme.Accent;key.BackColor=PanelTheme.Surface;
             hint=LabelAt(card,"",16,48,320,36,9f,false);hint.ForeColor=PanelTheme.Muted;hint.BackColor=PanelTheme.Surface;
-            var help=LabelAt(surface,"以后可以在设置 → 使用帮助中重新查看。",24,356,352,22,9f,false);help.ForeColor=PanelTheme.Muted;
-            var skip=new PanelButton("跳过");Place(surface,skip,24,396,76,34);skip.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
+            help=LabelAt(surface,"以后可以在设置 → 使用帮助中重新查看。",24,356,352,22,9f,false);help.ForeColor=PanelTheme.Muted;
+            skip=new PanelButton("跳过");Place(surface,skip,24,396,76,34);skip.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
             previous=new PanelButton("上一步");Place(surface,previous,180,396,88,34);previous.Click+=delegate{SetStep(Step-1);};
             next=new PanelButton("下一步") {Primary=true};Place(surface,next,280,396,96,34);
             next.Click+=delegate{if(Step==3){DialogResult=DialogResult.OK;Close();}else SetStep(Step+1);};
@@ -53,16 +59,31 @@ namespace DeepSeekFloat {
                 "取词失败时，可复制文字，再从设置导入剪贴板。",
                 "拖动标题栏移动窗口；四边和四角都可以拉伸。"};
             SetStep(0);AcceptButton=next;CancelButton=skip;
+            foreach(Control item in new Control[]{heading,body,card,help}){surface.Controls.Remove(item);item.Location=new Point(0,item.Top-S(96));item.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;content.Controls.Add(item);}
+            viewport.Controls.Add(content);surface.Controls.Add(viewport);
+            viewport.Layout+=delegate{content.Width=Math.Max(1,viewport.ClientSize.Width);};
             brand.MouseDown+=Drag;progress.MouseDown+=Drag;surface.MouseDown+=Drag;
             Controls.Add(frame);smoothFrame=new SmoothFrame(this,scale,delegate{frame.UpdateShape(this,scale,smoothFrame.Ready);},false);
-            frame.UpdateShape(this,scale);Resize+=delegate{smoothFrame.SyncOwner();frame.UpdateShape(this,scale,smoothFrame.Ready);};
-            Shown+=delegate{var area=Screen.FromControl(this).WorkingArea;Left=Math.Max(area.Left,Math.Min(Left,area.Right-Width));Top=Math.Max(area.Top,Math.Min(Top,area.Bottom-Height));next.Focus();};
+            frame.UpdateShape(this,scale);Resize+=delegate{Arrange();smoothFrame.SyncOwner();frame.UpdateShape(this,scale,smoothFrame.Ready);};
+            Shown+=delegate{Bounds=SettingsDialog.FitBounds(Bounds,Screen.FromControl(this).WorkingArea,scale);Arrange();next.Focus();};Arrange();
         }
         internal void SetStep(int value) {
             if(value<0||value>3)return;Step=value;heading.Text=headings[value];body.Text=bodies[value];key.Text=keys[value];hint.Text=hints[value];
             progress.Text="快速上手  "+(value+1)+" / 4";previous.Visible=value>0;next.Text=value==3?"开始使用":"下一步";next.AccessibleName=next.Text;
         }
         private int S(int value){return Math.Max(1,(int)Math.Round(value*scale));}
+        private void Arrange(){
+            if(surface==null||next==null)return;
+            int width=Math.Max(1,ClientSize.Width-S(48));
+            brand.Width=Math.Max(1,width-S(40));close.SetBounds(ClientSize.Width-S(56),S(22),S(32),S(28));progress.Width=width;
+            viewport.SetBounds(S(24),S(96),width,Math.Max(1,ClientSize.Height-S(164)));
+            viewport.AutoScrollMinSize=new Size(0,S(290));content.SetBounds(0,viewport.AutoScrollPosition.Y,Math.Max(1,viewport.ClientSize.Width),S(290));
+            foreach(Control item in content.Controls)item.Width=content.Width;
+            skip.SetBounds(S(24),ClientSize.Height-S(56),S(76),S(34));
+            previous.SetBounds(ClientSize.Width-S(220),ClientSize.Height-S(56),S(88),S(34));next.SetBounds(ClientSize.Width-S(120),ClientSize.Height-S(56),S(96),S(34));
+        }
+        internal void ApplyDpi(float value,Rectangle bounds){if(value<=0)return;float ratio=value/scale;scale=value;surface.Scale(new SizeF(ratio,ratio));Bounds=SettingsDialog.FitBounds(bounds,Screen.FromRectangle(bounds).WorkingArea,scale);smoothFrame.UpdateScale(value);Arrange();frame.UpdateShape(this,scale,smoothFrame.Ready);}
+        protected override void WndProc(ref Message m){if(m.Msg==0x2e0){ApplyDpi(WindowDpi.MessageScale(m.WParam),WindowDpi.Suggested(m.LParam));m.Result=IntPtr.Zero;return;}base.WndProc(ref m);}
         private void Place(Control parent,Control child,int x,int y,int w,int h){child.SetBounds(S(x),S(y),S(w),S(h));parent.Controls.Add(child);}
         private Label LabelAt(Control parent,string text,int x,int y,int w,int h,float size,bool bold){var label=new Label{Text=text,Font=new Font(Font.FontFamily,size,bold?FontStyle.Bold:FontStyle.Regular),ForeColor=PanelTheme.Ink,BackColor=Color.White,TextAlign=ContentAlignment.MiddleLeft};Place(parent,label,x,y,w,h);return label;}
         private void Drag(object sender,MouseEventArgs e){if(e.Button==MouseButtons.Left){Native.ReleaseCapture();Native.SendMessage(Handle,0xA1,new IntPtr(2),IntPtr.Zero);}}

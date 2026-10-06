@@ -30,7 +30,7 @@ namespace DeepSeekFloat
                     var settings=(WindowSettings)new DataContractJsonSerializer(typeof(WindowSettings)).ReadObject(file);
                     if(settings!=null && settings.Version==1 && HotkeyBindings.Validate(settings.ToggleKeys,settings.CaptureKeys)==null && (settings.Mode=="custom"||settings.Mode=="compact"||settings.Mode=="reading"))return settings;
                 }
-            }catch(Exception e) { if(!(e is IOException || e is SerializationException || e is ArgumentException))throw; }
+            }catch(Exception e) { if(!(Preferences.IsStorageFailure(e) || e is SerializationException || e is ArgumentException))throw; }
             return Defaults();
         }
         internal void Save()

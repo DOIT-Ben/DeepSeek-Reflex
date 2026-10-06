@@ -1,34 +1,43 @@
 param([Parameter(Mandatory)][string]$IconPath,[Parameter(Mandatory)][string[]]$BinaryPaths)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
-if (-not ('ReflexIconCheck' -as [type])) {
+if (-not ('ReflexIconResources' -as [type])) {
     Add-Type @'
 using System;
 using System.Runtime.InteropServices;
-public static class ReflexIconCheck {
-    [DllImport("shell32.dll", CharSet=CharSet.Unicode)] public static extern uint ExtractIconEx(string path,int index,[Out] IntPtr[] large,[Out] IntPtr[] small,uint count);
-    [DllImport("user32.dll")] public static extern bool DestroyIcon(IntPtr icon);
+public static class ReflexIconResources {
+    private delegate bool Callback(IntPtr module,IntPtr type,IntPtr name,IntPtr parameter);
+    [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] private static extern IntPtr LoadLibraryEx(string path,IntPtr file,uint flags);
+    [DllImport("kernel32.dll")] private static extern bool FreeLibrary(IntPtr module);
+    [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] private static extern bool EnumResourceNames(IntPtr module,IntPtr type,Callback callback,IntPtr parameter);
+    [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] private static extern IntPtr FindResource(IntPtr module,IntPtr name,IntPtr type);
+    [DllImport("kernel32.dll")] private static extern uint SizeofResource(IntPtr module,IntPtr resource);
+    [DllImport("kernel32.dll")] private static extern IntPtr LoadResource(IntPtr module,IntPtr resource);
+    [DllImport("kernel32.dll")] private static extern IntPtr LockResource(IntPtr resource);
+    private static byte[] Read(IntPtr module,IntPtr name,int type) {
+        var resource=FindResource(module,name,new IntPtr(type));
+        if(resource==IntPtr.Zero)throw new Exception("Missing icon resource");
+        var bytes=new byte[SizeofResource(module,resource)];
+        Marshal.Copy(LockResource(LoadResource(module,resource)),bytes,0,bytes.Length);return bytes;
+    }
+    public static byte[][] Frames(string path) {
+        // Read the executable as data, without running application code.
+        var module=LoadLibraryEx(path,IntPtr.Zero,2);
+        if(module==IntPtr.Zero)throw new Exception("Cannot inspect icon resources");
+        try {
+            byte[] group=null;
+            Callback callback=(m,t,n,p)=>{group=Read(module,n,14);return false;};
+            EnumResourceNames(module,new IntPtr(14),callback,IntPtr.Zero);
+            if(group==null||group.Length<6)throw new Exception("No main icon group");
+            int count=BitConverter.ToUInt16(group,4);
+            if(group.Length<6+14*count)throw new Exception("Truncated icon group");
+            var frames=new byte[count][];
+            for(int i=0;i<count;i++)frames[i]=Read(module,new IntPtr(BitConverter.ToUInt16(group,6+14*i+12)),3);
+            return frames;
+        }finally{FreeLibrary(module);}
+    }
 }
 '@
-}
-function Get-IconPixels([string]$Path) {
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Missing icon input: $Path" }
-    $large = [IntPtr[]]::new(1); $small = [IntPtr[]]::new(1)
-    try {
-        if ([ReflexIconCheck]::ExtractIconEx($Path,0,$large,$small,1) -lt 1 -or $large[0] -eq [IntPtr]::Zero) { throw "No icon resource: $Path" }
-        $icon = [Drawing.Icon]::FromHandle($large[0])
-        try {
-            $bitmap = $icon.ToBitmap()
-            try {
-                $pixels = [Collections.Generic.List[int]]::new()
-                for ($y=0;$y -lt $bitmap.Height;$y++) { for($x=0;$x -lt $bitmap.Width;$x++) { $pixels.Add($bitmap.GetPixel($x,$y).ToArgb()) } }
-                return [pscustomobject]@{Width=$bitmap.Width;Height=$bitmap.Height;Pixels=($pixels -join ',')}
-            } finally { $bitmap.Dispose() }
-        } finally { $icon.Dispose() }
-    } finally {
-        if($large[0] -ne [IntPtr]::Zero){[ReflexIconCheck]::DestroyIcon($large[0])|Out-Null}
-        if($small[0] -ne [IntPtr]::Zero){[ReflexIconCheck]::DestroyIcon($small[0])|Out-Null}
-    }
 }
 $bytes=[IO.File]::ReadAllBytes($IconPath)
 if($bytes.Length -lt 6 -or [BitConverter]::ToUInt16($bytes,2) -ne 1){throw 'Invalid ICO header'}
@@ -60,9 +69,17 @@ for($i=0;$i -lt $count;$i++) {
         Write-Output "PASS transparent ${size}px ICO, subject ${width}x${height}"
     } finally {$bitmap.Dispose();$stream.Dispose()}
 }
-$baseline = Get-IconPixels $IconPath
+# Compare every encoded frame directly: shell extraction may choose different
+# source sizes for ICO and EXE at high DPI even with identical embedded bytes.
+$baseline=@(for($i=0;$i -lt $count;$i++){
+    $length=[BitConverter]::ToUInt32($bytes,6+16*$i+8)
+    $offset=[BitConverter]::ToUInt32($bytes,6+16*$i+12)
+    [Convert]::ToBase64String($bytes,[int]$offset,[int]$length)
+})
 foreach($path in $BinaryPaths) {
-    $actual=Get-IconPixels $path
-    if($actual.Width -ne $baseline.Width -or $actual.Height -ne $baseline.Height -or $actual.Pixels -ne $baseline.Pixels) { throw "Embedded icon mismatch: $path" }
-    Write-Output "PASS embedded icon pixels match source: $path"
+    if(-not(Test-Path -LiteralPath $path -PathType Leaf)){throw "Missing icon input: $path"}
+    $frames=[ReflexIconResources]::Frames([IO.Path]::GetFullPath($path))
+    $actual=@($frames | ForEach-Object {[Convert]::ToBase64String($_)})
+    if($actual.Count -ne $baseline.Count -or (Compare-Object $baseline $actual)){throw "Embedded icon mismatch: $path"}
+    Write-Output "PASS all seven embedded icon frames match source bytes: $path"
 }

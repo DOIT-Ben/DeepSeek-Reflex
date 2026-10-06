@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.16 — 2026-10-06
+
+- Fix modal wake routing, preserve maximized state, and roll back registered shortcuts when saving settings is denied.
+- Classify WebView process failures, recreate the browser after process exit using the same profile, and cancel closed popup initialization quietly. Login/link popups share the rounded frame and display the destination domain.
+- Track tool-owned drafts by editor, page, contents and edit events rather than text equality; restore copied clipboard contents on cancellation only while the source still owns the unchanged copy.
+- Update layouts and cached corners for DPI messages, expose accurate switch accessibility state, and keep introduction actions reachable with a scrollable body on short screens. Physical mixed-DPI multi-monitor acceptance remains outstanding.
+- Gate CI on isolated core behavior checks; add real local WebView lifecycle, native modal, accessibility, clipboard-adapter and generated-script tests. Fix absent README links inside packaged releases.
+- Explain the tool's purpose, Windows-only support, limits, feedback and contribution options in both READMEs. Record the Foundation signing rejection; packages remain unsigned.
+- Compare all seven embedded icon frame resources directly to avoid high-DPI shell extraction resampling false positives; preserve transparency and sizing checks.
+
+
 ## 1.0.15 — 2026-10-06
 
 - Record all 11 audit findings as individual unresolved bug reports, with source snapshots, reproduction steps, evidence boundaries, negative controls and acceptance criteria.

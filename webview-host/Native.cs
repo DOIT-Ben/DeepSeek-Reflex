@@ -18,6 +18,8 @@ namespace DeepSeekFloat
         [DllImport("user32.dll")] internal static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
         [DllImport("user32.dll")] internal static extern short GetAsyncKeyState(int key);
         [DllImport("user32.dll")] internal static extern uint GetClipboardSequenceNumber();
+        [DllImport("user32.dll")] internal static extern IntPtr GetClipboardOwner();
+        [DllImport("user32.dll")] internal static extern uint GetDpiForWindow(IntPtr hwnd);
         [DllImport("user32.dll", SetLastError=true)] internal static extern uint SendInput(uint count, INPUT[] input, int size);
         [StructLayout(LayoutKind.Sequential)] internal struct INPUT { internal uint type; internal INPUTUNION data; }
         [StructLayout(LayoutKind.Explicit)] internal struct INPUTUNION {

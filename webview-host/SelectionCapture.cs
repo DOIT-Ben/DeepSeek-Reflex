@@ -124,18 +124,26 @@ namespace DeepSeekFloat
             try {
                 for(int i=0;i<25;i++) {
                     await Task.Delay(20);
-                    if(!SameWindow(source)) return SelectionResult.Fail("当前窗口已切换，取词已取消。");
                     copied=Native.GetClipboardSequenceNumber();
+                    if(copied!=before&&!CopyOwnedBy(source))return SelectionResult.Fail("剪贴板已被其他应用更新，取词已取消。");
+                    if(!SameWindow(source)) return SelectionResult.Fail("当前窗口已切换，取词已取消。");
                     if(copied!=before) break;
                 }
                 if(copied==before) return SelectionResult.Fail("没有检测到复制结果。请先选中文字，或手动复制后导入。");
                 return FromClipboard();
             } finally {
-                if(copied!=0 && copied!=before && Native.GetClipboardSequenceNumber()==copied) {
+                if(copied!=0 && copied!=before && Native.GetClipboardSequenceNumber()==copied && CopyOwnedBy(source)) {
                     try { if(previous==null) Clipboard.Clear(); else Clipboard.SetDataObject(previous,true); }
                     catch(ExternalException) { }
                 }
             }
+        }
+        private static bool CopyOwnedBy(IntPtr source) {
+            uint expected,actual;
+            var owner=Native.GetClipboardOwner();
+            if(owner==IntPtr.Zero||source==IntPtr.Zero)return false;
+            Native.GetWindowThreadProcessId(source,out expected);Native.GetWindowThreadProcessId(owner,out actual);
+            return expected!=0&&expected==actual;
         }
     }
 }

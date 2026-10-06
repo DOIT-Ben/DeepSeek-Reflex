@@ -44,5 +44,11 @@ foreach ($Name in @('README.md','README.en.md')) {
     foreach ($Image in $Images) {
         if ($Image -notin $Expected -or -not (Test-Path -LiteralPath (Join-Path $Payload $Image) -PathType Leaf)) { throw "Missing packaged README image: $Image" }
     }
+    foreach($Link in [regex]::Matches($Readme,'\]\(([^)]+)\)')) {
+        $Target=$Link.Groups[1].Value
+        if($Target -match '^(https?://|#|mailto:)'){continue}
+        $Relative=$Target.Split('#')[0]
+        if($Relative -notin $Expected -or -not(Test-Path -LiteralPath (Join-Path $Payload $Relative) -PathType Leaf)){throw "Broken packaged README link: $Target"}
+    }
 }
 Write-Output "PASS package allowlist ($($Expected.Count) entries), all payload hashes and executable version $Version"

@@ -78,7 +78,15 @@ namespace DeepSeekFloat {
         private bool value;
         private readonly UiMotion slide,hoverMotion,pressMotion;
         internal float SlidePosition {get{return slide.Value;}}
-        internal bool Checked { get{return value;}set{this.value=value;AccessibleDescription=value?"已开启":"已关闭";slide.To(value?1:0,PanelTheme.SwitchDuration);} }
+        internal bool Checked { get{return value;}set{bool changed=this.value!=value;this.value=value;AccessibleDescription=value?"已开启":"已关闭";slide.To(value?1:0,PanelTheme.SwitchDuration);if(changed&&IsHandleCreated)AccessibilityNotifyClients(AccessibleEvents.StateChange,-1);} }
+        protected override AccessibleObject CreateAccessibilityInstance(){return new SwitchAccessibility(this);}
+        private sealed class SwitchAccessibility : ControlAccessibleObject {
+            private readonly PanelSwitch control;
+            internal SwitchAccessibility(PanelSwitch owner):base(owner){control=owner;}
+            public override AccessibleStates State {get{return base.State|(control.Checked?AccessibleStates.Checked:AccessibleStates.None);}}
+            public override string DefaultAction {get{return control.Checked?"关闭":"开启";}}
+            public override void DoDefaultAction(){if(control.Enabled)control.PerformClick();}
+        }
         internal PanelSwitch(string text) {
             Text=text;AccessibleName=text;AccessibleRole=AccessibleRole.CheckButton;FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;BackColor=PanelTheme.Surface;Cursor=Cursors.Hand;
             SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
