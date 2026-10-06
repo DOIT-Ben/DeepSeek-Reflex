@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.15 — 2026-10-06
+
+- Record all 11 audit findings as individual unresolved bug reports, with source snapshots, reproduction steps, evidence boundaries, negative controls and acceptance criteria.
+- Track two unconfirmed scenarios separately. Link the public bug registry from both READMEs.
+- Documentation and release metadata only; no native behavior changes or bug fixes. The known issues remain unresolved.
+
 ## 1.0.14 — 2026-10-06
 
 - Add newly captured application screenshots to both READMEs: compact chat, reading layout, selected-text toolbar, settings, and first-use introduction.
