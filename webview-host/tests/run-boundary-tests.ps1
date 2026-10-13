@@ -1,5 +1,6 @@
-param([string]$OutputDirectory=(Join-Path ([IO.Path]::GetTempPath()) ('Reflex-boundary-'+[Guid]::NewGuid().ToString('N'))),[switch]$CoreOnly)
+param([string]$OutputDirectory=(Join-Path ([IO.Path]::GetTempPath()) ('Reflex-boundary-'+[Guid]::NewGuid().ToString('N'))),[switch]$CoreOnly,[switch]$ChatModeOnly,[switch]$WakeOnly)
 $ErrorActionPreference='Stop'
+if(@($CoreOnly,$ChatModeOnly,$WakeOnly).Where({$_}).Count -gt 1){throw 'Choose only one specialized test mode'}
 $HostSources=Split-Path -Parent $PSScriptRoot
 $Framework=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
 $Compiler=Join-Path $Framework 'csc.exe'
@@ -26,14 +27,18 @@ $Sources=@(Get-ChildItem -LiteralPath $HostSources -Filter '*.cs' -File | ForEac
 $SavedLib=$env:LIB
 try{
  $env:LIB=''
- & $Compiler /nologo /target:exe /platform:x64 /warnaserror+ /main:DeepSeekFloat.BoundaryTests "/win32manifest:$HostSources\app.manifest" "/out:$Exe" $References $Sources (Join-Path $PSScriptRoot 'BoundaryTests.cs')
+ & $Compiler /nologo /target:exe /platform:x64 /warnaserror+ /main:DeepSeekFloat.BoundaryTests "/win32manifest:$HostSources\app.manifest" "/out:$Exe" $References $Sources (Join-Path $PSScriptRoot 'BoundaryTests.cs') (Join-Path $PSScriptRoot 'WakeTests.cs')
  if($LASTEXITCODE -ne 0){throw 'Boundary test compilation failed'}
 }finally{$env:LIB=$SavedLib}
 $Arguments=@($OutputDirectory);if($CoreOnly){$Arguments+='--core'}
+if($ChatModeOnly){$Arguments+='--chat-mode'}
+if($WakeOnly){$Arguments+='--wake'}
 & $Exe @Arguments
 if($LASTEXITCODE -ne 0){throw 'Boundary cases failed'}
 node (Join-Path $PSScriptRoot 'prompt-tests.cjs') $OutputDirectory
 if($LASTEXITCODE -ne 0){throw 'Draft boundary failed'}
+node (Join-Path $PSScriptRoot 'chat-mode-tests.cjs') $OutputDirectory
+if($LASTEXITCODE -ne 0){throw 'Chat mode regression failed'}
 node (Join-Path $PSScriptRoot 'focus-tests.cjs') $OutputDirectory
 if($LASTEXITCODE -ne 0){throw 'Focus regression failed'}
 Write-Output "Boundary evidence: $OutputDirectory"

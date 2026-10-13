@@ -85,6 +85,7 @@ namespace DeepSeekFloat {
     try{
      System.Runtime.InteropServices.Marshal.StructureToPtr(rect,pointer,false);
      Native.SendMessage(window.Handle,0x2e0,new IntPtr(144|(144<<16)),pointer);Application.DoEvents();
+     Console.WriteLine("DPI message evidence: bounds="+window.Bounds+" scale="+Field(window,"dpiScale")+" aligned="+smooth.Aligned);
      Check(window.Left==-720&&(float)Field(window,"dpiScale")==1.5f&&smooth.Aligned,"native DPI message honors suggested bounds including negative coordinates");
     }finally{System.Runtime.InteropServices.Marshal.FreeHGlobal(pointer);}
     window.ApplyDpi(1,before);Application.DoEvents();Check(smooth.Aligned,"chat DPI round trip remains aligned");Close(window);
@@ -117,6 +118,12 @@ namespace DeepSeekFloat {
    Check(Preferences.IsStorageFailure(new UnauthorizedAccessException())&&Preferences.IsStorageFailure(new IOException())&&!Preferences.IsStorageFailure(new InvalidOperationException()),"storage exception classification");
    var settings=WindowSettings.Defaults();settings.Save();Check(WindowSettings.Load().ToggleKeys==settings.ToggleKeys,"isolated preferences round trip");
    Check(HotkeyBindings.Validate(settings.ToggleKeys,settings.ToggleKeys)!=null,"shortcut collision validation");
+   Check(settings.ChatMode=="normal","new settings default to ordinary conversation");
+   settings.ChatMode="translate";settings.Save();Check(WindowSettings.Load().ChatMode=="translate","chat mode persists separately from window size");
+   settings.ChatMode="future-unknown";settings.Save();Check(WindowSettings.Load().ChatMode=="normal"&&WindowSettings.Load().ToggleKeys==settings.ToggleKeys,"unknown mode falls back without resetting other settings");
+   settings.ChatMode=null;settings.Save();Check(WindowSettings.Load().ChatMode=="normal","legacy missing mode uses ordinary conversation");
+   foreach(var definition in ChatModes.All)Export("chat-mode-"+definition.Id+".json",ChatModeInjector.Script(definition.Id));
+   Export("chat-mode-copy.json",ChatModeInjector.ExpectOneShotScript("COPIED ONE SHOT"));
    Export("prompt-first.json",PromptInserter.Script("PRIOR REQUEST",null));Export("prompt-second.json",PromptInserter.Script("NEXT REQUEST","PRIOR REQUEST"));Export("focus-script.json",ComposerFocus.Script);
   }
   static void Wait(System.Threading.Tasks.Task task){
@@ -157,12 +164,82 @@ namespace DeepSeekFloat {
     Check(!initialization.Result&&popup.IsDisposed,"close during real WebView initialization is a quiet cancellation");
    }
   }
+  static void ChatModeBrowser(){
+   const string url="https://chat.deepseek.com/reflex-isolated-mode-check";
+   const string html=@"<!doctype html><meta charset='utf-8'><textarea id='chat-input' placeholder='给 DeepSeek 发送消息'></textarea><button id='send'>发送</button><textarea id='edit-history'>HISTORY</textarea><script>
+window.sent=[];const e=document.querySelector('#chat-input');
+document.querySelector('#send').onclick=()=>{window.sent.push(e.value);e.value='';e.dispatchEvent(new Event('input',{bubbles:true}));};
+e.onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing)document.querySelector('#send').click();};
+window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true}));};
+</script>";
+   using(var shell=new Form())using(var view=new Microsoft.Web.WebView2.WinForms.WebView2{Dock=DockStyle.Fill}){
+    shell.Controls.Add(view);shell.Show();
+    var create=CoreWebView2Environment.CreateAsync(null,Path.Combine(root,"chat-mode-profile"));Wait(create);Wait(view.EnsureCoreWebView2Async(create.Result));
+    var core=view.CoreWebView2;core.Settings.IsWebMessageEnabled=false;core.Settings.AreHostObjectsAllowed=false;
+    core.NavigationStarting+=delegate(object sender,CoreWebView2NavigationStartingEventArgs args){if(args.Uri!=url)args.Cancel=true;};
+    core.AddWebResourceRequestedFilter("*",CoreWebView2WebResourceContext.All);
+    core.WebResourceRequested+=delegate(object sender,CoreWebView2WebResourceRequestedEventArgs args){args.Response=create.Result.CreateWebResourceResponse(new MemoryStream(Encoding.UTF8.GetBytes(args.Request.Uri==url?html:"blocked")),args.Request.Uri==url?200:403,"OK","Content-Type: text/html; charset=utf-8\r\nContent-Security-Policy: default-src 'none'; script-src 'unsafe-inline'");};
+    var navigation=new System.Threading.Tasks.TaskCompletionSource<bool>();core.NavigationCompleted+=delegate(object sender,CoreWebView2NavigationCompletedEventArgs args){navigation.TrySetResult(args.IsSuccess);};core.Navigate(url);Wait(navigation.Task);Check(navigation.Task.Result,"real WebView composer fixture loads with all external requests intercepted");
+    Func<string,string> run=delegate(string script){var task=core.ExecuteScriptAsync(script);Wait(task);return task.Result;};
+    Check(run(ChatModeInjector.Script("translate"))=="\"ready\"","real WebView enables persistent mode without filling an empty composer");
+    run("enter('hello');document.querySelector('#send').click();enter('world');document.querySelector('#chat-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));");
+    Check(run("sent.length===2&&sent.every(x=>x.startsWith('请翻译')&&x.split('待处理内容：').length===2)&&sent[0].endsWith('hello')&&sent[1].endsWith('world')")=="true","real WebView mouse and Enter submit consecutive messages with one prefix each");
+    run("enter('keep my draft');");run(ChatModeInjector.Script("explain"));run(ChatModeInjector.Script("normal"));
+    Check(run("document.querySelector('#chat-input').value==='keep my draft'&&document.querySelector('#edit-history').value==='HISTORY'")=="true","real WebView preserves material on mode switch and does not mutate history editors");
+    run(ChatModeInjector.Script("translate"));run("enter('');");
+    Check(run(PromptInserter.Script("ONE SHOT SELECTION",null))=="\"ambiguous\"","one-shot fill still rejects an unrelated second visible editor");
+    run("document.querySelector('#edit-history').hidden=true;");
+    Check(run(PromptInserter.Script("ONE SHOT SELECTION",null))=="\"filled\"","real WebView one-shot fill bypasses the persistent prefix");
+    Check(run("document.querySelector('#chat-input').value==='ONE SHOT SELECTION'")=="true","real WebView one-shot request stays unwrapped");
+    shell.Close();
+   }
+   ChatModeHost(html);
+  }
+  static void ChatModeHost(string html){
+   using(var window=Window(false)){
+    // This machine's runtime rejects the host's existing explicit background-color
+    // interface. Use an otherwise equivalent default control for mode-chain QA.
+    var original=(Microsoft.Web.WebView2.WinForms.WebView2)Field(window,"browser");window.Controls.Remove(original);original.Dispose();
+    var view=new Microsoft.Web.WebView2.WinForms.WebView2();Set(window,"browser",view);window.Controls.Add(view);Call(window,"LayoutContent");
+    var navigation=new System.Threading.Tasks.TaskCompletionSource<bool>();
+    view.CoreWebView2InitializationCompleted+=delegate{
+     try{
+     var core=view.CoreWebView2;core.NavigationStarting+=delegate(object sender,CoreWebView2NavigationStartingEventArgs args){if(args.Uri!="https://chat.deepseek.com/")args.Cancel=true;};
+     core.AddWebResourceRequestedFilter("*",CoreWebView2WebResourceContext.All);
+     core.WebResourceRequested+=delegate(object sender,CoreWebView2WebResourceRequestedEventArgs args){args.Response=core.Environment.CreateWebResourceResponse(new MemoryStream(Encoding.UTF8.GetBytes(html)),200,"OK","Content-Type: text/html; charset=utf-8\r\nContent-Security-Policy: default-src 'none'; script-src 'unsafe-inline'");};
+     core.NavigationCompleted+=delegate(object sender,CoreWebView2NavigationCompletedEventArgs args){navigation.TrySetResult(args.IsSuccess);};
+     }catch(Exception error){Console.WriteLine("Mode fixture initialization callback failed: "+error);throw;}
+    };
+    Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","translate"));Set(window,"initializing",false);Wait((System.Threading.Tasks.Task)Call(window,"InitializeBrowser"));
+    Console.WriteLine("Mode host fixture uses the default WebView background property; explicit production white-background acceptance is not covered.");
+    Check(((Health)Field(window,"health")).initialized,"production host initializes before waiting for isolated navigation");
+    Wait(navigation.Task);
+    Func<string,string> run=delegate(string script){var task=view.CoreWebView2.ExecuteScriptAsync(script);Wait(task);return task.Result;};
+    Check(navigation.Task.Result&&run("window.__deepSeekFloatChatMode.mode")=="\"translate\"","production host restores persisted chat mode when the document loads");
+    run("enter('native host material');");Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","explain"));
+    Check(run("document.querySelector('#chat-input').value.startsWith('请面向学生')&&document.querySelector('#chat-input').value.endsWith('native host material')")=="true","production mode selector replaces the visible prefix and retains draft material");
+    Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","translate"));
+    var otherScreen=Screen.AllScreens.FirstOrDefault(s=>s.DeviceName!=Screen.FromHandle(window.Handle).DeviceName);
+    if(otherScreen!=null){
+     var area=otherScreen.WorkingArea;Call(window,"ShowChatAt",WakeTarget.At(new Point(area.Left+area.Width/2,area.Top+area.Height/2)));Application.DoEvents();
+     Check(Object.ReferenceEquals(view,Field(window,"browser"))&&run("document.querySelector('#chat-input').value.endsWith('native host material')&&window.__deepSeekFloatChatMode.mode==='translate'")=="true","real WebView keeps its draft and selected chat mode during an actual cross-screen wake");
+    }else Console.WriteLine("SKIP WebView draft across physical screens: only one connected display");
+    var bar=(Panel)Field(window,"chatModeBar");using(var bitmap=new Bitmap(bar.Width,bar.Height)){bar.DrawToBitmap(bitmap,bar.ClientRectangle);bitmap.Save(Path.Combine(root,"chat-mode-host-translate.png"));}
+    navigation=new System.Threading.Tasks.TaskCompletionSource<bool>();view.CoreWebView2.Reload();Wait(navigation.Task);
+    Check(navigation.Task.Result&&run("window.__deepSeekFloatChatMode.mode")=="\"translate\"","production host reapplies the chosen chat mode after reload");
+    Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","normal"));run("enter('raw message');document.querySelector('#send').click();");
+    Check(run("sent[0]")=="\"raw message\"","production ordinary mode sends original material without a prefix");Close(window);
+   }
+  }
   [STAThread] static int Main(string[] args){
    try{
     root=Path.GetFullPath(args[0]);Directory.CreateDirectory(root);typeof(Preferences).GetField("Root",BindingFlags.NonPublic|BindingFlags.Static).SetValue(null,root);
     Core();
-    if(args.Contains("--core")){Console.WriteLine("SKIP native desktop acceptance in core-only run");}
-    else{Application.EnableVisualStyles();Modal(false,false);Modal(true,false);Modal(false,true);Modal(true,true);WindowStates();SaveDenied();Accessibility();DpiAndSmallGuide();BrowserLifecycle();}
+    WakeTests.Core(Check);
+    if(args.Contains("--wake")){Application.EnableVisualStyles();WakeTests.Desktop(Check,root);}
+    else if(args.Contains("--chat-mode")){Application.EnableVisualStyles();ChatModeBrowser();}
+    else if(args.Contains("--core")){Console.WriteLine("SKIP native desktop acceptance in core-only run");}
+    else{Application.EnableVisualStyles();Modal(false,false);Modal(true,false);Modal(false,true);Modal(true,true);WindowStates();SaveDenied();Accessibility();DpiAndSmallGuide();BrowserLifecycle();ChatModeBrowser();WakeTests.Desktop(Check,root);}
     Console.WriteLine("TOTAL "+passed+" boundary checks; isolated fixtures only");return 0;
    }catch(Exception e){Console.WriteLine(e);return 1;}
   }

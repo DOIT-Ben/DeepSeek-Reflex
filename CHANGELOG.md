@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Follow the pointer's display when waking the chat: center on a different display, preserve the last rectangle on the same display, and relocate an already-visible window instead of hiding it when the pointer is on another display. Retain logical size, maximized state, rounded corners, drafts, and chat mode across DPI changes.
+- Add physical 150%/200% dual-display wake checks, captured-target routing, and cross-display WebView draft regression checks; see `docs/testing/2026-10-13-wake-placement.md`.
+- Add a persistent chat-mode selector with regular chat, translation, explanation, questions, polishing, and summarization. Insert visible instructions for each message, preserve draft material on switches, remember the selection, and bypass one-time selected-text requests.
+- Add generated-script, isolated WebView, host reload, preference rollback, and native layout checks for chat modes. See `docs/testing/2026-10-12-chat-modes.md` for verification limits.
+
 ## 1.0.16 — 2026-10-06
 
 - Fix modal wake routing, preserve maximized state, and roll back registered shortcuts when saving settings is denied.

@@ -130,10 +130,22 @@ internal static class SettingsTests {
     window.Width=width;typeof(ChatWindow).GetMethod("LayoutContent",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
     var fill=(PanelButton)Field(window,"insertSelection");var copy=(PanelButton)Field(window,"copySelection");var close=(ChromeButton)Field(window,"dismissSelection");
     Check(bar.ClientRectangle.Contains(action.Bounds)&&bar.ClientRectangle.Contains(close.Bounds)&&action.Right<=fill.Left&&fill.Right<=copy.Left&&copy.Right<=close.Left,"selection controls fit without overlaps at width "+width);
+    var modes=(Panel)Field(window,"chatModeBar");var selector=(PanelButton)Field(window,"chatModeButton");var hint=(Label)Field(window,"chatModeStatus");
+    Check(modes.Visible&&modes.ClientRectangle.Contains(selector.Bounds)&&modes.ClientRectangle.Contains(hint.Bounds)&&selector.Right<=hint.Left&&modes.Bottom<=bar.Top,"persistent mode controls fit above selection tools at width "+width);
+    using(var bitmap=new Bitmap(modes.Width,modes.Height)){modes.DrawToBitmap(bitmap,modes.ClientRectangle);bitmap.Save(Path.Combine(directory,"chat-mode-bar-"+width+".png"));}
     using(var bitmap=new Bitmap(bar.Width,bar.Height)){bar.DrawToBitmap(bitmap,bar.ClientRectangle);bitmap.Save(Path.Combine(directory,"selection-bar-"+width+".png"));}
    }
    Check(Children(bar).OfType<ComboBox>().Count()==0&&action.Controls[1].AccessibleName=="学生解释","selection actions use the shared segmented control and keep their meaning");
    var browser=(Control)Field(window,"browser");int withBar=browser.Height;((ChromeButton)Field(window,"dismissSelection")).PerformClick();Check(!bar.Visible&&browser.Height>withBar,"dismissing the selection bar returns its space to chat");
+   Check(((Panel)Field(window,"chatModeBar")).Visible,"dismissing selection keeps the persistent mode selector accessible");
+   var change=typeof(ChatWindow).GetMethod("SwitchChatMode",BindingFlags.Instance|BindingFlags.NonPublic);
+   ((System.Threading.Tasks.Task)change.Invoke(window,new object[]{"translate"})).GetAwaiter().GetResult();
+   Check(WindowSettings.Load().ChatMode=="translate"&&((PanelButton)Field(window,"chatModeButton")).Text.StartsWith("翻译模式"),"native mode selection updates display and persisted preference before browser loading");
+   var activeModes=(Panel)Field(window,"chatModeBar");using(var bitmap=new Bitmap(activeModes.Width,activeModes.Height)){activeModes.DrawToBitmap(bitmap,activeModes.ClientRectangle);bitmap.Save(Path.Combine(directory,"chat-mode-translate.png"));}
+   string blocked=Path.Combine(Preferences.Root,"window-settings.json.new");Directory.CreateDirectory(blocked);
+   try{((System.Threading.Tasks.Task)change.Invoke(window,new object[]{"explain"})).GetAwaiter().GetResult();Check(WindowSettings.Load().ChatMode=="translate"&&((WindowSettings)Field(window,"settings")).ChatMode=="translate","denied mode save preserves the selected mode on disk and in memory");}
+   finally{Directory.Delete(blocked);}
+   ((System.Threading.Tasks.Task)change.Invoke(window,new object[]{"normal"})).GetAwaiter().GetResult();
    typeof(ChatWindow).GetField("quitting",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);window.Close();
   }
   using(var shell=new Form())using(var pin=new ChromeButton("pin","测试置顶"))using(var toggle=new PanelSwitch("测试开关")) {

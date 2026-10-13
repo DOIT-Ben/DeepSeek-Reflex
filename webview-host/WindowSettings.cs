@@ -15,6 +15,7 @@ namespace DeepSeekFloat
         [DataMember] internal bool FocusOnOpen=true;
         [DataMember] internal bool HideToTrayOnToggle;
         [DataMember] internal string Mode="custom";
+        [DataMember] internal string ChatMode="normal";
         internal WindowSettings Clone() { return (WindowSettings)MemberwiseClone(); }
         internal static WindowSettings Defaults()
         {
@@ -28,7 +29,9 @@ namespace DeepSeekFloat
             try {
                 using(var file=File.OpenRead(Path.Combine(Preferences.Root,"window-settings.json"))) {
                     var settings=(WindowSettings)new DataContractJsonSerializer(typeof(WindowSettings)).ReadObject(file);
-                    if(settings!=null && settings.Version==1 && HotkeyBindings.Validate(settings.ToggleKeys,settings.CaptureKeys)==null && (settings.Mode=="custom"||settings.Mode=="compact"||settings.Mode=="reading"))return settings;
+                    if(settings!=null && settings.Version==1 && HotkeyBindings.Validate(settings.ToggleKeys,settings.CaptureKeys)==null && (settings.Mode=="custom"||settings.Mode=="compact"||settings.Mode=="reading")){
+                        settings.ChatMode=ChatModes.Find(settings.ChatMode).Id;return settings;
+                    }
                 }
             }catch(Exception e) { if(!(Preferences.IsStorageFailure(e) || e is SerializationException || e is ArgumentException))throw; }
             return Defaults();

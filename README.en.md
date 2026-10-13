@@ -25,9 +25,11 @@ A skippable introduction appears on first use and can be reopened from Settings.
 | Feature | What it helps with |
 | --- | --- |
 | Global shortcuts | Open or hide the same window without losing your current conversation. |
+| Wake on the pointer's display | Center when changing displays and retain the last position and size on the same display. Available in the development source. |
 | Always on top | Ask questions while reading a document, browsing, or coding. The pin control is in the title bar. |
 | Regular website sign-in | Use your DeepSeek account, conversation history, and attachments. No separate API key is needed. |
 | Selected-text import | Bring selected text into a draft to translate, explain, or ask about it. Existing drafts are preserved; you review and send. |
+| Persistent chat modes | Apply translation, explanation, questions, polishing, or summarization to each message with a visible prompt; switch back to regular chat at any time. |
 | Compact and reading layouts | Use the compact window for quick questions and the wider layout for longer answers. Resize from any edge or corner. |
 | Settings panel | Customize shortcuts, hide behavior, input focus, and window size. Content scrolls on smaller screens while the save controls stay visible. |
 | Smooth window frame | Rounded corners stay visible while dragging, with animated feedback on buttons and switches. |
@@ -115,6 +117,18 @@ The first visible launch offers a four-step introduction. You can skip it, or re
 The compact layout is 410×616 DIP and the reading layout is 752×720 DIP, adjusted for available screen space and Windows scaling. Website zoom defaults to 90%. Double-click the title bar to enlarge or restore the window; dragging an edge saves a custom size.
 
 Selected-text import depends on the source application's accessibility support. It first uses Windows UI Automation and may fall back to copying and restoring the clipboard. Password fields, scanned images, empty selections, and input longer than 20,000 characters are not supported. If capture fails, copy the text and use **导入剪贴板 (Import clipboard)** in Settings. The experimental automatic selection popup is disabled by default and has no V1 interface for enabling it.
+
+### Persistent chat modes (development source)
+
+The **对话模式 (Chat mode)** selector below the title bar stays visible. It adds the selected instruction to the current draft and each subsequent message, so you can inspect the actual text before sending. Translation converts Chinese to English and other languages to Chinese. Regular chat removes the tool's unchanged prefix and preserves your material. The selected mode is saved locally and restored on restart.
+
+Empty drafts stay empty, IME composition is preserved, and selected-text requests remain one-time actions without an extra mode prefix. Edited instructions are retained; clearing the composer starts a fresh message using the selected mode. This feature is in the development build and is not included in the published v1.0.16 packages. Built-in definitions live in `webview-host/ChatModes.cs`; custom mode management is planned for a later iteration. See the [mode notes](docs/chat-modes.md) for implementation and verification boundaries.
+
+### Wake on the pointer's display (development source)
+
+At wake time, use the display containing the pointer. Changing displays centers the chat in that display's working area; waking on the same display keeps its last position and size. A visible chat on another display moves over instead of toggling closed. On the same display, the shortcut retains its existing hide/minimize behavior. Capture snapshots the target before waiting for selected text; tray opening and existing-instance activation use the same positioning rules.
+
+Moving the pointer alone does not move the chat. Settings/help panels stay on their current display while open. Cross-display movement preserves logical size, pin/maximized state, drafts and chat mode, and fits the available space after DPI changes. Returning to a previously used display centers again; there is no position history per display. This feature has not been published in v1.0.16 packages or installed locally. See the [wake verification notes](docs/testing/2026-10-13-wake-placement.md).
 
 ## Data and privacy
 
