@@ -7,7 +7,7 @@ using Microsoft.Web.WebView2.WinForms;
 namespace DeepSeekFloat {
     // Shared opaque WebView host and cached alpha frame; the origin is always visible.
     internal sealed class PopupWindow : Form {
-        internal readonly WebView2 Browser=new WebView2 {DefaultBackgroundColor=Color.White};
+        internal readonly WebView2 Browser=new WebView2();
         private readonly Panel chrome=new Panel {BackColor=Color.White};
         private readonly Label origin=new Label {AutoEllipsis=true,TextAlign=ContentAlignment.MiddleCenter,ForeColor=PanelTheme.Ink};
         private readonly Label error=new Label {TextAlign=ContentAlignment.MiddleCenter,BackColor=Color.White,ForeColor=PanelTheme.Error,Visible=false};

@@ -84,7 +84,7 @@ namespace DeepSeekFloat
             if(Expanded)return;Expanded=true;expiry.Stop();
             var area=Screen.FromPoint(anchor).WorkingArea;
             Size=new Size(Math.Min(S(440),area.Width),Math.Min(S(540),area.Height));
-            view=new WebView2 { DefaultBackgroundColor=Color.White,AccessibleName="独立划词问答" };
+            view=new WebView2 {AccessibleName="独立划词问答"};
             Controls.Add(view);LayoutPopup();Place();
         }
         private async Task<bool> LoadWebsite()

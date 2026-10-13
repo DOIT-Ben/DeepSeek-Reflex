@@ -1,6 +1,6 @@
-param([string]$OutputDirectory=(Join-Path ([IO.Path]::GetTempPath()) ('Reflex-boundary-'+[Guid]::NewGuid().ToString('N'))),[switch]$CoreOnly,[switch]$ChatModeOnly,[switch]$WakeOnly)
+param([string]$OutputDirectory=(Join-Path ([IO.Path]::GetTempPath()) ('Reflex-boundary-'+[Guid]::NewGuid().ToString('N'))),[switch]$CoreOnly,[switch]$ChatModeOnly,[switch]$WakeOnly,[switch]$DpiOnly)
 $ErrorActionPreference='Stop'
-if(@($CoreOnly,$ChatModeOnly,$WakeOnly).Where({$_}).Count -gt 1){throw 'Choose only one specialized test mode'}
+if(@($CoreOnly,$ChatModeOnly,$WakeOnly,$DpiOnly).Where({$_}).Count -gt 1){throw 'Choose only one specialized test mode'}
 $HostSources=Split-Path -Parent $PSScriptRoot
 $Framework=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
 $Compiler=Join-Path $Framework 'csc.exe'
@@ -33,6 +33,7 @@ try{
 $Arguments=@($OutputDirectory);if($CoreOnly){$Arguments+='--core'}
 if($ChatModeOnly){$Arguments+='--chat-mode'}
 if($WakeOnly){$Arguments+='--wake'}
+if($DpiOnly){$Arguments+='--dpi'}
 & $Exe @Arguments
 if($LASTEXITCODE -ne 0){throw 'Boundary cases failed'}
 node (Join-Path $PSScriptRoot 'prompt-tests.cjs') $OutputDirectory

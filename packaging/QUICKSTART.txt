@@ -4,6 +4,8 @@ DeepSeek-Reflex — Windows x64 (see VERSION for this package's version)
 后台启动不弹出引导，首次主动唤起时再显示。
 Ctrl+Space：唤出 / 收起；Ctrl+Shift+D：选中文字带入，检查草稿后自行发送。
 右上角关闭收进托盘，托盘菜单“退出”才会结束程序。
+v1.0.17：对话模式栏支持普通、翻译、解释、提问、润色、总结；每条消息可见注入提示词。
+唤起时跟随鼠标所在屏幕：换屏居中，同屏保留位置；不会随鼠标移动自动追随。
 
 ZIP: extract the entire DeepSeek-Reflex folder, then double-click DeepSeekFloat.exe.
 EXE: run the Setup installer; no administrator privileges are required.

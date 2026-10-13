@@ -84,9 +84,15 @@ namespace DeepSeekFloat {
     var pointer=System.Runtime.InteropServices.Marshal.AllocHGlobal(System.Runtime.InteropServices.Marshal.SizeOf(typeof(Native.RECT)));
     try{
      System.Runtime.InteropServices.Marshal.StructureToPtr(rect,pointer,false);
+     // Stabilize on the destination monitor first. A synthetic 150% message
+     // must not race a real 200% monitor transition caused by the same move.
+     var suggested=WindowDpi.Suggested(pointer);
+     window.Bounds=suggested;Application.DoEvents();
+     window.ApplyDpi(WindowDpi.Scale(window),suggested);Application.DoEvents();
      Native.SendMessage(window.Handle,0x2e0,new IntPtr(144|(144<<16)),pointer);Application.DoEvents();
      Console.WriteLine("DPI message evidence: bounds="+window.Bounds+" scale="+Field(window,"dpiScale")+" aligned="+smooth.Aligned);
-     Check(window.Left==-720&&(float)Field(window,"dpiScale")==1.5f&&smooth.Aligned,"native DPI message honors suggested bounds including negative coordinates");
+     Check(window.Left==rect.left&&window.Top==rect.top&&(float)Field(window,"dpiScale")==1.5f&&smooth.Aligned,"stabilized synthetic DPI message applies 150 percent and the negative origin");
+     Check(window.Width==rect.right-rect.left&&window.Height==rect.bottom-rect.top,"stabilized synthetic DPI message applies the exact suggested dimensions");
     }finally{System.Runtime.InteropServices.Marshal.FreeHGlobal(pointer);}
     window.ApplyDpi(1,before);Application.DoEvents();Check(smooth.Aligned,"chat DPI round trip remains aligned");Close(window);
    }
@@ -197,10 +203,7 @@ window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true
   }
   static void ChatModeHost(string html){
    using(var window=Window(false)){
-    // This machine's runtime rejects the host's existing explicit background-color
-    // interface. Use an otherwise equivalent default control for mode-chain QA.
-    var original=(Microsoft.Web.WebView2.WinForms.WebView2)Field(window,"browser");window.Controls.Remove(original);original.Dispose();
-    var view=new Microsoft.Web.WebView2.WinForms.WebView2();Set(window,"browser",view);window.Controls.Add(view);Call(window,"LayoutContent");
+    var view=(Microsoft.Web.WebView2.WinForms.WebView2)Field(window,"browser");
     var navigation=new System.Threading.Tasks.TaskCompletionSource<bool>();
     view.CoreWebView2InitializationCompleted+=delegate{
      try{
@@ -211,7 +214,7 @@ window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true
      }catch(Exception error){Console.WriteLine("Mode fixture initialization callback failed: "+error);throw;}
     };
     Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","translate"));Set(window,"initializing",false);Wait((System.Threading.Tasks.Task)Call(window,"InitializeBrowser"));
-    Console.WriteLine("Mode host fixture uses the default WebView background property; explicit production white-background acceptance is not covered.");
+    Check(view.DefaultBackgroundColor.ToArgb()==Color.White.ToArgb(),"unmodified production WebView retains its default opaque white background");
     Check(((Health)Field(window,"health")).initialized,"production host initializes before waiting for isolated navigation");
     Wait(navigation.Task);
     Func<string,string> run=delegate(string script){var task=view.CoreWebView2.ExecuteScriptAsync(script);Wait(task);return task.Result;};
@@ -236,7 +239,8 @@ window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true
     root=Path.GetFullPath(args[0]);Directory.CreateDirectory(root);typeof(Preferences).GetField("Root",BindingFlags.NonPublic|BindingFlags.Static).SetValue(null,root);
     Core();
     WakeTests.Core(Check);
-    if(args.Contains("--wake")){Application.EnableVisualStyles();WakeTests.Desktop(Check,root);}
+    if(args.Contains("--dpi")){Application.EnableVisualStyles();DpiAndSmallGuide();}
+    else if(args.Contains("--wake")){Application.EnableVisualStyles();WakeTests.Desktop(Check,root);}
     else if(args.Contains("--chat-mode")){Application.EnableVisualStyles();ChatModeBrowser();}
     else if(args.Contains("--core")){Console.WriteLine("SKIP native desktop acceptance in core-only run");}
     else{Application.EnableVisualStyles();Modal(false,false);Modal(true,false);Modal(false,true);Modal(true,true);WindowStates();SaveDenied();Accessibility();DpiAndSmallGuide();BrowserLifecycle();ChatModeBrowser();WakeTests.Desktop(Check,root);}

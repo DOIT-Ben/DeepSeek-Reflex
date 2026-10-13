@@ -184,7 +184,8 @@ namespace DeepSeekFloat
             status.ForeColor = Color.FromArgb(103,112,130);
             status.BackColor = Color.White;
             status.Click += async delegate { await InitializeBrowser(); };
-            browser.DefaultBackgroundColor = Color.White;
+            // WebView defaults to opaque white. Avoid requesting an optional
+            // background-color controller interface just to set the default.
             browser.AccessibleName = "DeepSeek 官网聊天";
             chatModeBar.BackColor=Color.White;chatModeBar.Font=new Font("Microsoft YaHei UI",9f);
             chatModeLabel.Text="对话模式";chatModeLabel.ForeColor=PanelTheme.Muted;chatModeLabel.TextAlign=ContentAlignment.MiddleLeft;
@@ -621,7 +622,7 @@ namespace DeepSeekFloat
             if(recreateBrowser) {
                 foreach(var popup in OwnedForms.OfType<PopupWindow>().ToArray())popup.Close();
                 Controls.Remove(browser);browser.Dispose();
-                browser=new WebView2 {DefaultBackgroundColor=Color.White,AccessibleName="DeepSeek 官网聊天"};
+                browser=new WebView2 {AccessibleName="DeepSeek 官网聊天"};
                 Controls.Add(browser);recreateBrowser=false;browserExited=false;environment=null;health.initialized=false;
                 lastInserted=null;LayoutContent();chrome.BringToFront();frame.BringToFront();
             }

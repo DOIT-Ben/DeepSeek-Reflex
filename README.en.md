@@ -25,7 +25,7 @@ A skippable introduction appears on first use and can be reopened from Settings.
 | Feature | What it helps with |
 | --- | --- |
 | Global shortcuts | Open or hide the same window without losing your current conversation. |
-| Wake on the pointer's display | Center when changing displays and retain the last position and size on the same display. Available in the development source. |
+| Wake on the pointer's display | Center when changing displays and retain the last position and size on the same display. |
 | Always on top | Ask questions while reading a document, browsing, or coding. The pin control is in the title bar. |
 | Regular website sign-in | Use your DeepSeek account, conversation history, and attachments. No separate API key is needed. |
 | Selected-text import | Bring selected text into a draft to translate, explain, or ask about it. Existing drafts are preserved; you review and send. |
@@ -51,7 +51,7 @@ Tell us where Reflex fits into your work and what gets in the way. For bugs, inc
 
 ## See it in action
 
-Use the compact window for quick questions and switch to the reading layout for longer answers. These are freshly captured screenshots of the current Windows application, showing a fresh signed-in conversation and demonstration text without private information. The application UI is currently in Chinese; both READMEs show the same interface.
+Use the compact window for quick questions and switch to the reading layout for longer answers. These are real v1.0.16 screenshots showing a fresh signed-in conversation and demonstration text without private information. v1.0.17 adds a persistent mode bar and cross-display wake positioning, described below. The application UI is currently in Chinese; both READMEs show the same interface.
 
 <table>
   <tr>
@@ -88,8 +88,8 @@ Choose a file from [Releases](https://github.com/DOIT-Ben/DeepSeek-Reflex/releas
 
 | File | How to use it |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.16-Setup-x64.exe` | Run the installer. It installs for the current user without administrator privileges, with optional desktop and startup shortcuts. Uninstall through Windows Apps. |
-| `DeepSeek-Reflex-1.0.16-Windows-x64.zip` | Extract the entire folder and run `DeepSeekFloat.exe`. Keep all dependency DLLs beside the executable. |
+| `DeepSeek-Reflex-1.0.17-Setup-x64.exe` | Run the installer. It installs for the current user without administrator privileges, with optional desktop and startup shortcuts. Uninstall through Windows Apps. |
+| `DeepSeek-Reflex-1.0.17-Windows-x64.zip` | Extract the entire folder and run `DeepSeekFloat.exe`. Keep all dependency DLLs beside the executable. |
 | `SHA256SUMS.txt` | Verify the downloaded files against their SHA-256 checksums. GitHub also provides source archives. |
 
 Requires **Windows 10/11 x64, .NET Framework 4.8, and WebView2 Evergreen Runtime**. V1 has been verified on Windows 11; Windows 10 has not been validated across devices. The installer checks prerequisites and points to [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) or [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48) if needed. It does not silently download other software. A native ARM64 build is not available.
@@ -97,7 +97,7 @@ Requires **Windows 10/11 x64, .NET Framework 4.8, and WebView2 Evergreen Runtime
 Current releases are unsigned, so Windows may display an unknown-publisher prompt. See the [signing policy](docs/code-signing.md). Download from this repository's Releases and verify the checksum:
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.16-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.0.17-Setup-x64.exe -Algorithm SHA256
 ```
 
 Before upgrading, choose **Exit** from the tray menu. Uninstalling preserves settings and website sign-in data. The ZIP uses the same user data directory as the installed application; moving the extracted folder does not move those data.
@@ -118,17 +118,17 @@ The compact layout is 410×616 DIP and the reading layout is 752×720 DIP, adjus
 
 Selected-text import depends on the source application's accessibility support. It first uses Windows UI Automation and may fall back to copying and restoring the clipboard. Password fields, scanned images, empty selections, and input longer than 20,000 characters are not supported. If capture fails, copy the text and use **导入剪贴板 (Import clipboard)** in Settings. The experimental automatic selection popup is disabled by default and has no V1 interface for enabling it.
 
-### Persistent chat modes (development source)
+### Persistent chat modes
 
 The **对话模式 (Chat mode)** selector below the title bar stays visible. It adds the selected instruction to the current draft and each subsequent message, so you can inspect the actual text before sending. Translation converts Chinese to English and other languages to Chinese. Regular chat removes the tool's unchanged prefix and preserves your material. The selected mode is saved locally and restored on restart.
 
-Empty drafts stay empty, IME composition is preserved, and selected-text requests remain one-time actions without an extra mode prefix. Edited instructions are retained; clearing the composer starts a fresh message using the selected mode. This feature is in the development build and is not included in the published v1.0.16 packages. Built-in definitions live in `webview-host/ChatModes.cs`; custom mode management is planned for a later iteration. See the [mode notes](docs/chat-modes.md) for implementation and verification boundaries.
+Empty drafts stay empty, IME composition is preserved, and selected-text requests remain one-time actions without an extra mode prefix. Edited instructions are retained; clearing the composer starts a fresh message using the selected mode. This feature is available from v1.0.17. Built-in definitions live in `webview-host/ChatModes.cs`; custom mode management is planned for a later iteration. See the [mode notes](docs/chat-modes.md) for implementation and verification boundaries.
 
-### Wake on the pointer's display (development source)
+### Wake on the pointer's display
 
 At wake time, use the display containing the pointer. Changing displays centers the chat in that display's working area; waking on the same display keeps its last position and size. A visible chat on another display moves over instead of toggling closed. On the same display, the shortcut retains its existing hide/minimize behavior. Capture snapshots the target before waiting for selected text; tray opening and existing-instance activation use the same positioning rules.
 
-Moving the pointer alone does not move the chat. Settings/help panels stay on their current display while open. Cross-display movement preserves logical size, pin/maximized state, drafts and chat mode, and fits the available space after DPI changes. Returning to a previously used display centers again; there is no position history per display. This feature has not been published in v1.0.16 packages or installed locally. See the [wake verification notes](docs/testing/2026-10-13-wake-placement.md).
+Moving the pointer alone does not move the chat. Settings/help panels stay on their current display while open. Cross-display movement preserves logical size, pin/maximized state, drafts and chat mode, and fits the available space after DPI changes. Returning to a previously used display centers again; there is no position history per display. This feature is available from v1.0.17. See the [wake verification notes](docs/testing/2026-10-13-wake-placement.md).
 
 ## Data and privacy
 
