@@ -36,6 +36,21 @@ A skippable introduction appears on first use and can be reopened from Settings.
 
 Useful for follow-up questions while researching, lesson preparation, translating passages, and quick coding questions. Sign-in and the hosted model service require internet access. Website features and availability are provided by DeepSeek.
 
+## Keep side questions in the window and the main task focused
+
+Use Reflex for a quick explanation, translation, or rewrite, then return to your main task in DSH (DeepSeek Harness) or another tool. The current window runs independently and does not read or write DSH sessions. Content joins the main task only when you manually bring it back.
+
+- **No API key or use of DSH's configured API quota.** The current app uses the website chat rather than DSH's model provider, and Reflex does not bill by token. This does not mean inference uses no tokens or that website access is permanently free or unlimited; the website's current terms and availability apply.
+- **Separate side conversations from main-task context.** Questions and answers left in Reflex are not automatically appended to the main session, avoiding unrelated history in later main-task requests. The website conversation still has its own history; start a new website chat to separate topics there.
+- **Avoid unnecessary context growth.** Keeping side questions outside the main session can limit later input volume. Actual API charges and cache hits depend on the provider and request content. Appending a question does not necessarily invalidate a cached prefix, and no fixed savings are promised. See the [official DeepSeek caching guide](https://api-docs.deepseek.com/guides/kv_cache/).
+- **Load the official website without a project-operated relay.** Reflex adds no project-operated model gateway or relay to the chat path. Connectivity, website load, sign-in state, and page changes still affect operation; neither uninterrupted service nor the lowest latency is guaranteed.
+
+### DSH plugin direction (planned; not in the current release)
+
+Retain the website window and its text-processing modes. An entry beside the DSH composer would let users explicitly pass a draft or selected text to the independent window for polishing, translation, summarization, or another mode. Only after user confirmation would a result return to the original DSH draft, without automatic sending or importing the entire side conversation into the main session.
+
+This direction relies on processing in the independent website window, rather than calling DSH's current model API for supposedly free rewrites or injecting persistent text-processing modes into the main task's system prompt. Draft transfer, result extraction, and fill-back still require feasibility and compatibility checks; manual copy should remain available if reliable fill-back is unavailable. Once the user sends a returned result to DSH, it becomes main-task context and is billed normally by that model provider.
+
 ## Scope and limitations
 
 Reflex saves the window switching needed for a quick question: summon the same chat with a shortcut, ask, and tuck it away. It provides the desktop window and selected-text interactions; DeepSeek supplies the answers, account, and conversation history.
