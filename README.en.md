@@ -47,6 +47,8 @@ Use Reflex for a quick explanation, translation, or rewrite, then return to your
 
 ### DSH plugin direction (planned; not in the current release)
 
+The source directory `plugins/dsh-reflex` now contains a standalone plugin prototype: copy the request and open the website window, manually copy a reply, then preview and confirm draft fill-back. It is not part of the current Windows release. Installation in the real UI, native-window wake, manual fill-back with synthetic text, and conflict protection were verified in an isolated local Windows DSH `0.1.5-rc.2` instance. System clipboard access and a complete website round trip remain unverified. Automatic transfer and reply extraction remain future work.
+
 Retain the website window and its text-processing modes. An entry beside the DSH composer would let users explicitly pass a draft or selected text to the independent window for polishing, translation, summarization, or another mode. Only after user confirmation would a result return to the original DSH draft, without automatic sending or importing the entire side conversation into the main session.
 
 This direction relies on processing in the independent website window, rather than calling DSH's current model API for supposedly free rewrites or injecting persistent text-processing modes into the main task's system prompt. Draft transfer, result extraction, and fill-back still require feasibility and compatibility checks; manual copy should remain available if reliable fill-back is unavailable. Once the user sends a returned result to DSH, it becomes main-task context and is billed normally by that model provider.

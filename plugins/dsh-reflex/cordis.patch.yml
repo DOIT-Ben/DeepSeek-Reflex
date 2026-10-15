@@ -1,0 +1,3 @@
+- insert:
+    - id: reflex-window
+      name: '@deepseek-reflex/dsh-plugin'
