@@ -110,19 +110,26 @@ var ReflexClient = (() => {
       title: "\u5B98\u7F51\u5C0F\u7A97 \xB7 \u4E0D\u8C03\u7528 DSH \u6A21\u578B",
       close: "\u5173\u95ED",
       mode: "\u5904\u7406\u6A21\u5F0F",
-      help: "\u9009\u62E9\u5904\u7406\u6A21\u5F0F\u540E\uFF0C\u300C\u5E26\u5165\u5C0F\u7A97\u300D\u628A\u5F53\u524D\u8349\u7A3F\u4EA4\u7ED9\u72EC\u7ACB\u5C0F\u7A97\uFF0C\u68C0\u67E5\u540E\u53D1\u9001\u3002\u56DE\u590D\u9700\u8981\u624B\u52A8\u590D\u5236\u56DE\u6765\uFF1B\u53EA\u5904\u7406\u6587\u5B57\uFF0C\u9644\u4EF6\u7559\u5728 DSH\u3002",
-      helpReturn: "\u5B98\u7F51\u56DE\u590D\u5148\u590D\u5236\u5230\u526A\u8D34\u677F\uFF0C\u70B9\u300C\u8BFB\u53D6\u590D\u5236\u7684\u56DE\u590D\u300D\u9884\u89C8\uFF0C\u786E\u8BA4\u540E\u70B9\u300C\u786E\u8BA4\u586B\u56DE\u8F93\u5165\u6846\u300D\u3002\u586B\u56DE\u4E0D\u81EA\u52A8\u53D1\u9001\u3002",
+      help: "\u9009\u62E9\u5904\u7406\u6A21\u5F0F\u540E\uFF0C\u300C\u5E26\u5165\u5C0F\u7A97\u300D\u628A\u5F53\u524D\u8349\u7A3F\u4EA4\u7ED9\u72EC\u7ACB\u5C0F\u7A97\uFF0C\u68C0\u67E5\u540E\u53D1\u9001\u3002\u53D1\u9001\u540E\u70B9\u300C\u8BFB\u53D6\u5C0F\u7A97\u56DE\u590D\u300D\u81EA\u52A8\u8BFB\u56DE\uFF1B\u53EA\u5904\u7406\u6587\u5B57\uFF0C\u9644\u4EF6\u7559\u5728 DSH\u3002",
+      helpReturn: "\u53D1\u9001\u540E\u70B9\u300C\u8BFB\u53D6\u5C0F\u7A97\u56DE\u590D\u300D\u9884\u89C8\uFF1B\u81EA\u52A8\u8BFB\u53D6\u4E0D\u53EF\u7528\u65F6\uFF0C\u628A\u5B98\u7F51\u56DE\u590D\u590D\u5236\u5230\u526A\u8D34\u677F\u518D\u70B9\u300C\u8BFB\u53D6\u590D\u5236\u7684\u56DE\u590D\u300D\u3002\u786E\u8BA4\u540E\u70B9\u300C\u786E\u8BA4\u586B\u56DE\u8F93\u5165\u6846\u300D\uFF0C\u4E0D\u81EA\u52A8\u53D1\u9001\u3002",
       open: "\u53EA\u6253\u5F00\u5C0F\u7A97",
       stage: "\u5E26\u5165\u5C0F\u7A97",
-      staged: "\u5DF2\u586B\u5165\u5C0F\u7A97\uFF0C\u8BF7\u68C0\u67E5\u540E\u53D1\u9001\u3002\u5B98\u7F51\u56DE\u590D\u4ECD\u9700\u624B\u52A8\u590D\u5236\u56DE\u6765\u3002",
+      staged: "\u5DF2\u586B\u5165\u5C0F\u7A97\uFF0C\u8BF7\u68C0\u67E5\u540E\u53D1\u9001\u3002\u53D1\u9001\u540E\u70B9\u300C\u8BFB\u53D6\u5C0F\u7A97\u56DE\u590D\u300D\u8BFB\u56DE\u3002",
       stageDraft: "\u5C0F\u7A97\u5DF2\u6709\u8349\u7A3F\uFF0C\u5DF2\u4FDD\u7559\u3002\u8BF7\u5148\u5904\u7406\u5C0F\u7A97\u4E2D\u7684\u6587\u5B57\uFF0C\u518D\u91CD\u8BD5\u3002",
       stageUnavailable: "\u5C0F\u7A97\u5C1A\u672A\u5C31\u7EEA\u3001\u9875\u9762\u4E0D\u652F\u6301\u6216\u8BBE\u7F6E\u9762\u677F\u4ECD\u6253\u5F00\u3002\u8BF7\u68C0\u67E5\u5C0F\u7A97\uFF1B\u4E5F\u53EF\u9009\u62E9\u201C\u590D\u5236\u8BF7\u6C42\u5E76\u6253\u5F00\u201D\u3002",
       stageUnknown: "\u672A\u80FD\u786E\u8BA4\u662F\u5426\u5DF2\u586B\u5165\u3002\u8BF7\u5148\u68C0\u67E5\u5C0F\u7A97\uFF0C\u907F\u514D\u91CD\u590D\u5E26\u5165\uFF1B\u65E7\u7248\u5C0F\u7A97\u53EF\u9009\u201C\u590D\u5236\u8BF7\u6C42\u5E76\u6253\u5F00\u201D\u3002",
       send: "\u590D\u5236\u8BF7\u6C42\u5E76\u6253\u5F00",
       paste: "\u8BFB\u53D6\u590D\u5236\u7684\u56DE\u590D",
+      fetch: "\u8BFB\u53D6\u5C0F\u7A97\u56DE\u590D",
       preview: "\u56DE\u590D\u9884\u89C8\uFF08\u4E5F\u53EF\u624B\u52A8\u7C98\u8D34\uFF09",
       apply: "\u786E\u8BA4\u586B\u56DE\u8F93\u5165\u6846",
       busy: "\u6B63\u5728\u5904\u7406\u2026",
+      fetchEmpty: "\u5C0F\u7A97\u91CC\u8FD8\u6CA1\u6709\u56DE\u590D\u3002\u5148\u5728\u5C0F\u7A97\u53D1\u9001\u8BF7\u6C42\uFF0C\u7B49\u56DE\u590D\u5B8C\u6210\u518D\u8BFB\u53D6\u3002",
+      fetchDone: "\u5DF2\u8BFB\u53D6\u5C0F\u7A97\u56DE\u590D\uFF0C\u8BF7\u6838\u5BF9\u540E\u70B9\u300C\u786E\u8BA4\u586B\u56DE\u8F93\u5165\u6846\u300D\u3002",
+      fetchOverflow: "\u56DE\u590D\u8D85\u8FC7 20,000 \u5B57\u3002\u8BF7\u5728\u5C0F\u7A97\u624B\u52A8\u590D\u5236\u9700\u8981\u7684\u90E8\u5206\uFF0C\u7C98\u8D34\u5230\u9884\u89C8\u6846\u3002",
+      fetchUnsupported: "\u5C0F\u7A97\u9875\u9762\u6682\u4E0D\u652F\u6301\u81EA\u52A8\u8BFB\u53D6\u3002\u8BF7\u624B\u52A8\u590D\u5236\u5B98\u7F51\u56DE\u590D\uFF0C\u518D\u70B9\u300C\u8BFB\u53D6\u590D\u5236\u7684\u56DE\u590D\u300D\u3002",
+      fetchBusy: "\u5C0F\u7A97\u6B63\u5728\u5904\u7406\u4E0A\u4E00\u6761\u8BF7\u6C42\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BFB\u53D6\u3002",
+      fetchUnknown: "\u672A\u80FD\u786E\u8BA4\u662F\u5426\u8BFB\u53D6\u6210\u529F\u3002\u8BF7\u91CD\u8BD5\uFF0C\u6216\u624B\u52A8\u590D\u5236\u5B98\u7F51\u56DE\u590D\u3002",
       ready: "\u8BF7\u6C42\u5DF2\u590D\u5236\u3002\u5C06\u5C0F\u7A97\u5207\u5230\u666E\u901A\u5BF9\u8BDD\uFF0C\u518D\u7C98\u8D34\u5E76\u68C0\u67E5\u53D1\u9001\u3002",
       opened: "\u5DF2\u8BF7\u6C42\u6253\u5F00\u5C0F\u7A97\u3002\u56DE\u590D\u4E0D\u4F1A\u81EA\u52A8\u5199\u5165\u5F53\u524D\u4F1A\u8BDD\u3002",
       failed: "\u65E0\u6CD5\u6253\u5F00\u5C0F\u7A97\u3002\u8BF7\u5148\u5B89\u88C5 Reflex\uFF0C\u6216\u5728 DSH \u542F\u52A8\u73AF\u5883\u4E2D\u8BBE\u7F6E REFLEX_EXECUTABLE \u6307\u5411 DeepSeekFloat.exe\u3002",
@@ -149,19 +156,26 @@ var ReflexClient = (() => {
       title: "Website window \xB7 no DSH model calls",
       close: "Close",
       mode: "Text mode",
-      help: "Pick a mode, then Bring into window hands the current draft to the separate window; review and send there. Replies must be copied back manually; only text is handled and attachments stay in DSH.",
-      helpReturn: "Copy the website reply, click Read copied reply to preview it, then Confirm draft fill-back. Nothing is sent automatically.",
+      help: "Pick a mode, then Bring into window hands the current draft to the separate window; review and send there. After it replies, Read window reply fetches it back automatically; only text is handled and attachments stay in DSH.",
+      helpReturn: "After sending, click Read window reply to preview it. If automatic read is unavailable, copy the website reply and click Read copied reply. Confirm with Confirm draft fill-back; nothing is sent automatically.",
       open: "Open window only",
       stage: "Bring into window",
-      staged: "Filled into the window. Review before sending, then copy the website reply back manually.",
+      staged: "Filled into the window. Review before sending, then use Read window reply to fetch it back.",
       stageDraft: "The window already has a draft. It was preserved; handle it before trying again.",
       stageUnavailable: "The window is not ready, the page is unsupported, or a settings panel is open. Check the window, or choose Copy request and open.",
       stageUnknown: "Fill status could not be confirmed. Check the window before retrying. Older windows can use Copy request and open.",
       send: "Copy request and open",
       paste: "Read copied reply",
+      fetch: "Read window reply",
       preview: "Reply preview (or paste manually)",
       apply: "Confirm draft fill-back",
       busy: "Working\u2026",
+      fetchEmpty: "No reply in the window yet. Send the request there first, then read once it finishes.",
+      fetchDone: "Reply fetched. Review it, then confirm the draft fill-back.",
+      fetchOverflow: "The reply exceeds 20,000 characters. Copy the parts you need in the window and paste them into the preview.",
+      fetchUnsupported: "The window page does not support automatic reading yet. Copy the website reply manually, then use Read copied reply.",
+      fetchBusy: "The window is still handling the previous request. Try reading again shortly.",
+      fetchUnknown: "Read status could not be confirmed. Retry, or copy the website reply manually.",
       ready: "Request copied. Set the window to regular chat, then paste, review and send.",
       opened: "Window requested. Replies do not enter this session automatically.",
       failed: "Could not open Reflex. Install it or set REFLEX_EXECUTABLE to DeepSeekFloat.exe in the DSH launch environment.",
@@ -247,9 +261,10 @@ var ReflexClient = (() => {
     const idle = supported && input.phase === "plain";
     const references = (input?.occurrences || []).length > 0;
     const tooLong = supported && input.draft.length > MAX_TEXT;
-    async function request(action, payload) {
+    async function request(action, payload, timeout) {
       if (location.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(location.hostname)) throw new Error("local");
-      const response = await fetch("/reflex-window/" + action, { method: "POST", headers: { "x-reflex-request": "1", ...payload ? { "content-type": "application/json" } : {} }, ...payload ? { body: JSON.stringify(payload) } : {}, signal: AbortSignal.timeout(payload ? 16e3 : 5e3) });
+      const limit = timeout ?? (payload ? 16e3 : 5e3);
+      const response = await fetch("/reflex-window/" + action, { method: "POST", headers: { "x-reflex-request": "1", ...payload ? { "content-type": "application/json" } : {} }, ...payload ? { body: JSON.stringify(payload) } : {}, signal: AbortSignal.timeout(limit) });
       const result = await response.json();
       if (!response.ok || result.available === false) throw new Error(result.reason === "windows-only" ? "local" : "failed");
       return result;
@@ -324,6 +339,44 @@ var ReflexClient = (() => {
         if (alive.current) setBusy(false);
       }
     }
+    async function fetchReply() {
+      if (inFlight.current || !pending) return;
+      const targetSession = sessionId;
+      inFlight.current = true;
+      setBusy(true);
+      setMessage("");
+      try {
+        const result = await request("reply", null, 16e3);
+        if (!alive.current || current.current.sessionId !== targetSession) return;
+        if (result.status === "ok" && typeof result.text === "string" && result.text.trim()) {
+          setPreview(result.text);
+          setMessage(t("fetchDone"));
+          return;
+        }
+        if (result.status === "empty") {
+          setMessage(t("fetchEmpty"));
+          return;
+        }
+        if (result.status === "overflow") {
+          setMessage(t("fetchOverflow"));
+          return;
+        }
+        if (result.status === "unsupported" || result.status === "wrong-host") {
+          setMessage(t("fetchUnsupported"));
+          return;
+        }
+        if (result.status === "loading" || result.status === "busy") {
+          setMessage(t("fetchBusy"));
+          return;
+        }
+        setMessage(t("fetchUnknown"));
+      } catch (error) {
+        if (alive.current && current.current.sessionId === targetSession) setMessage(t(error.message === "local" ? "local" : "fetchUnknown"));
+      } finally {
+        inFlight.current = false;
+        if (alive.current) setBusy(false);
+      }
+    }
     async function readReply() {
       if (inFlight.current || !pending) return;
       const targetSession = sessionId;
@@ -390,7 +443,12 @@ var ReflexClient = (() => {
         !supported && h("p", { role: "alert" }, t("unsupported")),
         references && h("p", { role: "alert" }, t("references")),
         tooLong && h("p", { role: "alert" }, t("tooLong")),
-        h("div", { className: "reflex-actions" }, h("button", { type: "button", disabled: busy || !pending, onClick: readReply }, t("paste"))),
+        h(
+          "div",
+          { className: "reflex-actions" },
+          h("button", { type: "button", disabled: busy || !pending, onClick: fetchReply }, t("fetch")),
+          h("button", { type: "button", disabled: busy || !pending, onClick: readReply }, t("paste"))
+        ),
         h("label", null, t("preview"), h("textarea", { value: preview, maxLength: MAX_TEXT, onChange: (event) => setPreview(event.target.value) })),
         pending && !canApply(pending, sessionId, input) && h("p", { role: "alert" }, t("conflict")),
         h("div", { className: "reflex-actions" }, h("button", { type: "button", className: canFill ? "reflex-primary" : "", disabled: busy || !canFill, onClick: fillBack }, t("apply"))),

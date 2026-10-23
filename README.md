@@ -208,9 +208,9 @@ LICENSE          MIT
 欢迎通过 Issue 或 Pull Request 贡献。请参阅 [贡献说明](CONTRIBUTING.md)。已确认问题与待复验场景见 [Bug 档案](https://github.com/DOIT-Ben/DeepSeek-Reflex/tree/main/docs/bug-records)；登记问题不代表已经修复。
 
 <details>
-<summary>下一步：贴边收纳与快捷指令</summary>
+<summary>新功能：贴边收纳与自定义取词指令（开发构建）</summary>
 
-想先试试小窗贴边收起，以及自己定义取词指令？可以打开[交互预览与操作说明](docs/design/0001-reflex/README.md)。方案见 [ADR-0001](docs/adr/0001-edge-dock-and-custom-prompts.md)，[独立审查记录](docs/adr/0001-review.md)已通过。本轮只交付设计，尚未接入当前安装版。
+把窗口拖到屏幕左右边缘释放，会收成一颗贴边小标签，点击标签或按唤起键即恢复原位置；设置里可用「拖到屏幕边缘时收纳为标签」开关。取词栏新增「更多指令」：内置翻译、解释、提问之外，可在 设置 → 快捷指令 中自定义条目（名称+指令，最多 20 条），从「更多指令」直接选用。方案见 [ADR-0001](docs/adr/0001-edge-dock-and-custom-prompts.md)，[独立审查记录](docs/adr/0001-review.md)含实施记录；物理拖拽手感与多屏接缝场景仍以实际使用为准。设计预览仍可在[交互预览与操作说明](docs/design/0001-reflex/README.md)查看。
 
 </details>
 

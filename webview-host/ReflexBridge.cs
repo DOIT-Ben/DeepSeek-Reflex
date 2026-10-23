@@ -17,22 +17,36 @@ using Microsoft.Win32.SafeHandles;
 namespace DeepSeekFloat {
     [DataContract] internal sealed class BridgeRequest {
         [DataMember] public string id {get;set;}
+        [DataMember] public string op {get;set;}
         [DataMember] public string mode {get;set;}
         [DataMember] public string text {get;set;}
+        internal bool IsReply {get{return op=="reply";}}
         internal bool Valid {
-            get {Guid parsed;return Guid.TryParseExact(id,"D",out parsed)&&ChatModes.All.Any(m=>m.Id==mode)&&!string.IsNullOrWhiteSpace(text)&&text.Length<=20000;}
+            get {
+                Guid parsed;
+                if(!Guid.TryParseExact(id,"D",out parsed))return false;
+                if(op==null)return ChatModes.All.Any(m=>m.Id==mode)&&!string.IsNullOrWhiteSpace(text)&&text.Length<=20000;
+                // Reply reads carry no content; mode stays reserved for staging.
+                return op=="reply"&&text==null;
+            }
         }
     }
     [DataContract] internal sealed class BridgeReply {
         [DataMember] public string id;
         [DataMember] public string status;
-        internal BridgeReply(string requestId,string result){id=requestId;status=result;}
+        [DataMember(EmitDefaultValue=false)] public string text;
+        internal BridgeReply(string requestId,string result):this(requestId,result,null){}
+        internal BridgeReply(string requestId,string result,string payload){id=requestId;status=result;text=payload;}
+    }
+    internal sealed class BridgeResult {
+        internal readonly string Status,Text;
+        internal BridgeResult(string status,string text=null){Status=status;Text=text;}
     }
     // No disk state, network listener, arbitrary commands, URLs, or page scripts.
     internal sealed class ReflexBridge : IDisposable {
         internal const int MaxBytes=90000;
         private readonly CancellationTokenSource stopping=new CancellationTokenSource();
-        private readonly Func<BridgeRequest,CancellationToken,Task<string>> stage;
+        private readonly Func<BridgeRequest,CancellationToken,Task<BridgeResult>> stage;
         private readonly object sync=new object();
         private NamedPipeServerStream current;
         private bool disposed;
@@ -67,7 +81,7 @@ namespace DeepSeekFloat {
         internal static async Task Write(Stream stream,byte[] body,CancellationToken cancel) {
             var header=BitConverter.GetBytes(body.Length);await stream.WriteAsync(header,0,4,cancel).ConfigureAwait(false);await stream.WriteAsync(body,0,body.Length,cancel).ConfigureAwait(false);await stream.FlushAsync(cancel).ConfigureAwait(false);
         }
-        internal ReflexBridge(Func<BridgeRequest,CancellationToken,Task<string>> callback){stage=callback;Task.Run((Func<Task>)Serve);}
+        internal ReflexBridge(Func<BridgeRequest,CancellationToken,Task<BridgeResult>> callback){stage=callback;Task.Run((Func<Task>)Serve);}
         private async Task Serve() {
             while(!stopping.IsCancellationRequested) {
                 try {
@@ -77,14 +91,15 @@ namespace DeepSeekFloat {
                         if(!SamePeer(pipe,false))continue;
                         BridgeRequest request;
                         using(var read=CancellationTokenSource.CreateLinkedTokenSource(stopping.Token))using(read.Token.Register(delegate{pipe.Dispose();})) {read.CancelAfter(3000);request=Parse<BridgeRequest>(await Read(pipe,MaxBytes,read.Token).ConfigureAwait(false));}
-                        string result="invalid";
+                        string requestId=request==null?null:request.id;
+                        BridgeResult result=new BridgeResult("invalid");
                         if(request!=null&&request.Valid)using(var deadline=CancellationTokenSource.CreateLinkedTokenSource(stopping.Token)) {
                             deadline.CancelAfter(7000);
                             var action=stage(request,deadline.Token);
                             if(await Task.WhenAny(action,Task.Delay(7000,stopping.Token)).ConfigureAwait(false)==action)result=await action.ConfigureAwait(false);
-                            else{deadline.Cancel();result="outcome-unknown";}
+                            else{deadline.Cancel();result=new BridgeResult("outcome-unknown");}
                         }
-                        using(var write=CancellationTokenSource.CreateLinkedTokenSource(stopping.Token))using(write.Token.Register(delegate{pipe.Dispose();})){write.CancelAfter(1000);await Write(pipe,Json(new BridgeReply(request==null?null:request.id,result)),write.Token).ConfigureAwait(false);}
+                        using(var write=CancellationTokenSource.CreateLinkedTokenSource(stopping.Token))using(write.Token.Register(delegate{pipe.Dispose();})){write.CancelAfter(1000);await Write(pipe,Json(new BridgeReply(requestId,result.Status,result.Text)),write.Token).ConfigureAwait(false);}
                     }
                 }catch(Exception error){
                     if(!(error is IOException||error is InvalidDataException||error is OperationCanceledException||error is ObjectDisposedException||error is SerializationException||error is UnauthorizedAccessException||error is ArgumentException))return;
@@ -112,7 +127,7 @@ namespace DeepSeekFloat {
                         try{pipe.Connect(200);}catch(TimeoutException){using(var started=Process.Start(new ProcessStartInfo(Executable){UseShellExecute=false})){}pipe.Connect(2500);}
                         if(!SamePeer(pipe,true))throw new UnauthorizedAccessException();
                         Write(pipe,Json(request),deadline.Token).GetAwaiter().GetResult();
-                        var response=Parse<BridgeReply>(Read(pipe,2048,deadline.Token).GetAwaiter().GetResult());
+                        var response=Parse<BridgeReply>(Read(pipe,MaxBytes,deadline.Token).GetAwaiter().GetResult());
                         if(response==null||response.id!=id)throw new InvalidDataException();
                         Output(response);return 0;
                         }

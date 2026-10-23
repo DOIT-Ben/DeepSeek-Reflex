@@ -14,6 +14,7 @@ namespace DeepSeekFloat
         [DataMember] internal int CaptureKeys;
         [DataMember] internal bool FocusOnOpen=true;
         [DataMember] internal bool HideToTrayOnToggle;
+        [DataMember] internal bool EdgeDockEnabled;
         [DataMember] internal string Mode="custom";
         [DataMember] internal string ChatMode="normal";
         internal WindowSettings Clone() { return (WindowSettings)MemberwiseClone(); }

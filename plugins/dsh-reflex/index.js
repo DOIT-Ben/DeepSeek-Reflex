@@ -1,5 +1,5 @@
 import { findExecutable, launchExecutable } from './launcher.js';
-import { readStage, stageExecutable } from './handoff.js';
+import { readStage, stageExecutable, replyExecutable, newReplyRequest } from './handoff.js';
 
 export const name = 'reflex-window';
 export const inject = ['webServer'];
@@ -22,15 +22,15 @@ export function acceptsRequest(req) {
   } catch { return false; }
 }
 
-/** Local launch plus bounded draft handoff. No conversation history or session ids are accepted. */
-export function createHandler({ locate = findExecutable, launch = launchExecutable, stage = stageExecutable, now = Date.now } = {}) {
+/** Local launch plus bounded draft handoff and passive reply read. No conversation history or session ids are accepted. */
+export function createHandler({ locate = findExecutable, launch = launchExecutable, stage = stageExecutable, readReply = replyExecutable, newReply = newReplyRequest, now = Date.now } = {}) {
   let opening = false, lastOpen = -Infinity;
   return async (req, res) => {
     if (!acceptsRequest(req)) return reply(res, 403, { error: 'local-origin-required' });
     const route = req.url?.split('?')[0];
-    if (!['/reflex-window/status', '/reflex-window/open', '/reflex-window/stage'].includes(route)) return reply(res, 404, { error: 'not-found' });
+    if (!['/reflex-window/status', '/reflex-window/open', '/reflex-window/stage', '/reflex-window/reply'].includes(route)) return reply(res, 404, { error: 'not-found' });
     if (req.method !== 'POST') return reply(res, 405, { error: 'post-required' });
-    // Legacy status/open remain body-free; only stage has the narrow validated text schema.
+    // Legacy status/open and reply stay body-free; only stage has the narrow validated text schema.
     if (route !== '/reflex-window/stage' && (req.headers['transfer-encoding'] || Number(req.headers['content-length'] || 0) !== 0)) return reply(res, 400, { error: 'body-not-accepted' });
     try {
       const request = route === '/reflex-window/stage' ? await readStage(req) : null;
@@ -40,6 +40,7 @@ export function createHandler({ locate = findExecutable, launch = launchExecutab
       if (opening || now() - lastOpen < 1000) return reply(res, 429, { error: 'opening' });
       opening = true;
       try {
+        if (route === '/reflex-window/reply') { const result = await readReply(app.executable, newReply()); lastOpen = now(); return reply(res, 200, result); }
         if (request) { const result = await stage(app.executable, request); lastOpen = now(); return reply(res, 200, result); }
         await launch(app.executable); lastOpen = now();
       }

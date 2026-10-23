@@ -59,7 +59,7 @@ namespace DeepSeekFloat {
             hints=new[]{
                 "DeepSeek-Reflex 是独立社区工具，需要联网。",
                 settings.HideToTrayOnToggle?"当前收起方式：收进托盘。快捷键可在设置修改。":"当前收起方式：最小化到任务栏。可在设置修改。",
-                "取词失败时，可复制文字，再从设置导入剪贴板。",
+                "取词失败时，可复制文字，再从设置粘贴导入。",
                 "拖动标题栏移动窗口；四边和四角都可以拉伸。"};
             SetStep(0);AcceptButton=next;CancelButton=skip;
             foreach(Control item in new Control[]{heading,body,card,help}){surface.Controls.Remove(item);item.Location=new Point(0,item.Top-S(96));item.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;content.Controls.Add(item);}

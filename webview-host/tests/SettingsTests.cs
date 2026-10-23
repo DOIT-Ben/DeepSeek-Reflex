@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -129,7 +130,11 @@ internal static class SettingsTests {
    foreach(int width in new[]{window.MinimumSize.Width,window.Width,window.Width+140}) {
     window.Width=width;typeof(ChatWindow).GetMethod("LayoutContent",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
     var fill=(PanelButton)Field(window,"insertSelection");var copy=(PanelButton)Field(window,"copySelection");var close=(ChromeButton)Field(window,"dismissSelection");
-    Check(bar.ClientRectangle.Contains(action.Bounds)&&bar.ClientRectangle.Contains(close.Bounds)&&action.Right<=fill.Left&&fill.Right<=copy.Left&&copy.Right<=close.Left,"selection controls fit without overlaps at width "+width);
+    var more=(PanelButton)Field(window,"moreSelection");var status=(Label)Field(window,"selectionStatus");
+    Check(bar.ClientRectangle.Contains(action.Bounds)&&bar.ClientRectangle.Contains(close.Bounds)&&bar.ClientRectangle.Contains(status.Bounds)
+     &&action.Right<=more.Left&&more.Right<=close.Left
+     &&status.Right<=fill.Left&&fill.Right<=copy.Left
+     &&action.Bottom<=status.Top&&copy.Bottom<=bar.ClientRectangle.Bottom,"selection controls fit the two-row bar without overlaps at width "+width);
     var modes=(Panel)Field(window,"chrome");var selector=(PanelButton)Field(window,"chatModeButton");
     Check(selector.Visible&&selector.Parent==modes&&modes.ClientRectangle.Contains(selector.Bounds)&&((Control)Field(window,"mode")).Right<=selector.Left&&selector.Right<=((Control)Field(window,"more")).Left&&bar.Top==modes.Bottom,"persistent mode fits inside title chrome without an extra row at width "+width);
     using(var bitmap=new Bitmap(modes.Width,modes.Height)){modes.DrawToBitmap(bitmap,modes.ClientRectangle);bitmap.Save(Path.Combine(directory,"chat-mode-bar-"+width+".png"));}
@@ -172,6 +177,172 @@ internal static class SettingsTests {
    Check(pin.Active&&selected.Value==1&&!selected.Running,"rapid pin changes settle at the actual pinned state and stop animating");shell.Close();
   }
  }
+ static void TestEdgeDockAndCommands(string directory) {
+  GettingStarted.Acknowledge();
+  var root=(string)typeof(Preferences).GetField("Root",BindingFlags.NonPublic|BindingFlags.Static).GetValue(null);
+  // N05 catalog persistence and validation
+  var fresh=PromptCatalog.Load();
+  Check(fresh.Commands.Length==3&&fresh.Error==null&&fresh.Commands.All(c=>!c.Custom),"missing commands file loads builtin prompts only");
+  var custom=new PromptCommand{Id=PromptCatalog.NewId(),Name="提炼要点",Instruction="请提炼要点。",BuiltinIndex=-1};
+  Check(PromptCatalog.Save(new[]{custom})==null,"valid catalog saves");
+  var loaded=PromptCatalog.Load();
+  Check(loaded.Commands.Length==4&&!loaded.Commands[0].Custom&&loaded.Commands[3].Custom&&loaded.Commands[3].Name=="提炼要点","saved catalog round trips with builtins first");
+  Check(PromptCatalog.ValidateName("翻译",loaded.Commands,null)!=null,"custom names may not collide with builtins");
+  Check(PromptCatalog.ValidateName("提炼要点",loaded.Commands,loaded.Commands[3])==null,"editing keeps the entry's own name allowed");
+  Check(PromptCatalog.ValidateName(new string('名',17),loaded.Commands,null)!=null&&PromptCatalog.ValidateName("  ",loaded.Commands,null)!=null,"name length and blank rules apply");
+  Check(PromptCatalog.ValidateInstruction(new string('字',2000))==null&&PromptCatalog.ValidateInstruction(new string('字',2001))!=null&&PromptCatalog.ValidateInstruction("  ")!=null,"instruction limits enforced");
+  var tooMany=new List<PromptCommand>();for(int i=0;i<21;i++)tooMany.Add(new PromptCommand{Id="x"+i,Name="条目"+i,Instruction="内容",BuiltinIndex=-1});
+  Check(PromptCatalog.Save(tooMany)!=null,"more than twenty custom prompts rejected");
+  var catalogPath=Path.Combine(root,"commands.json");
+  var good=File.ReadAllText(catalogPath);
+  File.Move(catalogPath,catalogPath+".keep");Directory.CreateDirectory(catalogPath);
+  Check(PromptCatalog.Save(new[]{custom})!=null,"failed catalog write reports instead of throwing");
+  Directory.Delete(catalogPath);File.Move(catalogPath+".keep",catalogPath);
+  File.WriteAllText(catalogPath,"{not json");
+  var bad=PromptCatalog.Load();
+  Check(bad.Error!=null&&bad.Commands.Length==3&&File.ReadAllText(catalogPath)=="{not json","unreadable catalog falls back to builtins and keeps the file");
+  File.WriteAllText(catalogPath,"{\"Version\":9,\"Commands\":[]}");
+  Check(PromptCatalog.Load().Error!=null,"unknown catalog version is reported");
+  // N06 compose envelope
+  var material="带\"引号\"的材料";
+  var customPrompt=PromptInserter.ComposeInstruction("请总结。",material);
+  Check(customPrompt.StartsWith("请总结。")&&customPrompt.Contains("<选中文字>\n"+material+"\n</选中文字>"),"custom instructions use the shared quoted material envelope");
+  Check(PromptInserter.Compose(material,0).StartsWith("请将下面的文字翻译成中文")&&PromptInserter.Compose(material,2).Contains("值得进一步提问"),"builtin integer mapping unchanged");
+  // BR bridge reply contract
+  var bridgeId="d1f39a2b-1c66-4de5-9d94-30db2b58a701";
+  Check(new BridgeRequest{id=bridgeId,mode="polish",text="内容"}.Valid&&!new BridgeRequest{id=bridgeId,mode="polish",text="内容"}.IsReply,"stage request stays valid without an op");
+  var replyRequest=new BridgeRequest{id=bridgeId,op="reply"};
+  Check(replyRequest.Valid&&replyRequest.IsReply,"reply request is valid without text");
+  Check(!new BridgeRequest{id=bridgeId,op="reply",text="x"}.Valid,"reply request rejects payload text");
+  Check(!new BridgeRequest{id=bridgeId,op="quux"}.Valid&&!new BridgeRequest{id=bridgeId}.Valid,"unknown op and op-less request without mode are rejected");
+  var withText=Encoding.UTF8.GetString(ReflexBridge.Json(new BridgeReply(bridgeId,"ok","回复正文")));
+  Check(withText.Contains("\"text\":\"回复正文\""),"reply json carries the payload text");
+  Check(!Encoding.UTF8.GetString(ReflexBridge.Json(new BridgeReply(bridgeId,"loading"))).Contains("text"),"stage reply omits the text member");
+  var payload=ReplyReader.Parse(Encoding.UTF8.GetString(ReflexBridge.Json(new ReplyPayload{Status="ok",Text="正文"})));
+  Check(payload.Status=="ok"&&payload.Text=="正文","reply payload parses through the named members");
+  Check(ReplyReader.Parse("not json").Status=="unsupported"&&ReplyReader.Parse("{}").Status=="unsupported","malformed page payload degrades to unsupported");
+  // N01 dock geometry
+  var area=new Rectangle(0,0,2560,1300);
+  Check(DockGeometry.Hit(new Rectangle(4,100,410,616),area,12,DockSide.None)==DockSide.Left,"release within threshold docks left");
+  Check(DockGeometry.Hit(new Rectangle(13,100,410,616),area,12,DockSide.None)==DockSide.None,"outside threshold never docks");
+  Check(DockGeometry.Hit(new Rectangle(2160,100,410,616),area,12,DockSide.None)==DockSide.Right&&DockGeometry.Hit(new Rectangle(2900,100,410,616),area,12,DockSide.None)==DockSide.None,"right edge docks and far offscreen does not");
+  Check(DockGeometry.Hit(new Rectangle(0,100,2548,616),area,12,DockSide.None)==DockSide.Right&&DockGeometry.Hit(new Rectangle(0,100,2548,616),area,12,DockSide.Left)==DockSide.Left,"edge ties keep the previous side or default right");
+  Check(DockGeometry.Hit(new Rectangle(0,1400,410,616),area,12,DockSide.None)==DockSide.None,"windows outside the vertical span never dock");
+  Check(!DockGeometry.HasSeam(area,DockSide.Left,new Rectangle(-16,600,32,80),new Screen[0]),"no neighbouring screens means no seam");
+  var tabLeft=DockGeometry.TabBounds(DockSide.Left,area,650,1f);
+  Check(tabLeft.X==area.Left&&tabLeft.Width==32&&tabLeft.Height==80&&tabLeft.Y==610,"left tab hugs the working area edge centered on the window");
+  var tabRight=DockGeometry.TabBounds(DockSide.Right,area,100000,1f);
+  Check(tabRight.Right==area.Right&&tabRight.Bottom==area.Bottom,"right tab clamps into the working area");
+  // N02/N03 dock lifecycle on the real chat window
+  using(var window=new ChatWindow(new[]{"--background"})) {
+   typeof(ChatWindow).GetField("initializing",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);typeof(ChatWindow).GetField("allowShow",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);
+   window.Show();Application.DoEvents();
+   var settings=(WindowSettings)Field(window,"settings");
+   var controller=(EdgeDockController)Field(window,"edgeDock");
+   var workArea=Screen.FromControl(window).WorkingArea;
+   var rect=new Rectangle(workArea.Left+2,workArea.Top+40,Math.Max(window.MinimumSize.Width+20,Math.Min(410,workArea.Width-40)),Math.Max(window.MinimumSize.Height+20,Math.Min(616,workArea.Height-80)));
+   window.Bounds=rect;window.SaveBounds();Application.DoEvents();
+   var before=new Rectangle(workArea.Left+102,rect.Y,rect.Width,rect.Height);
+   controller.OnDragEnded(before);
+   Check(!controller.Docked,"edge dock disabled by default does not dock");
+   settings.EdgeDockEnabled=true;
+   controller.OnDragEnded(before);
+   Check(controller.Docked&&!window.Visible,"releasing at the edge docks and hides the chat");
+   Check(controller.Side==DockSide.Left,"docked side is recorded for tab direction and display changes");
+   var dockTab=controller.Tab;
+   Check(dockTab!=null&&!dockTab.IsDisposed&&dockTab.Visible&&!dockTab.ShowInTaskbar,"dock tab shows without a taskbar presence");
+   Check(dockTab.Bounds.X==workArea.Left&&dockTab.Bounds.Width>=32,"left tab hugs the working area edge");
+   Check(!dockTab.Focused,"dock tab does not take keyboard focus");
+   var stored=File.ReadAllText(Path.Combine(root,"webview-bounds.txt")).Split(',').Select(int.Parse).ToArray();
+   Check(stored[0]!=dockTab.Bounds.X||stored[2]!=dockTab.Bounds.Width,"tab rectangle never reaches saved bounds");
+   window.WakeFromDock();Application.DoEvents();
+   Check(!controller.Docked&&window.Visible&&window.Bounds==rect,"tab activation restores the saved rectangle");
+   Check(controller.Tab==null||controller.Tab.IsDisposed||!controller.Tab.Visible,"restoring dismisses the tab");
+   Check(controller.Dock(window.Bounds)&&!window.Visible,"second dock after restore");
+   Com(window,"ToggleWindow",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.InvokeMethod);Application.DoEvents();
+   Check(!controller.Docked&&window.Visible,"docked wake expands instead of toggling closed");
+   window.Bounds=rect;Application.DoEvents();
+   controller.OnDragEnded(new Rectangle(workArea.Left,rect.Y,rect.Width,rect.Height));
+   Check(!controller.Docked,"a release already inside the band is not a dock gesture");
+   settings.EdgeDockEnabled=false;
+   controller.OnDragEnded(new Rectangle(workArea.Left,rect.Y,rect.Width,rect.Height));
+   Check(!controller.Docked,"disabled setting ignores drag ends");
+   settings.EdgeDockEnabled=true;
+   typeof(ChatWindow).GetField("settingsOpen",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);
+   controller.OnDragEnded(new Rectangle(workArea.Left,rect.Y,rect.Width,rect.Height));
+   Check(!controller.Docked,"modal state blocks docking");
+   typeof(ChatWindow).GetField("settingsOpen",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,false);
+   Check(controller.Dock(rect)&&!window.Visible,"dock before shutdown");
+   controller.Restore();controller.Restore();
+   Check(!controller.Docked&&window.Bounds==rect,"restore is idempotent");
+   var rightRect=new Rectangle(workArea.Right-rect.Width-2,rect.Y,rect.Width,rect.Height);
+   Check(controller.Dock(rightRect)&&controller.Side==DockSide.Right,"right edge dock records the right side");
+   controller.Restore();
+  }
+  // N04 custom selection state and composition
+  using(var window=new ChatWindow(new[]{"--background"})) {
+   typeof(ChatWindow).GetField("initializing",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);typeof(ChatWindow).GetField("allowShow",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);
+   window.Show();Application.DoEvents();
+   File.WriteAllText(Path.Combine(root,"commands.json"),"{\"Version\":1,\"Commands\":[{\"Id\":\"c1\",\"Name\":\"划重点\",\"Instruction\":\"请划出重点。\"}]}");
+   Com(window,"ReloadCommands",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.InvokeMethod);
+   var customs=(PromptCommand[])Field(window,"customCommands");
+   Check(customs.Length==1&&customs[0].Name=="划重点","window reloads the custom command catalog");
+   var more=(PanelButton)Field(window,"moreSelection");
+   typeof(ChatWindow).GetField("customChoice",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,customs[0]);
+   Com(window,"RefreshSelectionChoice",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.InvokeMethod);
+   Check(more.Text=="划重点 ▾"&&more.Chosen&&((PanelChoices)Field(window,"selectionAction")).SelectedIndex==-1,"choosing a custom command moves the chosen state to the more button");
+   Check(more.AccessibleName=="自定义指令 划重点"&&((Label)Field(window,"selectionStatus")).Text.Contains("划重点"),"chosen command exposes its full name and a fill hint");
+   typeof(ChatWindow).GetField("selectedText",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,"演示材料");
+   var composeSelector=typeof(ChatWindow).GetMethod("ComposeSelection",BindingFlags.Instance|BindingFlags.NonPublic);
+   var composed=(string)composeSelector.Invoke(window,null);
+   Check(composed.StartsWith("请划出重点。")&&composed.Contains("<选中文字>"),"custom selection composes through the shared envelope");
+   typeof(ChatWindow).GetField("customChoice",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,null);
+   Com(window,"RefreshSelectionChoice",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.InvokeMethod);
+   composed=(string)composeSelector.Invoke(window,null);
+   Check(composed.StartsWith("请将下面的文字翻译成中文"),"clearing the custom choice returns to the builtin translation");
+   typeof(ChatWindow).GetField("selectedText",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,null);
+   Com(window,"RefreshSelectionChoice",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.InvokeMethod);
+   Check(more.AccessibleName=="更多取词指令"&&((Label)Field(window,"selectionStatus")).Text.Length==0,"clearing the custom choice restores the default name and hint");
+  }
+  // commands management page and dock preference
+  var baseSettings=WindowSettings.Defaults();baseSettings.ToggleKeys=K(Keys.F19);baseSettings.CaptureKeys=K(Keys.F18);
+  int applied=0;WindowSettings received=null;
+  using(var dialog=new SettingsDialog(baseSettings,delegate(WindowSettings next){applied++;received=next;return null;},null,"commands")) {
+   dialog.Show();Application.DoEvents();
+   Check(((Label)Field(dialog,"heading")).Text=="快捷指令"&&((Panel)Field(dialog,"commandsPage")).Visible,"settings opens the commands page on request");
+   var nameBox=(TextBox)Field(dialog,"commandName");var bodyBox=(TextBox)Field(dialog,"commandBody");
+   Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="保存条目"));
+   Check(((Label)Field(dialog,"nameError")).Text.Length>0,"empty command name reports next to the field");
+   nameBox.Text="今日待办";bodyBox.Text="请整理成待办清单。";
+   Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="保存条目"));
+   Check(((Label)Field(dialog,"nameError")).Text==""&&((List<PromptCommand>)Field(dialog,"draft")).Count==2,"valid entry joins the draft without touching the file");
+   Check(!File.ReadAllText(Path.Combine(root,"commands.json")).Contains("今日待办"),"draft entry stays out of the file until saved");
+   Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="返回"));
+   Check((bool)Field(dialog,"confirming")&&dialog.Visible,"unsaved command edits ask before leaving");
+   Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="继续编辑"));
+   Check(!(bool)Field(dialog,"confirming")&&dialog.Visible,"继续编辑 keeps editing");
+   Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="保存指令"));
+   Check(File.ReadAllText(Path.Combine(root,"commands.json")).Contains("今日待办")&&((Label)Field(dialog,"heading")).Text=="小窗设置","saving commands persists the draft and returns to the general page");
+   Check(applied==0,"saving commands never applies general settings");
+   Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="快捷指令"));
+   Check(((Panel)Field(dialog,"commandsPage")).Visible&&((Label)Field(dialog,"heading")).Text=="快捷指令"&&dialog.Visible,"settings actions row opens command management in place");
+   Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="返回"));
+   Check(((Label)Field(dialog,"heading")).Text=="小窗设置"&&dialog.Visible,"returning from commands keeps the settings window open");
+   var dockSwitch=(PanelSwitch)Field(dialog,"dock");dockSwitch.Checked=true;
+   Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="保存"));
+   Check(applied==1&&received!=null&&received.EdgeDockEnabled,"general save applies the edge dock preference");
+  }
+  using(var dialog=new SettingsDialog(baseSettings,delegate(WindowSettings next){applied++;return null;},null,"commands")) {
+   dialog.Show();Application.DoEvents();
+   ((TextBox)Field(dialog,"commandName")).Text="未保存";
+   ((TextBox)Field(dialog,"commandBody")).Text="内容";
+   Click(Children(dialog).OfType<ChromeButton>().Single(b=>b.Kind=="close"));
+   Check((bool)Field(dialog,"confirming")&&dialog.Visible,"closing with unsaved command edits asks first");
+   Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="放弃并返回"));
+   Check(!dialog.Visible&&dialog.DialogResult==DialogResult.Cancel,"discarding unsaved edits from close leaves the dialog");
+  }
+ }
+ static void Click(Button button){typeof(Button).GetMethod("OnClick",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(button,new object[]{EventArgs.Empty});}
  [STAThread] static void Main(string[] args) {
   try {
    ShellIdentity.InitializeProcess();Check(ShellIdentity.CurrentId==ShellIdentity.AppId,"process publishes the unique DeepSeek-Reflex taskbar identity before UI creation");
@@ -180,6 +351,7 @@ internal static class SettingsTests {
    var root=Path.Combine(args[0],"test-preferences-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
    typeof(Preferences).GetField("Root",BindingFlags.NonPublic|BindingFlags.Static).SetValue(null,root);
    if(args.Contains("--interaction-only")){GettingStarted.Acknowledge();TestInteractionPolish(args[0]);Console.WriteLine("TOTAL "+passed+" focused interaction checks");return;}
+   if(args.Contains("--commands-only")){GettingStarted.Acknowledge();TestInteractionPolish(args[0]);TestEdgeDockAndCommands(args[0]);Console.WriteLine("TOTAL "+passed+" commands-only checks");return;}
    Check(GettingStarted.NeedsIntroduction,"fresh or upgraded install offers introduction before acknowledgement");
    Preferences.Write(GettingStarted.Marker,"broken");Check(GettingStarted.NeedsIntroduction,"malformed introduction marker does not silently suppress help");
    File.Delete(Path.Combine(root,GettingStarted.Marker));Directory.CreateDirectory(Path.Combine(root,GettingStarted.Marker));
@@ -430,6 +602,7 @@ internal static class SettingsTests {
    }
    int before=calls;using(var dialog=new SettingsDialog(original,delegate(WindowSettings next) { calls++;return null; }))dialog.Dispose();Check(calls==before,"cancel does not apply settings");
    TestInteractionPolish(args[0]);
+   TestEdgeDockAndCommands(args[0]);
    using(var window=new ChatWindow(new[]{"--background"})) {
     var method=typeof(ChatWindow).GetMethod("BuildMenu",BindingFlags.Instance|BindingFlags.NonPublic);var menu=(ContextMenuStrip)method.Invoke(window,null);
     bool same=true;for(int i=0;i<30;i++)same&=Object.ReferenceEquals(menu,method.Invoke(window,null));

@@ -54,6 +54,7 @@ namespace DeepSeekFloat
         [DataMember] public bool smoothCornersAligned;
         [DataMember] public bool guideVisible;
         [DataMember] public bool guideAcknowledged;
+        [DataMember] public bool edgeDocked;
         [DataMember] public int windowIconWidth;
         [DataMember] public int trayIconWidth;
         [DataMember] public bool iconBackgroundTransparent;
@@ -83,9 +84,14 @@ namespace DeepSeekFloat
         private readonly Panel selectionBar = new Panel();
         private readonly PanelChoices selectionAction = new PanelChoices("翻译","解释","提问");
         private readonly Label selectionStatus = new AnnouncingLabel();
+        private readonly PanelButton moreSelection = new PanelButton("更多指令 ▾") {Ghost=true,Outline=true};
         private readonly PanelButton insertSelection = new PanelButton("填入") {Chosen=true};
         private readonly PanelButton copySelection = new PanelButton("复制请求") {Ghost=true};
         private readonly ChromeButton dismissSelection = new ChromeButton("close","收起取词栏");
+        private PromptCommand[] customCommands=new PromptCommand[0];
+        private PromptCommand customChoice;
+        private string commandsError;
+        private bool updatingChoice;
         private bool capturing, inserting, settingsOpen, pendingComposerFocus,layingOut,guideOpen,guideQueued;
         private int focusVersion;
         private WindowSettings settings;
@@ -108,6 +114,7 @@ namespace DeepSeekFloat
         private int lastTrayToggle=unchecked((int)0x80000000);
         private readonly WakeTarget startupTarget;
         private bool startupPositioned;
+        private EdgeDockController edgeDock;
         private FormWindowState restoreState=FormWindowState.Normal;
         private CoreWebView2Environment environment;
         private bool allowShow, quitting, initializing;
@@ -193,7 +200,14 @@ namespace DeepSeekFloat
             selectionAction.AccessibleName="文字处理方式";
             selectionAction.Controls[1].AccessibleName="学生解释";selectionAction.Controls[2].AccessibleName="理解提问";
             selectionAction.SelectedIndex=0;
-            selectionAction.SelectedIndexChanged += async delegate { selectionVersion++; if(selectedText!=null) await FillSelection(); };
+            selectionAction.SelectedIndexChanged += async delegate {
+                if(updatingChoice)return;
+                if(selectionAction.SelectedIndex>=0&&!updatingChoice) { customChoice=null;updatingChoice=true;RefreshSelectionChoice();updatingChoice=false; }
+                selectionVersion++; if(selectedText!=null) await FillSelection();
+            };
+            moreSelection.AccessibleName="更多取词指令";
+            moreSelection.Click+=delegate{ShowMoreCommandsMenu();};
+            tips.SetToolTip(moreSelection,"选择自定义取词指令");
             selectionStatus.ForeColor=PanelTheme.Muted;
             selectionStatus.Font=PanelTheme.TextFont(PanelTheme.CaptionSize);
             selectionStatus.AutoEllipsis=true;
@@ -203,7 +217,7 @@ namespace DeepSeekFloat
                 if(selectedText==null) return;
                 int version=selectionVersion;
                 try {
-                    string prompt=PromptInserter.Compose(selectedText,selectionAction.SelectedIndex);Clipboard.SetText(prompt);
+                    string prompt=ComposeSelection();Clipboard.SetText(prompt);
                     var core=browser.CoreWebView2;
                     if(core!=null)try{await core.ExecuteScriptAsync(ChatModeInjector.ExpectOneShotScript(prompt));}catch(Exception){}
                     if(!resourcesDisposed&&!quitting&&version==selectionVersion)selectionStatus.Text="请求已复制，可粘贴到对话框";
@@ -213,7 +227,7 @@ namespace DeepSeekFloat
             dismissSelection.Click += delegate { selectionVersion++; selectedText=null; selectionBar.Hide(); LayoutContent(); };
             tips.SetToolTip(selectionAction,"选择文字处理方式，填入后由你确认发送");
             tips.SetToolTip(dismissSelection,"收起取词栏");
-            selectionBar.Controls.AddRange(new Control[]{selectionAction,selectionStatus,insertSelection,copySelection,dismissSelection});
+            selectionBar.Controls.AddRange(new Control[]{selectionAction,selectionStatus,moreSelection,insertSelection,copySelection,dismissSelection});
             Controls.AddRange(new Control[]{browser,status,selectionBar,chrome,frame});
             selectionBar.BringToFront();
             chrome.BringToFront();
@@ -252,7 +266,24 @@ namespace DeepSeekFloat
             healthTimer.Tick += delegate { WriteHealth(); };
             if (diagnostics != null) healthTimer.Start();
             smoothFrame=new SmoothFrame(this,dpiScale,delegate {if(!resourcesDisposed)LayoutContent();});
+            edgeDock=new EdgeDockController(this);
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged+=OnDisplaySettingsChanged;
             LayoutContent();
+        }
+        private void OnDisplaySettingsChanged(object sender,EventArgs e) {
+            if(edgeDock!=null&&!resourcesDisposed&&!quitting&&IsHandleCreated)BeginInvoke(new Action(delegate { edgeDock.OnDisplaysChanged(); WriteHealth(); }));
+        }
+        // Edge-dock controller hooks; kept internal for the controller and tests.
+        internal WindowSettings Settings {get{return settings;}}
+        internal bool ModalOpen {get{return settingsOpen||guideOpen;}}
+        internal float DockScale {get{return dpiScale;}}
+        internal Icon AppIcon {get{return Icon;}}
+        internal void WakeFromDock() {
+            if(edgeDock!=null&&edgeDock.Docked)edgeDock.Restore();
+            var center=edgeDock!=null&&edgeDock.SavedRect!=Rectangle.Empty
+                ? new Point(edgeDock.SavedRect.Left+edgeDock.SavedRect.Width/2,edgeDock.SavedRect.Top+edgeDock.SavedRect.Height/2)
+                : Cursor.Position;
+            ShowChatAt(WakeTarget.At(center));
         }
         private int S(int value) { return Math.Max(1,(int)Math.Round(value*dpiScale)); }
         internal void ApplyDpi(float value,Rectangle bounds) {
@@ -291,13 +322,16 @@ namespace DeepSeekFloat
             int available=Math.Max(0,ClientSize.Width-S(192)),selectorWidth=Math.Min(S(148),available);
             chatModeButton.SetBounds(S(112)+(available-selectorWidth)/2,0,selectorWidth,S(28));
             if(selectionBar.Visible) {
-                selectionBar.SetBounds(edge,height,Math.Max(0,ClientSize.Width-edge*2),S(76));
-                int choicesWidth=Math.Max(1,selectionBar.Width-S(192));
+                // Two fixed rows per the dock/capture contract: choices, more
+                // commands and dismiss on top; status, fill and copy below.
+                selectionBar.SetBounds(edge,height,Math.Max(0,ClientSize.Width-edge*2),S(82));
+                int choicesWidth=Math.Max(1,selectionBar.Width-S(136)-S(16));
                 selectionAction.SetBounds(S(10),S(8),choicesWidth,S(32));
-                insertSelection.SetBounds(S(18)+choicesWidth,S(8),S(48),S(32));
-                copySelection.SetBounds(S(72)+choicesWidth,S(8),S(76),S(32));
+                moreSelection.SetBounds(selectionBar.Width-S(126),S(8),S(84),S(32));
                 dismissSelection.SetBounds(selectionBar.Width-S(38),S(10),S(28),S(28));
-                selectionStatus.SetBounds(S(10),S(40),Math.Max(0,selectionBar.Width-S(20)),S(28));
+                selectionStatus.SetBounds(S(10),S(46),Math.Max(1,selectionBar.Width-S(176)),S(30));
+                insertSelection.SetBounds(selectionBar.Width-S(162),S(46),S(56),S(30));
+                copySelection.SetBounds(selectionBar.Width-S(100),S(46),S(92),S(30));
                 height+=selectionBar.Height;
             }
             browser.SetBounds(edge,height,Math.Max(0,ClientSize.Width-edge*2),Math.Max(0,ClientSize.Height-height-edge));
@@ -338,12 +372,65 @@ namespace DeepSeekFloat
             selectionStatus.Text=result.Error ?? ("已取词 "+selectedText.Length+" 字，正在填入…");
             if(selectedText!=null) await FillSelection();
         }
+        private string ComposeSelection() {
+            return customChoice==null
+                ? PromptInserter.Compose(selectedText,Math.Max(0,selectionAction.SelectedIndex))
+                : PromptInserter.ComposeInstruction(customChoice.Instruction,selectedText);
+        }
+        private void RefreshSelectionChoice() {
+            if(customChoice!=null) {
+                updatingChoice=true;
+                if(selectionAction.SelectedIndex!=-1)selectionAction.SelectedIndex=-1;
+                updatingChoice=false;
+                moreSelection.Text=customChoice.Name+" ▾";moreSelection.Chosen=true;
+                // Overflow is ellipsized by the painter; the full name lives in
+                // the accessible name and tooltip instead.
+                moreSelection.AccessibleName="自定义指令 "+customChoice.Name;
+                tips.SetToolTip(moreSelection,"已选择："+customChoice.Name+"，点击更换");
+                if(selectedText==null)selectionStatus.Text="已选「"+customChoice.Name+"」，选中文字后点“填入”";
+            } else {
+                updatingChoice=true;
+                if(selectionAction.SelectedIndex<0)selectionAction.SelectedIndex=0;
+                updatingChoice=false;
+                moreSelection.Text="更多指令 ▾";moreSelection.Chosen=false;
+                moreSelection.AccessibleName="更多取词指令";
+                tips.SetToolTip(moreSelection,"选择自定义取词指令");
+                if(selectedText==null)selectionStatus.Text="";
+            }
+        }
+        private void ShowMoreCommandsMenu() {
+            var menu=new TrayMenu(dpiScale);
+            if(commandsError!=null){menu.AddAction(commandsError,delegate{}).Enabled=false;menu.AddDivider();}
+            foreach(var command in customCommands) {
+                var choice=command;
+                menu.AddAction((customChoice==choice?"✓ ":"")+choice.Name,delegate {
+                    customChoice=choice;RefreshSelectionChoice();
+                    selectionVersion++;if(selectedText!=null){var pending=FillSelection();}
+                });
+            }
+            if(customCommands.Length==0&&commandsError==null) {
+                var empty=menu.AddAction("还没有自定义指令",delegate{});empty.Enabled=false;
+            }
+            menu.AddDivider();
+            menu.AddAction("去设置添加",delegate { ShowSettingsPage("commands"); });
+            menu.Closed+=delegate {
+                if(!resourcesDisposed&&!quitting&&IsHandleCreated){moreSelection.Focus();BeginInvoke(new Action(menu.Dispose));}
+                else menu.Dispose();
+            };
+            menu.Show(moreSelection,new Point(0,moreSelection.Height));
+        }
+        private void ReloadCommands() {
+            var catalog=PromptCatalog.Load();
+            customCommands=catalog.Commands.Where(c=>c.Custom).ToArray();
+            commandsError=catalog.Error;
+            if(customChoice!=null&&Array.IndexOf(customCommands,customChoice)<0){customChoice=null;RefreshSelectionChoice();}
+        }
         private async Task FillSelection()
         {
             if(selectedText==null || inserting || resourcesDisposed) return;
             inserting=true;
             int version=selectionVersion, length=selectedText.Length;
-            string prompt=PromptInserter.Compose(selectedText,selectionAction.SelectedIndex);
+            string prompt=ComposeSelection();
             try {
                 var result=await PromptInserter.InsertAsync(browser.CoreWebView2,prompt,lastInserted);
                 if(resourcesDisposed || quitting || IsDisposed) return;
@@ -364,8 +451,12 @@ namespace DeepSeekFloat
         {
             if (e.Button != MouseButtons.Left) return;
             wakeVersion++;pendingWakePlacement=null;
+            var before=NormalWakeBounds();
             Native.ReleaseCapture();
+            // Blocks until the native move loop ends, which is the only
+            // reliable "release on an edge" signal for the dock contract.
             Native.SendMessage(Handle,0xA1,new IntPtr(2),IntPtr.Zero);
+            if(edgeDock!=null&&!resourcesDisposed&&!quitting)edgeDock.OnDragEnded(before);
         }
         private void ToggleMaximize() { WindowState = WindowState == FormWindowState.Maximized ? FormWindowState.Normal : FormWindowState.Maximized; }
         private void RefreshPin()
@@ -396,6 +487,7 @@ namespace DeepSeekFloat
         // A distinct name keeps ShowChatAt unambiguous for the reflection-based tests.
         private void WakeChatAt(WakeTarget target,bool activate)
         {
+            if(edgeDock!=null&&edgeDock.Docked)edgeDock.Restore();
             wakeVersion++;
             startupPositioned=true;
             if(!settingsOpen&&!guideOpen)PositionForWake(target);
@@ -462,7 +554,7 @@ namespace DeepSeekFloat
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
-            if(bridge==null)bridge=new ReflexBridge(StageFromBridge);
+            if(bridge==null)bridge=new ReflexBridge(HandleBridge);
             EnableNativeSizing(Handle);
             WindowFrame.ConfigureNativeBorder(Handle);
             frame.UpdateShape(this,dpiScale);
@@ -472,6 +564,7 @@ namespace DeepSeekFloat
             tips.SetToolTip(more,shortcutError ?? "设置 · 快捷键与窗口");
             if(autoSelection==null)autoSelection=new AutoSelectionController(this);
             autoSelection.SetEnabled(Preferences.AutomaticSelectionEnabled());
+            ReloadCommands();
             BeginInvoke(new Action(async delegate { await InitializeBrowser(); }));
         }
         protected override void OnHandleDestroyed(EventArgs e)
@@ -485,25 +578,48 @@ namespace DeepSeekFloat
             mode.AccessibleName=settings.Mode=="reading" ? "切换到小窗尺寸" : "切换到阅读尺寸";
             mode.Text=mode.AccessibleName;tips.SetToolTip(mode,mode.AccessibleName);mode.Invalidate();
         }
-        private Task<string> StageFromBridge(BridgeRequest request,System.Threading.CancellationToken cancel) {
-            var completion=new TaskCompletionSource<string>();
-            if(resourcesDisposed||!IsHandleCreated){completion.SetResult("loading");return completion.Task;}
+        private static BridgeResult R(string status){return new BridgeResult(status);}
+        private Task<BridgeResult> HandleBridge(BridgeRequest request,System.Threading.CancellationToken cancel) {
+            if(request!=null&&request.IsReply)return ReadReplyFromBridge(cancel);
+            return StageFromBridge(request,cancel);
+        }
+        private Task<BridgeResult> StageFromBridge(BridgeRequest request,System.Threading.CancellationToken cancel) {
+            var completion=new TaskCompletionSource<BridgeResult>();
+            if(resourcesDisposed||!IsHandleCreated){completion.SetResult(R("loading"));return completion.Task;}
             try{BeginInvoke(new Action(async delegate{
-                if(cancel.IsCancellationRequested||resourcesDisposed||quitting){completion.TrySetResult("outcome-unknown");return;}
-                if(bridgeInFlight){completion.TrySetResult("busy");return;}
+                if(cancel.IsCancellationRequested||resourcesDisposed||quitting){completion.TrySetResult(R("outcome-unknown"));return;}
+                if(bridgeInFlight){completion.TrySetResult(R("busy"));return;}
                 var target=captureWakeTarget();
-                if(settingsOpen||guideOpen){ShowChatAt(target);completion.TrySetResult("busy");return;}
+                if(settingsOpen||guideOpen){ShowChatAt(target);completion.TrySetResult(R("busy"));return;}
                 var core=browser.CoreWebView2;
                 ShowChatAt(target);
-                if(core==null||initializing||updatingChatMode){completion.TrySetResult("loading");return;}
+                if(core==null||initializing||updatingChatMode){completion.TrySetResult(R("loading"));return;}
                 bridgeInFlight=true;
                 try{
-                    if(!request.Valid){completion.TrySetResult("invalid");return;}
+                    if(!request.Valid){completion.TrySetResult(R("invalid"));return;}
                     string prompt=ChatModes.Prefix(ChatModes.Find(request.mode))+request.text;
-                    completion.TrySetResult(await PromptInserter.InsertAsync(core,prompt,null));
-                }catch(Exception){completion.TrySetResult("outcome-unknown");}
+                    completion.TrySetResult(R(await PromptInserter.InsertAsync(core,prompt,null)));
+                }catch(Exception){completion.TrySetResult(R("outcome-unknown"));}
                 finally{bridgeInFlight=false;}
-            }));}catch(InvalidOperationException){completion.TrySetResult("loading");}
+            }));}catch(InvalidOperationException){completion.TrySetResult(R("loading"));}
+            return completion.Task;
+        }
+        // Passive: the window stays docked, hidden or behind panels; nothing is focused or sent.
+        private Task<BridgeResult> ReadReplyFromBridge(System.Threading.CancellationToken cancel) {
+            var completion=new TaskCompletionSource<BridgeResult>();
+            if(resourcesDisposed||!IsHandleCreated){completion.SetResult(R("loading"));return completion.Task;}
+            try{BeginInvoke(new Action(async delegate{
+                if(cancel.IsCancellationRequested||resourcesDisposed||quitting){completion.TrySetResult(R("outcome-unknown"));return;}
+                if(bridgeInFlight){completion.TrySetResult(R("busy"));return;}
+                var core=browser.CoreWebView2;
+                if(core==null||initializing){completion.TrySetResult(R("loading"));return;}
+                bridgeInFlight=true;
+                try{
+                    var reply=ReplyReader.Parse((await core.ExecuteScriptAsync(ReplyReader.Script)).Trim());
+                    completion.TrySetResult(reply.Status=="ok"&&reply.Text!=null?new BridgeResult("ok",reply.Text):R(reply.Status));
+                }catch(Exception){completion.TrySetResult(R("unsupported"));}
+                finally{bridgeInFlight=false;}
+            }));}catch(InvalidOperationException){completion.TrySetResult(R("loading"));}
             return completion.Task;
         }
         private void RefreshChatMode() {
@@ -586,9 +702,11 @@ namespace DeepSeekFloat
             if(previousMode!=settings.Mode)ApplyMode(settings.Mode);
             RefreshMode();WriteHealth();return null;
         }
-        private void ShowSettings()
+        private void ShowSettings(){ShowSettingsPage(null);}
+        private void ShowSettingsPage(string openPage)
         {
             if(settingsOpen||guideOpen)return;
+            if(edgeDock!=null&&edgeDock.Docked) { edgeDock.Restore(); ShowChatAt(captureWakeTarget()); }
             focusVersion++;pendingComposerFocus=false;settingsOpen=true;hotkeys.Suspend();
             try {
                 using(var dialog=new SettingsDialog(settings,ApplySettings,delegate(string action) {
@@ -596,8 +714,9 @@ namespace DeepSeekFloat
                         if(action=="refresh")await InitializeBrowser();
                         if(action=="import")await PresentSelection(SelectionCapture.FromClipboard());
                         if(action=="help")ShowHelp();
+                        if(action=="commands")ReloadCommands();
                     }));
-                })) { dialog.Icon=Icon;dialog.ShowDialog(this); }
+                },openPage)) { dialog.Icon=Icon;dialog.ShowDialog(this); }
             }
             finally {
                 settingsOpen=false;
@@ -615,6 +734,7 @@ namespace DeepSeekFloat
         }
         private void ShowHelp() {
             if(guideOpen||settingsOpen||resourcesDisposed||quitting)return;
+            if(edgeDock!=null&&edgeDock.Docked) { edgeDock.Restore(); ShowChatAt(captureWakeTarget()); }
             guideOpen=true;focusVersion++;pendingComposerFocus=false;hotkeys.Suspend();
             try {using(var guide=new GettingStartedDialog(settings)){guide.Icon=Icon;guide.ShowDialog(this);}GettingStarted.Acknowledge();}
             finally {
@@ -766,13 +886,14 @@ namespace DeepSeekFloat
             }
             catch (Exception) { health.pageFacts=null; }
         }
-        private void SaveBounds()
+        internal void SaveBounds()
         {
             var bounds=WindowState==FormWindowState.Normal ? Bounds : RestoreBounds;
+            // The edge-dock tab rectangle is a separate window and never reaches here.
             try { if(bounds.Width>0 && bounds.Height>0) Preferences.Write("webview-bounds.txt",string.Join(",",bounds.X,bounds.Y,bounds.Width,bounds.Height)); }
             catch(Exception error){if(!Preferences.IsStorageFailure(error))throw;}
         }
-        private void WriteHealth()
+        internal void WriteHealth()
         {
             if (diagnostics==null || !IsHandleCreated || IsDisposed) return;
             health.pinned=TopMost; health.minimized=WindowState==FormWindowState.Minimized; health.visible=Visible;
@@ -797,6 +918,7 @@ namespace DeepSeekFloat
             health.smoothCornersAligned=smoothFrame!=null&&smoothFrame.Aligned;
             health.guideVisible=guideOpen;health.guideAcknowledged=!GettingStarted.NeedsIntroduction;
             health.selectionVisible=selectionBar.Visible;
+            health.edgeDocked=edgeDock!=null&&edgeDock.Docked;
             health.chatMode=settings.ChatMode;
             health.automaticSelectionEnabled=autoSelection!=null && autoSelection.Enabled;
             health.automaticSelectionRegistered=autoSelection!=null && autoSelection.Registered;
@@ -847,6 +969,8 @@ namespace DeepSeekFloat
         {
             if(disposing && !resourcesDisposed) {
                 resourcesDisposed=true;
+                Microsoft.Win32.SystemEvents.DisplaySettingsChanged-=OnDisplaySettingsChanged;
+                if(edgeDock!=null)edgeDock.Shutdown();
                 if(bridge!=null)bridge.Dispose();
                 if(smoothFrame!=null)smoothFrame.Dispose();
                 selectedText=null; lastInserted=null;

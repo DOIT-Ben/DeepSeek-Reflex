@@ -69,3 +69,11 @@ TEST=docs/adr/0001-stage-tests.md@sha256:10e6de5f0ef6b022229bcaed84f54583b5e30dc
 提交前，JavaScript 静态解析、36 个相对文档链接、资源内嵌、Logo 原字节一致性及暂存空白检查通过；Git 索引中的 ADR／PHASE／TEST 与第 2 轮受检原始字节完全一致。完整浏览器证据在仓库外保全，未把测试日志或过程截图放入仓库。
 
 应用版本仍为 1.0.12。本轮没有发布 Release、更新安装包或安装程序；后续原生接入仍为 NOT_STARTED。
+
+## 实施记录（2026-10-23，N 阶段部分完成）
+
+用户指令「先做12」给出 N 阶段实施授权。D1/D2（贴边收纳）、D3（两行取词栏+更多指令+自定义指令）、D4（PromptCatalog 与设置页指令管理）已实现；原生新文件 `EdgeDock.cs`、`PromptCatalog.cs`，集成改动见 ChatWindow／SettingsDialog／WindowSettings／PanelControls。
+
+测试执行：`TestEdgeDockAndCommands` 覆盖 N01 几何（12 DIP 边界、并列、竖向跨度、接缝空集、TabBounds 夹取）、N02/N03 真实窗口收纳生命周期（默认关闭、贴边收纳、无任务栏、不抢焦点、标签矩形不入 SaveBounds、恢复、模态拦截、带内释放、幂等）、N04 选词状态、N05 目录校验（含写入失败与坏文件留存）、N06 信封与整数映射；既有 `run-tests.ps1` 默认/高 DPI、焦点、legacy launcher 与 Boundary 全部通过（N07）。
+
+限制与未验证项：拖动释放由 `OnDragEnded(before)` 以真实消息路径模拟，非物理拖拽（合同本身要求不把消息模拟称作物理拖动通过）；真实多屏接缝、拔屏、标签点击/hover 待物理多屏环境验证；N08 打包发行未授权未运行，未生成新安装包之外的个人安装变更。已安装本机构建用于日常使用。

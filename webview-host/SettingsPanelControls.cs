@@ -121,7 +121,7 @@ namespace DeepSeekFloat {
         internal event EventHandler SelectedIndexChanged;
         internal int SelectedIndex {
             get{return selected;}
-            set{if(value<0||value>=choices.Length)throw new ArgumentOutOfRangeException("value");bool changed=selected!=value;selected=value;for(int i=0;i<choices.Length;i++){choices[i].Chosen=i==value;choices[i].TabStop=i==value;choices[i].AccessibleDescription=i==value?"已选择":"未选择";choices[i].Invalidate();}if(changed&&SelectedIndexChanged!=null)SelectedIndexChanged(this,EventArgs.Empty);}
+            set{if(value<-1||value>=choices.Length)throw new ArgumentOutOfRangeException("value");bool changed=selected!=value;selected=value;for(int i=0;i<choices.Length;i++){choices[i].Chosen=i==value;choices[i].TabStop=i==value;choices[i].AccessibleDescription=i==value?"已选择":"未选择";choices[i].Invalidate();}if(changed&&SelectedIndexChanged!=null)SelectedIndexChanged(this,EventArgs.Empty);}
         }
         internal PanelChoices(params string[] names) {
             BackColor=Color.White;DoubleBuffered=true;TabStop=false;choices=new PanelButton[names.Length];

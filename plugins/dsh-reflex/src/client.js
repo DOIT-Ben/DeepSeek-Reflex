@@ -7,13 +7,19 @@ const ns = 'reflex-window';
 const dictionaries = {
   zh: {
     label: 'Reflex', title: '官网小窗 · 不调用 DSH 模型', close: '关闭', mode: '处理模式',
-    help: '选择处理模式后，「带入小窗」把当前草稿交给独立小窗，检查后发送。回复需要手动复制回来；只处理文字，附件留在 DSH。',
-    helpReturn: '官网回复先复制到剪贴板，点「读取复制的回复」预览，确认后点「确认填回输入框」。填回不自动发送。',
-    open: '只打开小窗', stage: '带入小窗', staged: '已填入小窗，请检查后发送。官网回复仍需手动复制回来。',
+    help: '选择处理模式后，「带入小窗」把当前草稿交给独立小窗，检查后发送。发送后点「读取小窗回复」自动读回；只处理文字，附件留在 DSH。',
+    helpReturn: '发送后点「读取小窗回复」预览；自动读取不可用时，把官网回复复制到剪贴板再点「读取复制的回复」。确认后点「确认填回输入框」，不自动发送。',
+    open: '只打开小窗', stage: '带入小窗', staged: '已填入小窗，请检查后发送。发送后点「读取小窗回复」读回。',
     stageDraft: '小窗已有草稿，已保留。请先处理小窗中的文字，再重试。',
     stageUnavailable: '小窗尚未就绪、页面不支持或设置面板仍打开。请检查小窗；也可选择“复制请求并打开”。',
     stageUnknown: '未能确认是否已填入。请先检查小窗，避免重复带入；旧版小窗可选“复制请求并打开”。',
-    send: '复制请求并打开', paste: '读取复制的回复', preview: '回复预览（也可手动粘贴）', apply: '确认填回输入框', busy: '正在处理…',
+    send: '复制请求并打开', paste: '读取复制的回复', fetch: '读取小窗回复', preview: '回复预览（也可手动粘贴）', apply: '确认填回输入框', busy: '正在处理…',
+    fetchEmpty: '小窗里还没有回复。先在小窗发送请求，等回复完成再读取。',
+    fetchDone: '已读取小窗回复，请核对后点「确认填回输入框」。',
+    fetchOverflow: '回复超过 20,000 字。请在小窗手动复制需要的部分，粘贴到预览框。',
+    fetchUnsupported: '小窗页面暂不支持自动读取。请手动复制官网回复，再点「读取复制的回复」。',
+    fetchBusy: '小窗正在处理上一条请求，请稍后再读取。',
+    fetchUnknown: '未能确认是否读取成功。请重试，或手动复制官网回复。',
     ready: '请求已复制。将小窗切到普通对话，再粘贴并检查发送。', opened: '已请求打开小窗。回复不会自动写入当前会话。',
     failed: '无法打开小窗。请先安装 Reflex，或在 DSH 启动环境中设置 REFLEX_EXECUTABLE 指向 DeepSeekFloat.exe。',
     local: '此试用版需要 Windows 本机的 DSH HTTP 页面（localhost）。远程页面和 file:// 桌面入口暂不支持。',
@@ -30,13 +36,19 @@ const dictionaries = {
   },
   en: {
     label: 'Reflex', title: 'Website window · no DSH model calls', close: 'Close', mode: 'Text mode',
-    help: 'Pick a mode, then Bring into window hands the current draft to the separate window; review and send there. Replies must be copied back manually; only text is handled and attachments stay in DSH.',
-    helpReturn: 'Copy the website reply, click Read copied reply to preview it, then Confirm draft fill-back. Nothing is sent automatically.',
-    open: 'Open window only', stage: 'Bring into window', staged: 'Filled into the window. Review before sending, then copy the website reply back manually.',
+    help: 'Pick a mode, then Bring into window hands the current draft to the separate window; review and send there. After it replies, Read window reply fetches it back automatically; only text is handled and attachments stay in DSH.',
+    helpReturn: 'After sending, click Read window reply to preview it. If automatic read is unavailable, copy the website reply and click Read copied reply. Confirm with Confirm draft fill-back; nothing is sent automatically.',
+    open: 'Open window only', stage: 'Bring into window', staged: 'Filled into the window. Review before sending, then use Read window reply to fetch it back.',
     stageDraft: 'The window already has a draft. It was preserved; handle it before trying again.',
     stageUnavailable: 'The window is not ready, the page is unsupported, or a settings panel is open. Check the window, or choose Copy request and open.',
     stageUnknown: 'Fill status could not be confirmed. Check the window before retrying. Older windows can use Copy request and open.',
-    send: 'Copy request and open', paste: 'Read copied reply', preview: 'Reply preview (or paste manually)', apply: 'Confirm draft fill-back', busy: 'Working…',
+    send: 'Copy request and open', paste: 'Read copied reply', fetch: 'Read window reply', preview: 'Reply preview (or paste manually)', apply: 'Confirm draft fill-back', busy: 'Working…',
+    fetchEmpty: 'No reply in the window yet. Send the request there first, then read once it finishes.',
+    fetchDone: 'Reply fetched. Review it, then confirm the draft fill-back.',
+    fetchOverflow: 'The reply exceeds 20,000 characters. Copy the parts you need in the window and paste them into the preview.',
+    fetchUnsupported: 'The window page does not support automatic reading yet. Copy the website reply manually, then use Read copied reply.',
+    fetchBusy: 'The window is still handling the previous request. Try reading again shortly.',
+    fetchUnknown: 'Read status could not be confirmed. Retry, or copy the website reply manually.',
     ready: 'Request copied. Set the window to regular chat, then paste, review and send.', opened: 'Window requested. Replies do not enter this session automatically.',
     failed: 'Could not open Reflex. Install it or set REFLEX_EXECUTABLE to DeepSeekFloat.exe in the DSH launch environment.',
     local: 'This preview requires a local Windows DSH HTTP page (localhost). Remote pages and file:// desktop entries are not supported yet.',
@@ -107,9 +119,10 @@ function Control({ sessionId, useInput, inputActions, t }) {
   const references = (input?.occurrences || []).length > 0;
   const tooLong = supported && input.draft.length > MAX_TEXT;
 
-  async function request(action, payload) {
+  async function request(action, payload, timeout) {
     if (location.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) throw new Error('local');
-    const response = await fetch('/reflex-window/' + action, { method: 'POST', headers: { 'x-reflex-request': '1', ...(payload ? { 'content-type': 'application/json' } : {}) }, ...(payload ? { body: JSON.stringify(payload) } : {}), signal: AbortSignal.timeout(payload ? 16000 : 5000) });
+    const limit = timeout ?? (payload ? 16000 : 5000);
+    const response = await fetch('/reflex-window/' + action, { method: 'POST', headers: { 'x-reflex-request': '1', ...(payload ? { 'content-type': 'application/json' } : {}) }, ...(payload ? { body: JSON.stringify(payload) } : {}), signal: AbortSignal.timeout(limit) });
     const result = await response.json();
     if (!response.ok || result.available === false) throw new Error(result.reason === 'windows-only' ? 'local' : 'failed');
     return result;
@@ -153,6 +166,23 @@ function Control({ sessionId, useInput, inputActions, t }) {
     finally { inFlight.current = false; if (alive.current) setBusy(false); }
   }
 
+  async function fetchReply() {
+    if (inFlight.current || !pending) return;
+    const targetSession = sessionId;
+    inFlight.current = true; setBusy(true); setMessage('');
+    try {
+      const result = await request('reply', null, 16000);
+      if (!alive.current || current.current.sessionId !== targetSession) return;
+      if (result.status === 'ok' && typeof result.text === 'string' && result.text.trim()) { setPreview(result.text); setMessage(t('fetchDone')); return; }
+      if (result.status === 'empty') { setMessage(t('fetchEmpty')); return; }
+      if (result.status === 'overflow') { setMessage(t('fetchOverflow')); return; }
+      if (result.status === 'unsupported' || result.status === 'wrong-host') { setMessage(t('fetchUnsupported')); return; }
+      if (result.status === 'loading' || result.status === 'busy') { setMessage(t('fetchBusy')); return; }
+      setMessage(t('fetchUnknown'));
+    } catch (error) { if (alive.current && current.current.sessionId === targetSession) setMessage(t(error.message === 'local' ? 'local' : 'fetchUnknown')); }
+    finally { inFlight.current = false; if (alive.current) setBusy(false); }
+  }
+
   async function readReply() {
     if (inFlight.current || !pending) return;
     const targetSession = sessionId;
@@ -189,7 +219,9 @@ function Control({ sessionId, useInput, inputActions, t }) {
       !supported && h('p', { role: 'alert' }, t('unsupported')),
       references && h('p', { role: 'alert' }, t('references')),
       tooLong && h('p', { role: 'alert' }, t('tooLong')),
-      h('div', { className: 'reflex-actions' }, h('button', { type: 'button', disabled: busy || !pending, onClick: readReply }, t('paste'))),
+      h('div', { className: 'reflex-actions' },
+        h('button', { type: 'button', disabled: busy || !pending, onClick: fetchReply }, t('fetch')),
+        h('button', { type: 'button', disabled: busy || !pending, onClick: readReply }, t('paste'))),
       h('label', null, t('preview'), h('textarea', { value: preview, maxLength: MAX_TEXT, onChange: event => setPreview(event.target.value) })),
       pending && !canApply(pending, sessionId, input) && h('p', { role: 'alert' }, t('conflict')),
       h('div', { className: 'reflex-actions' }, h('button', { type: 'button', className: canFill ? 'reflex-primary' : '', disabled: busy || !canFill, onClick: fillBack }, t('apply'))),

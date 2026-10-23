@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { Readable, PassThrough } from 'node:stream';
-import { readStage, stageExecutable, validStage } from '../handoff.js';
+import { readStage, stageExecutable, validStage, replyExecutable, validReplyRequest, newReplyRequest } from '../handoff.js';
 import { createHandler } from '../index.js';
 
 const request = () => ({ id: '31030090-7730-49e0-916e-b9d109ad5709', mode: 'polish', text: '仅本机的测试文字' });
@@ -47,4 +47,38 @@ test('HTTP stage forwards only validated body and shares launch single-flight pr
   assert.equal((await invoke(http(request()))).status, 429); unblock(); assert.equal((await first).body.status, 'filled'); assert.equal(calls, 1);
   const foreign = http(request()); foreign.headers.origin = 'https://foreign.test'; assert.equal((await invoke(foreign)).status, 403);
   assert.equal((await invoke(http({ ...request(), mode: 'unknown' }))).status, 400);
+});
+test('reply requests are body-free with a fresh id and reject any payload', () => {
+  const value = newReplyRequest();
+  assert.equal(validReplyRequest(value), true); assert.notEqual(value.id, newReplyRequest().id);
+  for (const bad of [{ ...value, text: 'x' }, { ...value, op: 'stage' }, { id: value.id }, { ...value, id: 'nope' }, { ...value, extra: 1 }]) assert.equal(validReplyRequest(bad), false);
+});
+test('reply helper keeps fixed argv, accepts bounded text and rejects malformed replies', async () => {
+  const replyRequest = newReplyRequest();
+  const ok = { id: replyRequest.id, status: 'ok', text: '官网回复正文' };
+  const seen = await replyExecutable('fixture', replyRequest, { start: childFactory(ok, (args, payload) => {
+    assert.deepEqual(args, ['fixture', ['--reflex-bridge'], { windowsHide: true, shell: false, stdio: ['pipe', 'pipe', 'ignore'] }]);
+    assert.deepEqual(JSON.parse(payload), replyRequest);
+  }) }); assert.deepEqual(seen, ok);
+  for (const bad of ['broken', { id: 'other', status: 'ok', text: 'x' }, { id: replyRequest.id, status: 'nope' }, { id: replyRequest.id, status: 'ok' }, { id: replyRequest.id, status: 'ok', text: '中'.repeat(20001) }, { id: replyRequest.id, status: 'loading', text: 'leak' }, 'x'.repeat(90113), null]) {
+    let own; const result = await replyExecutable('fixture', newReplyRequest(), { timeout: 15, start: childFactory(bad, (_a, _b, child) => { own = child; }) });
+    assert.equal(result.status, 'outcome-unknown'); assert.equal(own.killed, true);
+  }
+  assert.equal((await replyExecutable('fixture', { id: 'x', op: 'reply' })).status, 'invalid');
+});
+test('HTTP reply route is body-free, single-flight and forwards a fresh request id', async () => {
+  const bodies = []; const handler = createHandler({ locate: async () => ({ available: true, executable: 'fixture' }), readReply: async (_exe, value) => { bodies.push(value); return { id: value.id, status: 'unsupported' }; } });
+  const invoke = (route, method = 'POST', headers = {}, body = null) => {
+    const req = body === null ? Readable.from([]) : Readable.from([Buffer.from(body)]);
+    req.url = route; req.method = method; req.socket = { remoteAddress: '127.0.0.1' };
+    req.headers = { origin: 'http://127.0.0.1:3081', host: '127.0.0.1:3081', 'x-reflex-request': '1', ...headers };
+    return new Promise(resolve => { void handler(req, { writeHead: status => { req.result = status; }, end: out => resolve({ status: req.result, body: out ? JSON.parse(out) : null }) }); });
+  };
+  const first = await invoke('/reflex-window/reply');
+  assert.equal(first.status, 200); assert.equal(first.body.status, 'unsupported'); assert.equal(bodies.length, 1); assert.equal(validReplyRequest(bodies[0]), true);
+  assert.equal((await invoke('/reflex-window/reply')).status, 429);
+  const withBody = await invoke('/reflex-window/reply', 'POST', { 'content-length': '2', 'content-type': 'application/json' }, '{}');
+  assert.equal(withBody.status, 400);
+  assert.equal((await invoke('/reflex-window/reply', 'GET')).status, 405);
+  assert.equal((await invoke('/reflex-window/nope')).status, 404);
 });
