@@ -635,7 +635,7 @@ namespace DeepSeekFloat
         private void SetChatModeError(string message){chatModeError=message;chatModeButton.AccessibleDescription=message;tips.SetToolTip(chatModeButton,message);}
         private void ShowChatModeMenu() {
             var menu=CreateChatModeMenu();
-            menu.Show(chatModeButton,new Point(0,chatModeButton.Height));
+            menu.Show(chatModeButton,new Point(chatModeButton.Width-menu.Width,chatModeButton.Height));
         }
         private TrayMenu CreateChatModeMenu() {
             var menu=new TrayMenu(dpiScale);

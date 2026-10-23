@@ -8,13 +8,13 @@ namespace DeepSeekFloat {
         private readonly Font menuFont;
         internal bool NativeCornersRequested {get;private set;}
         internal TrayMenu(float dpiScale) {
-            scale=dpiScale;menuFont=PanelTheme.TextFont();Font=menuFont;
+            scale=dpiScale;menuFont=PanelTheme.CompactFont();Font=menuFont;
             ShowImageMargin=false;ShowCheckMargin=false;BackColor=Color.White;ForeColor=PanelTheme.Ink;
-            AutoSize=false;AutoClose=true;Renderer=new TrayRenderer(scale);Padding=new Padding(S(8));DropShadowEnabled=true;
+            AutoSize=false;AutoClose=true;Renderer=new TrayRenderer(scale);Padding=new Padding(S(4));DropShadowEnabled=true;
         }
         private int S(int value){return Math.Max(1,(int)Math.Round(value*scale));}
         internal ToolStripMenuItem AddAction(string text,EventHandler action) {
-            var item=new ToolStripMenuItem(text,null,action) {AutoSize=false,Size=new Size(S(200),S(PanelTheme.MenuRowHeight)),Margin=Padding.Empty,Padding=new Padding(S(12),0,S(8),0)};
+            var item=new ToolStripMenuItem(text,null,action) {AutoSize=false,Size=new Size(S(200),S(PanelTheme.MenuRowHeight)),Margin=Padding.Empty,Padding=new Padding(S(8),0,S(4),0)};
             Items.Add(item);UpdateSize();return item;
         }
         internal void AddDivider(){Items.Add(new ToolStripSeparator {AutoSize=false,Size=new Size(S(200),S(14)),Margin=Padding.Empty});UpdateSize();}
@@ -26,7 +26,7 @@ namespace DeepSeekFloat {
                 if(item is ToolStripSeparator)continue;
                 textWidth=Math.Max(textWidth,TextRenderer.MeasureText(item.Text,menuFont).Width);
             }
-            int inner=Math.Max(S(96),Math.Min(S(300),textWidth+S(68)));
+            int inner=Math.Max(S(76),Math.Min(S(300),textWidth+S(32)));
             int height=S(16);
             foreach(ToolStripItem item in Items){item.Size=new Size(inner,item.Height);height+=item.Height;}
             Size=new Size(inner+S(16),height);
@@ -64,9 +64,9 @@ namespace DeepSeekFloat {
             using(var path=PanelTheme.Rounded(new RectangleF(0,0,e.Item.Width-1,e.Item.Height-1),PanelTheme.ControlRadius*scale))using(var brush=new SolidBrush(PanelTheme.Hover))e.Graphics.FillPath(brush,path);
         }
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e){
-            int inset=(int)Math.Round(16*scale);
+            int inset=(int)Math.Round(8*scale);
             TextRenderer.DrawText(e.Graphics,e.Text,e.Item.Font,new Rectangle(inset,0,e.Item.Width-inset*2,e.Item.Height),e.Item.Enabled?PanelTheme.Ink:PanelTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPrefix|TextFormatFlags.EndEllipsis);
         }
-        protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e){using(var pen=new Pen(PanelTheme.Border,scale))e.Graphics.DrawLine(pen,8*scale,e.Item.Height/2,e.Item.Width-8*scale,e.Item.Height/2);}
+        protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e){using(var pen=new Pen(PanelTheme.Border,scale))e.Graphics.DrawLine(pen,4*scale,e.Item.Height/2,e.Item.Width-4*scale,e.Item.Height/2);}
     }
 }

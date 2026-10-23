@@ -161,7 +161,14 @@ internal static class SettingsTests {
    var modeSelector=(PanelButton)Field(window,"chatModeButton");
    window.ApplyDpi(WindowDpi.Scale(window),new Rectangle(window.Left,window.Top,410,616));window.Activate();Pump(150);
    ToolStripDropDownCloseReason? closeReason=null;modeMenu.Closed+=delegate(object sender,ToolStripDropDownClosedEventArgs e){closeReason=e.CloseReason;};
+   var itemFont=modeMenu.Items[0].Font;int widest=0;
+   foreach(var item in modeMenu.Items.Cast<ToolStripItem>())if(!string.IsNullOrEmpty(item.Text))widest=Math.Max(widest,TextRenderer.MeasureText(item.Text,itemFont).Width);
+   var menuScale=(float)Field(modeMenu,"scale");
+   Func<int,int> ms=v=>Math.Max(1,(int)Math.Round(v*menuScale));
+   var expected=Math.Max(ms(76),Math.Min(ms(300),widest+ms(32)))+ms(16);
+   Check(modeMenu.Width==expected,"mode menu width hugs the widest item plus fixed chrome, no blank column");
    modeMenu.Show(modeSelector,new Point(0,modeSelector.Height));var menuHandle=modeMenu.Handle;
+   using(var menuBitmap=new Bitmap(modeMenu.Width,modeMenu.Height)){modeMenu.DrawToBitmap(menuBitmap,new Rectangle(0,0,modeMenu.Width,modeMenu.Height));menuBitmap.Save(Path.Combine(directory,"mode-menu-open.png"));}
    Native.PostMessage(menuHandle,0x100,new IntPtr((int)Keys.Escape),IntPtr.Zero);Pump(80);
    Check(closeReason==ToolStripDropDownCloseReason.Keyboard&&!modeMenu.Visible&&modeSelector.Focused,"Escape dismisses the native mode menu and returns keyboard focus");
    typeof(ChatWindow).GetField("quitting",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);window.Close();
