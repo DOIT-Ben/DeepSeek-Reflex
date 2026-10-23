@@ -693,6 +693,10 @@ namespace DeepSeekFloat
                 core.NavigationCompleted += async delegate(object sender,CoreWebView2NavigationCompletedEventArgs e) {
                     health.navigationSucceeded=e.IsSuccess;
                     health.navigationError=e.IsSuccess ? null : e.WebErrorStatus.ToString();
+                    // WebView2 persists zoom per origin in the profile, so the
+                    // pre-navigation default does not survive a real navigation.
+                    // Reapply it once the document has committed.
+                    if (e.IsSuccess && Math.Abs(browser.ZoomFactor-WindowFrame.DefaultZoom)>0.0005) browser.ZoomFactor=WindowFrame.DefaultZoom;
                     Uri uri;
                     if (Uri.TryCreate(core.Source,UriKind.Absolute,out uri)) {
                         health.sourceHost=uri.Host;
