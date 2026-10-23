@@ -167,7 +167,8 @@ internal static class SettingsTests {
    Func<int,int> ms=v=>Math.Max(1,(int)Math.Round(v*menuScale));
    var expected=Math.Max(ms(76),Math.Min(ms(300),widest+ms(32)))+ms(16);
    Check(modeMenu.Width==expected,"mode menu width hugs the widest item plus fixed chrome, no blank column");
-   modeMenu.Show(modeSelector,new Point(0,modeSelector.Height));var menuHandle=modeMenu.Handle;
+   modeMenu.Show(modeSelector,new Point(0,modeSelector.Height));var menuHandle=modeMenu.Handle;var anchorScreen=modeSelector.PointToScreen(Point.Empty);
+   Check(modeMenu.Left==anchorScreen.X&&modeMenu.Top==anchorScreen.Y+modeSelector.Height,"mode menu drops with its left edge flush to the anchor button");
    using(var menuBitmap=new Bitmap(modeMenu.Width,modeMenu.Height)){modeMenu.DrawToBitmap(menuBitmap,new Rectangle(0,0,modeMenu.Width,modeMenu.Height));menuBitmap.Save(Path.Combine(directory,"mode-menu-open.png"));}
    Native.PostMessage(menuHandle,0x100,new IntPtr((int)Keys.Escape),IntPtr.Zero);Pump(80);
    Check(closeReason==ToolStripDropDownCloseReason.Keyboard&&!modeMenu.Visible&&modeSelector.Focused,"Escape dismisses the native mode menu and returns keyboard focus");

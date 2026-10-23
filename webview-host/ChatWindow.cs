@@ -635,7 +635,9 @@ namespace DeepSeekFloat
         private void SetChatModeError(string message){chatModeError=message;chatModeButton.AccessibleDescription=message;tips.SetToolTip(chatModeButton,message);}
         private void ShowChatModeMenu() {
             var menu=CreateChatModeMenu();
-            menu.Show(chatModeButton,new Point(chatModeButton.Width-menu.Width,chatModeButton.Height));
+            // Left edges stay flush: the popup grows right/down from the anchor
+            // point, so a DPI rescale on show cannot shove it sideways.
+            menu.Show(chatModeButton,new Point(0,chatModeButton.Height));
         }
         private TrayMenu CreateChatModeMenu() {
             var menu=new TrayMenu(dpiScale);
