@@ -4,9 +4,18 @@ using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 namespace DeepSeekFloat {
     internal static class PanelTheme {
+        // Shared with the DSH bundle at build time. Font sizes are points (96-DPI CSS px = pt * 4/3).
+        internal const string FontFamily="Microsoft YaHei UI";
+        internal const float CaptionSize=9f,BodySize=10.5f,TitleSize=12f,HeadingSize=15f;
+        internal const float CompactFontStep=1.5f;
+        internal const int ControlRadius=8,PanelRadius=12,ControlHeight=32,InputHeight=40,MenuRowHeight=36;
+        internal const int CompactControlHeight=30,CompactInputHeight=34;
         internal static readonly Color Ink=Color.FromArgb(42,49,63),Muted=Color.FromArgb(103,112,130),Accent=Color.FromArgb(67,102,238),Tint=Color.FromArgb(237,242,255),Border=Color.FromArgb(225,231,240),Surface=Color.FromArgb(247,249,252);
         internal static readonly Color Hover=Color.FromArgb(241,244,248),Pressed=Color.FromArgb(225,233,252),AccentHover=Color.FromArgb(51,82,214),AccentPressed=Color.FromArgb(42,70,190),Error=Color.FromArgb(177,48,48);
+        internal static readonly Color InputBorder=Color.FromArgb(131,143,163),CloseHover=Color.FromArgb(255,235,235),ClosePressed=Color.FromArgb(255,216,216);
         internal const int HoverDuration=120,PressDuration=60,ReleaseDuration=90,SwitchDuration=160;
+        internal static Font TextFont(float size=BodySize,bool bold=false){return new Font(FontFamily,size,bold?FontStyle.Bold:FontStyle.Regular,GraphicsUnit.Point);}
+        internal static Font CompactFont(float size=BodySize,bool bold=false){return TextFont(size-CompactFontStep,bold);}
         internal static GraphicsPath Rounded(RectangleF rect,float radius) {
             float d=radius*2;var path=new GraphicsPath();
             path.AddArc(rect.X,rect.Y,d,d,180,90);path.AddArc(rect.Right-d,rect.Y,d,d,270,90);path.AddArc(rect.Right-d,rect.Bottom-d,d,d,0,90);path.AddArc(rect.X,rect.Bottom-d,d,d,90,90);path.CloseFigure();return path;
@@ -48,8 +57,11 @@ namespace DeepSeekFloat {
     internal sealed class PanelButton : Button {
         internal bool Primary;
         internal bool Ghost,Segment;
+        // Quiet ghost buttons stay borderless unless an outline is requested
+        // for actions that otherwise read as plain text.
+        internal bool Outline;
         private bool chosen;
-        internal bool InputFocused;
+        internal bool InputFocused,InputFrame;
         private readonly UiMotion hoverMotion,pressMotion,choiceMotion;
         internal bool Chosen {get{return chosen;}set{chosen=value;choiceMotion.To(value?1:0);}}
         internal PanelButton(string text) {
@@ -65,12 +77,12 @@ namespace DeepSeekFloat {
             color=PanelTheme.Mix(color,Primary?PanelTheme.AccentPressed:PanelTheme.Pressed,pressMotion.Value*0.7f);
             if(!Enabled)color=PanelTheme.Surface;
             float inset=scale/2,offset=pressMotion.Value*scale;
-            using(var shape=PanelTheme.Rounded(new RectangleF(inset,inset,Width-scale,Height-scale),10*scale)) {
+            using(var shape=PanelTheme.Rounded(new RectangleF(inset,inset,Width-scale,Height-scale),PanelTheme.ControlRadius*scale)) {
                 using(var brush=new SolidBrush(color))g.FillPath(brush,shape);
-                if((!Ghost&&!Segment)||InputFocused||(Segment&&chosen))using(var pen=new Pen(Primary||InputFocused?PanelTheme.Accent:Segment?PanelTheme.Border:PanelTheme.Mix(PanelTheme.Border,PanelTheme.Accent,choiceMotion.Value),scale))g.DrawPath(pen,shape);
+                if((!Ghost&&!Segment)||Outline||InputFocused||(Segment&&chosen))using(var pen=new Pen(Primary||InputFocused?PanelTheme.Accent:InputFrame?PanelTheme.InputBorder:Segment?PanelTheme.Border:PanelTheme.Mix(PanelTheme.Border,PanelTheme.Accent,choiceMotion.Value),scale))g.DrawPath(pen,shape);
             }
-            TextRenderer.DrawText(g,Text,Font,new Rectangle(4,(int)Math.Round(offset),Width-8,Height),!Enabled?PanelTheme.Muted:Primary?Color.White:PanelTheme.Mix(ForeColor,PanelTheme.Accent,choiceMotion.Value),TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
-            if(Focused&&ShowFocusCues)PanelTheme.FocusRing(g,Size,scale,7,Primary?Color.White:PanelTheme.Accent);
+            TextRenderer.DrawText(g,Text,Font,new Rectangle(4,(int)Math.Round(offset),Width-8,Height),!Enabled?PanelTheme.Muted:Primary?Color.White:PanelTheme.Mix(ForeColor,PanelTheme.AccentHover,choiceMotion.Value),TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
+            if(Focused&&ShowFocusCues)PanelTheme.FocusRing(g,Size,scale,PanelTheme.ControlRadius-3,Primary?Color.White:PanelTheme.Accent);
         }
         protected override void Dispose(bool disposing){if(disposing){hoverMotion.Dispose();pressMotion.Dispose();choiceMotion.Dispose();}base.Dispose(disposing);}
     }
@@ -95,12 +107,12 @@ namespace DeepSeekFloat {
         protected override void OnClick(EventArgs e) { Checked=!Checked;base.OnClick(e); }
         protected override void OnPaint(PaintEventArgs e) {
             var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;g.Clear(BackColor);float s=g.DpiX/96f,w=36*s,h=20*s;
-            using(var shape=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),8*s))using(var brush=new SolidBrush(PanelTheme.Mix(PanelTheme.Mix(BackColor,PanelTheme.Hover,hoverMotion.Value),PanelTheme.Pressed,pressMotion.Value*0.45f)))g.FillPath(brush,shape);
+            using(var shape=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.ControlRadius*s))using(var brush=new SolidBrush(PanelTheme.Mix(PanelTheme.Mix(BackColor,PanelTheme.Hover,hoverMotion.Value),PanelTheme.Pressed,pressMotion.Value*0.45f)))g.FillPath(brush,shape);
             var rect=new RectangleF(Width-w-2*s,(Height-h)/2,w,h);
             using(var path=PanelTheme.Rounded(rect,10*s))using(var brush=new SolidBrush(PanelTheme.Mix(Color.FromArgb(194,202,216),PanelTheme.Accent,slide.Value)))g.FillPath(brush,path);
             using(var brush=new SolidBrush(Color.White))g.FillEllipse(brush,rect.X+2*s+16*s*slide.Value,rect.Y+2*s,16*s,16*s);
             TextRenderer.DrawText(g,Text,Font,new Rectangle(0,0,(int)(Width-w-12*s),Height),PanelTheme.Ink,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
-            if(Focused&&ShowFocusCues)PanelTheme.FocusRing(g,Size,s,7);
+            if(Focused&&ShowFocusCues)PanelTheme.FocusRing(g,Size,s,PanelTheme.ControlRadius-3);
         }
         protected override void Dispose(bool disposing){if(disposing){slide.Dispose();hoverMotion.Dispose();pressMotion.Dispose();}base.Dispose(disposing);}
     }
@@ -126,13 +138,30 @@ namespace DeepSeekFloat {
             int inset=(int)Math.Round(3*scale),available=Math.Max(0,Width-inset*2);
             for(int i=0;i<choices.Length;i++){int left=inset+available*i/choices.Length,right=inset+available*(i+1)/choices.Length;choices[i].SetBounds(left,inset,Math.Max(0,right-left),Math.Max(0,Height-inset*2));}
         }
-        protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;using(var shape=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),10*e.Graphics.DpiX/96f))using(var brush=new SolidBrush(PanelTheme.Surface))e.Graphics.FillPath(brush,shape);}
+        protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;using(var shape=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.ControlRadius*e.Graphics.DpiX/96f))using(var brush=new SolidBrush(PanelTheme.Surface))e.Graphics.FillPath(brush,shape);}
     }
     internal sealed class PanelCard : Panel {
         internal PanelCard() { BackColor=Color.White;DoubleBuffered=true; }
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
-            using(var path=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),10*e.Graphics.DpiX/96f))using(var brush=new SolidBrush(PanelTheme.Surface))e.Graphics.FillPath(brush,path);
+            using(var path=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.PanelRadius*e.Graphics.DpiX/96f))using(var brush=new SolidBrush(PanelTheme.Surface))e.Graphics.FillPath(brush,path);
+        }
+    }
+    // Dynamic status text announces itself; ActAsButton additionally exposes
+    // the label's click action (retry) as a pressable button for keyboards and readers.
+    internal sealed class AnnouncingLabel : Label {
+        internal bool ActAsButton;
+        protected override void OnTextChanged(EventArgs e) {
+            base.OnTextChanged(e);
+            if(IsHandleCreated)AccessibilityNotifyClients(AccessibleEvents.NameChange,-1);
+        }
+        protected override AccessibleObject CreateAccessibilityInstance() { return new AnnouncingAccessibility(this); }
+        private sealed class AnnouncingAccessibility : ControlAccessibleObject {
+            private readonly AnnouncingLabel owner;
+            internal AnnouncingAccessibility(AnnouncingLabel control) : base(control) { owner=control; }
+            public override AccessibleRole Role { get { return owner.ActAsButton?AccessibleRole.PushButton:base.Role; } }
+            public override string DefaultAction { get { return owner.ActAsButton?"按下":base.DefaultAction; } }
+            public override void DoDefaultAction() { if(owner.ActAsButton&&owner.Enabled)owner.OnClick(EventArgs.Empty); }
         }
     }
 }

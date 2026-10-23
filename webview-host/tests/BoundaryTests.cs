@@ -138,6 +138,20 @@ namespace DeepSeekFloat {
    if(!task.IsCompleted)throw new Exception("Isolated WebView operation timed out");
    task.GetAwaiter().GetResult();
   }
+  // Async WebView work requires the same STA message loop/context as Application.Run in production.
+  // DoEvents alone can restore a base SynchronizationContext after a temporary form closes.
+  static void RunDesktop(Action checks){
+   Exception failure=null;
+   using(var dispatcher=new Control()){
+    var handle=dispatcher.Handle;
+    dispatcher.BeginInvoke(new Action(delegate{
+     try{checks();}catch(Exception error){failure=error;}
+     finally{Application.ExitThread();}
+    }));
+    Application.Run();
+   }
+   if(failure!=null)System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+  }
   static void BlockNetwork(Microsoft.Web.WebView2.WinForms.WebView2 view){
    view.CoreWebView2InitializationCompleted+=delegate{if(!view.IsDisposed&&view.CoreWebView2!=null)view.CoreWebView2.NavigationStarting+=delegate(object sender,CoreWebView2NavigationStartingEventArgs args){if(args.Uri!="about:blank")args.Cancel=true;};};
   }
@@ -213,21 +227,54 @@ window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true
      core.NavigationCompleted+=delegate(object sender,CoreWebView2NavigationCompletedEventArgs args){navigation.TrySetResult(args.IsSuccess);};
      }catch(Exception error){Console.WriteLine("Mode fixture initialization callback failed: "+error);throw;}
     };
+    Check(System.Threading.Thread.CurrentThread.GetApartmentState()==System.Threading.ApartmentState.STA&&System.Threading.SynchronizationContext.Current is WindowsFormsSynchronizationContext,"production host fixture starts with the real WinForms STA synchronization context");
     Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","translate"));Set(window,"initializing",false);Wait((System.Threading.Tasks.Task)Call(window,"InitializeBrowser"));
     Check(view.DefaultBackgroundColor.ToArgb()==Color.White.ToArgb(),"unmodified production WebView retains its default opaque white background");
-    Check(((Health)Field(window,"health")).initialized,"production host initializes before waiting for isolated navigation");
+    Check(((Health)Field(window,"health")).initialized,"production host initializes before waiting for isolated navigation: "+((Health)Field(window,"health")).navigationError);
     Wait(navigation.Task);
     Func<string,string> run=delegate(string script){var task=view.CoreWebView2.ExecuteScriptAsync(script);Wait(task);return task.Result;};
     Check(navigation.Task.Result&&run("window.__deepSeekFloatChatMode.mode")=="\"translate\"","production host restores persisted chat mode when the document loads");
     run("enter('native host material');");Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","explain"));
     Check(run("document.querySelector('#chat-input').value.startsWith('请面向学生')&&document.querySelector('#chat-input').value.endsWith('native host material')")=="true","production mode selector replaces the visible prefix and retains draft material");
     Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","translate"));
+    var material=new BridgeRequest{id=Guid.NewGuid().ToString("D"),mode="polish",text="DSH 自有测试文字"};
+    Func<BridgeRequest,string> stage=delegate(BridgeRequest input){var task=(System.Threading.Tasks.Task<string>)Call(window,"StageFromBridge",input,System.Threading.CancellationToken.None);Wait(task);return task.Result;};
+    run("document.querySelector('#edit-history').hidden=true;");
+    Check(stage(material)=="draft"&&run("document.querySelector('#chat-input').value.endsWith('native host material')")=="true","bridge preserves a nonempty personal draft");
+    run("enter('');");
+    Set(window,"initializing",true);Check(stage(material)=="loading","bridge refuses to queue material while initialization is incomplete");Set(window,"initializing",false);
+    Set(window,"settingsOpen",true);Check(stage(material)=="busy","bridge refuses mutation while a modal panel is open");Set(window,"settingsOpen",false);
+    Check(stage(material)=="filled","bridge stages into an empty real WebView composer");
+    string expected=ChatModes.Prefix(ChatModes.Find("polish"))+material.text;
+    Check(run("document.querySelector('#chat-input').value==="+PromptInserter.Json(expected)+"&&sent.length===0")=="true","bridge applies exactly one requested prefix and never sends");
+    Check(((WindowSettings)Field(window,"settings")).ChatMode=="translate"&&stage(material)=="draft","bridge preserves persistent mode and rejects replay over an existing tool draft");
+    run("document.querySelector('#send').click();enter('after one-shot');");
+    Check(run("document.querySelector('#chat-input').value.startsWith('请翻译')&&document.querySelector('#chat-input').value.endsWith('after one-shot')")=="true","persistent mode resumes on the next ordinary input after explicit fixture sending");
+    run("sent=[];enter('');");
+    material.mode="normal";material.text="\nNormal material with leading newline";
+    Check(stage(material)=="filled"&&run("document.querySelector('#chat-input').value==="+PromptInserter.Json(material.text))=="true","normal-mode bridge keeps leading newline material without persistent wrapping");
+    run("enter('');enter('next after normal one-shot');");
+    Check(run("document.querySelector('#chat-input').value.startsWith('请翻译')")=="true","clearing a leading-newline one-shot restores persistent mode");
+    run("enter('');");
+    var transport=Environment.GetEnvironmentVariable("REFLEX_TEST_TRANSPORT_SCRIPT");
+    if(!string.IsNullOrEmpty(transport)) {
+     var work=System.Threading.Tasks.Task.Run(delegate{
+      var start=new System.Diagnostics.ProcessStartInfo("node","\""+transport+"\" \""+System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName+"\" \""+ReflexBridge.PipeName+"\""){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
+      using(var child=System.Diagnostics.Process.Start(start)){
+       var output=child.StandardOutput.ReadToEndAsync();var errors=child.StandardError.ReadToEndAsync();
+       if(!child.WaitForExit(20000)){child.Kill();throw new Exception("Transport fixture timed out");}
+       if(child.ExitCode!=0)throw new Exception("Transport fixture failed: "+errors.Result);return output.Result;
+      }
+     });Wait(work);Check(work.Result.Contains("PASS real HTTP stdin pipe transport"),"real HTTP host helper and authenticated pipe reach production WebView without clipboard");
+     Check(run("document.querySelector('#chat-input').value.endsWith('transport fixture material')&&sent.length===0")=="true","transport result matches actual composer and no automatic submit");
+    }
+    run("enter('native host material');");
     var otherScreen=Screen.AllScreens.FirstOrDefault(s=>s.DeviceName!=Screen.FromHandle(window.Handle).DeviceName);
     if(otherScreen!=null){
      var area=otherScreen.WorkingArea;Call(window,"ShowChatAt",WakeTarget.At(new Point(area.Left+area.Width/2,area.Top+area.Height/2)));Application.DoEvents();
      Check(Object.ReferenceEquals(view,Field(window,"browser"))&&run("document.querySelector('#chat-input').value.endsWith('native host material')&&window.__deepSeekFloatChatMode.mode==='translate'")=="true","real WebView keeps its draft and selected chat mode during an actual cross-screen wake");
     }else Console.WriteLine("SKIP WebView draft across physical screens: only one connected display");
-    var bar=(Panel)Field(window,"chatModeBar");using(var bitmap=new Bitmap(bar.Width,bar.Height)){bar.DrawToBitmap(bitmap,bar.ClientRectangle);bitmap.Save(Path.Combine(root,"chat-mode-host-translate.png"));}
+    var bar=(Panel)Field(window,"chrome");using(var bitmap=new Bitmap(bar.Width,bar.Height)){bar.DrawToBitmap(bitmap,bar.ClientRectangle);bitmap.Save(Path.Combine(root,"chat-mode-host-translate.png"));}
     navigation=new System.Threading.Tasks.TaskCompletionSource<bool>();view.CoreWebView2.Reload();Wait(navigation.Task);
     Check(navigation.Task.Result&&run("window.__deepSeekFloatChatMode.mode")=="\"translate\"","production host reapplies the chosen chat mode after reload");
     Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","normal"));run("enter('raw message');document.querySelector('#send').click();");
@@ -235,15 +282,21 @@ window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true
    }
   }
   [STAThread] static int Main(string[] args){
+   if(args.Length==1&&args[0]=="--reflex-bridge")return ReflexBridge.RunHelper();
    try{
     root=Path.GetFullPath(args[0]);Directory.CreateDirectory(root);typeof(Preferences).GetField("Root",BindingFlags.NonPublic|BindingFlags.Static).SetValue(null,root);
     Core();
     WakeTests.Core(Check);
-    if(args.Contains("--dpi")){Application.EnableVisualStyles();DpiAndSmallGuide();}
-    else if(args.Contains("--wake")){Application.EnableVisualStyles();WakeTests.Desktop(Check,root);}
-    else if(args.Contains("--chat-mode")){Application.EnableVisualStyles();ChatModeBrowser();}
-    else if(args.Contains("--core")){Console.WriteLine("SKIP native desktop acceptance in core-only run");}
-    else{Application.EnableVisualStyles();Modal(false,false);Modal(true,false);Modal(false,true);Modal(true,true);WindowStates();SaveDenied();Accessibility();DpiAndSmallGuide();BrowserLifecycle();ChatModeBrowser();WakeTests.Desktop(Check,root);}
+    if(args.Contains("--core")){Console.WriteLine("SKIP native desktop acceptance in core-only run");}
+    else{
+     Application.EnableVisualStyles();
+     RunDesktop(delegate{
+      if(args.Contains("--dpi"))DpiAndSmallGuide();
+      else if(args.Contains("--wake"))WakeTests.Desktop(Check,root);
+      else if(args.Contains("--chat-mode"))ChatModeBrowser();
+      else{Modal(false,false);Modal(true,false);Modal(false,true);Modal(true,true);WindowStates();SaveDenied();Accessibility();DpiAndSmallGuide();BrowserLifecycle();ChatModeBrowser();WakeTests.Desktop(Check,root);}
+     });
+    }
     Console.WriteLine("TOTAL "+passed+" boundary checks; isolated fixtures only");return 0;
    }catch(Exception e){Console.WriteLine(e);return 1;}
   }

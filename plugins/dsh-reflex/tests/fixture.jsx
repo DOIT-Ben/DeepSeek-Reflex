@@ -43,3 +43,11 @@ window.fixture = {
   attachments: ids => { state = { ...state, attachmentIds: ids }; publish(); },
 };
 window.runReflexChecks = runChecks;
+const checkButton = document.createElement('button'), checkOutput = document.createElement('pre');
+checkButton.textContent = '运行隔离交互检查'; checkButton.type = 'button'; checkOutput.setAttribute('aria-live', 'polite');
+checkButton.onclick = async () => {
+  checkButton.disabled = true;
+  try { const result = await runChecks(); checkOutput.textContent = JSON.stringify(result, null, 2); }
+  catch (error) { checkOutput.textContent = 'FAIL: ' + error.message; }
+};
+document.querySelector('main').append(checkButton, checkOutput);

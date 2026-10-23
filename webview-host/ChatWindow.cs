@@ -67,8 +67,7 @@ namespace DeepSeekFloat
         private readonly Panel chrome = new ResizeChrome();
         private readonly WindowFrame frame = new WindowFrame();
         private SmoothFrame smoothFrame;
-        private readonly Label title = new Label();
-        private readonly Label status = new Label();
+        private readonly Label status = new AnnouncingLabel { ActAsButton=true };
         private readonly ChromeButton pin = new ChromeButton("pin","置顶窗口");
         private readonly ChromeButton more = new ChromeButton("settings","设置");
         private readonly ChromeButton minimize = new ChromeButton("minimize","最小化");
@@ -78,14 +77,12 @@ namespace DeepSeekFloat
         private readonly NotifyIcon tray = new NotifyIcon();
         private readonly Icon windowIcon, trayIcon;
         private readonly Timer healthTimer = new Timer();
-        private readonly Panel chatModeBar = new Panel();
-        private readonly Label chatModeLabel = new Label();
         private readonly PanelButton chatModeButton = new PanelButton("普通对话 ▾") {Ghost=true};
-        private readonly Label chatModeStatus = new Label();
+        private string chatModeError;
         private bool updatingChatMode,chatModeUpdatePending;
         private readonly Panel selectionBar = new Panel();
         private readonly PanelChoices selectionAction = new PanelChoices("翻译","解释","提问");
-        private readonly Label selectionStatus = new Label();
+        private readonly Label selectionStatus = new AnnouncingLabel();
         private readonly PanelButton insertSelection = new PanelButton("填入") {Chosen=true};
         private readonly PanelButton copySelection = new PanelButton("复制请求") {Ghost=true};
         private readonly ChromeButton dismissSelection = new ChromeButton("close","收起取词栏");
@@ -98,6 +95,8 @@ namespace DeepSeekFloat
         private ContextMenuStrip contextMenu;
         private AutoSelectionController autoSelection;
         private bool resourcesDisposed;
+        private ReflexBridge bridge;
+        private bool bridgeInFlight;
         private readonly string diagnostics;
         private readonly bool pageDiagnostics;
         private readonly bool background;
@@ -105,6 +104,8 @@ namespace DeepSeekFloat
         private Func<WakeTarget> captureWakeTarget=WakeTarget.Capture;
         private WakePlacement pendingWakePlacement;
         private int wakeVersion;
+        private bool showWithoutActivation;
+        private int lastTrayToggle=unchecked((int)0x80000000);
         private readonly WakeTarget startupTarget;
         private bool startupPositioned;
         private FormWindowState restoreState=FormWindowState.Normal;
@@ -152,18 +153,10 @@ namespace DeepSeekFloat
             }
 
             chrome.BackColor = Color.White;
-            title.Text = "DeepSeek-Reflex";
-            title.ForeColor = Color.FromArgb(69,77,92);
-            title.Font = new Font("Segoe UI",9f,FontStyle.Regular);
-            title.TextAlign = ContentAlignment.MiddleCenter;
-            title.AutoEllipsis = true;
-            chrome.Controls.Add(title);
             chrome.Controls.AddRange(new Control[]{mode,pin,more,minimize,close});
             chrome.Paint += delegate(object sender,PaintEventArgs e) { using(var pen = new Pen(Color.FromArgb(233,237,243))) e.Graphics.DrawLine(pen,0,chrome.Height-1,chrome.Width,chrome.Height-1); };
             chrome.MouseDown += Drag;
-            title.MouseDown += Drag;
             chrome.DoubleClick += delegate { ToggleMaximize(); };
-            title.DoubleClick += delegate { ToggleMaximize(); };
             pin.Click += delegate { SetPinned(!TopMost); };
             mode.Click += delegate { SwitchMode(settings.Mode=="reading" ? "compact" : "reading"); };
             minimize.Click += delegate { WindowState = FormWindowState.Minimized; };
@@ -180,22 +173,21 @@ namespace DeepSeekFloat
 
             status.Text = "正在打开 DeepSeek…";
             status.TextAlign = ContentAlignment.MiddleCenter;
-            status.Font = new Font("Microsoft YaHei UI",10);
-            status.ForeColor = Color.FromArgb(103,112,130);
+            Font=PanelTheme.TextFont();
+            status.Font = PanelTheme.TextFont();
+            status.ForeColor = PanelTheme.Muted;
             status.BackColor = Color.White;
             status.Click += async delegate { await InitializeBrowser(); };
             // WebView defaults to opaque white. Avoid requesting an optional
             // background-color controller interface just to set the default.
             browser.AccessibleName = "DeepSeek 官网聊天";
-            chatModeBar.BackColor=Color.White;chatModeBar.Font=new Font("Microsoft YaHei UI",9f);
-            chatModeLabel.Text="对话模式";chatModeLabel.ForeColor=PanelTheme.Muted;chatModeLabel.TextAlign=ContentAlignment.MiddleLeft;
-            chatModeStatus.ForeColor=PanelTheme.Muted;chatModeStatus.TextAlign=ContentAlignment.MiddleLeft;chatModeStatus.AutoEllipsis=true;
+            chatModeButton.Font=PanelTheme.TextFont();
             chatModeButton.AccessibleName="选择持续生效的对话模式";
             chatModeButton.Click+=delegate{ShowChatModeMenu();};
-            chatModeBar.Controls.AddRange(new Control[]{chatModeLabel,chatModeButton,chatModeStatus});
+            chrome.Controls.Add(chatModeButton);
             RefreshChatMode();
             selectionBar.BackColor=Color.White;
-            selectionBar.Font=new Font("Microsoft YaHei UI",9f);
+            selectionBar.Font=PanelTheme.TextFont();
             selectionBar.Paint+=delegate(object sender,PaintEventArgs e){using(var pen=new Pen(PanelTheme.Border))e.Graphics.DrawLine(pen,S(10),selectionBar.Height-1,selectionBar.Width-S(10),selectionBar.Height-1);};
             selectionBar.Visible=false;
             selectionAction.AccessibleName="文字处理方式";
@@ -203,6 +195,7 @@ namespace DeepSeekFloat
             selectionAction.SelectedIndex=0;
             selectionAction.SelectedIndexChanged += async delegate { selectionVersion++; if(selectedText!=null) await FillSelection(); };
             selectionStatus.ForeColor=PanelTheme.Muted;
+            selectionStatus.Font=PanelTheme.TextFont(PanelTheme.CaptionSize);
             selectionStatus.AutoEllipsis=true;
             selectionStatus.TextAlign=ContentAlignment.MiddleLeft;
             insertSelection.Click += async delegate { await FillSelection(); };
@@ -221,7 +214,7 @@ namespace DeepSeekFloat
             tips.SetToolTip(selectionAction,"选择文字处理方式，填入后由你确认发送");
             tips.SetToolTip(dismissSelection,"收起取词栏");
             selectionBar.Controls.AddRange(new Control[]{selectionAction,selectionStatus,insertSelection,copySelection,dismissSelection});
-            Controls.AddRange(new Control[]{browser,status,selectionBar,chatModeBar,chrome,frame});
+            Controls.AddRange(new Control[]{browser,status,selectionBar,chrome,frame});
             selectionBar.BringToFront();
             chrome.BringToFront();
             Resize += delegate { if(WindowState!=FormWindowState.Minimized)restoreState=WindowState;LayoutContent(); };
@@ -247,7 +240,13 @@ namespace DeepSeekFloat
             tray.ContextMenuStrip = BuildMenu();
             tray.Visible = true;
             tray.MouseClick += delegate(object sender,MouseEventArgs e) {
-                if (e.Button == MouseButtons.Left) ToggleWindow();
+                if (e.Button != MouseButtons.Left) return;
+                // Tray icons stay single-click toggles; absorb the second click of
+                // a habitual double-click so the window does not flash open and closed.
+                int gap=unchecked(Environment.TickCount-lastTrayToggle);
+                if(gap>=0&&gap<SystemInformation.DoubleClickTime) return;
+                lastTrayToggle=Environment.TickCount;
+                ToggleWindow();
             };
             healthTimer.Interval = 500;
             healthTimer.Tick += delegate { WriteHealth(); };
@@ -285,16 +284,12 @@ namespace DeepSeekFloat
             int height = S(44), edge = S(4), width = S(32);
             // Leave the top resize strip owned by the form, not covered by child controls.
             chrome.SetBounds(0,S(WindowResize.Border),ClientSize.Width,height-S(WindowResize.Border));
-            title.SetBounds(S(112),-S(WindowResize.Border),Math.Max(0,ClientSize.Width-S(224)),height);
             var leftButtons = new[]{minimize,pin,mode};
             for(int i=0;i<leftButtons.Length;i++)leftButtons[i].SetBounds(S(8)+width*i,0,width,S(28));
             var rightButtons = new[]{close,more};
             for(int i=0;i<rightButtons.Length;i++)rightButtons[i].SetBounds(ClientSize.Width-S(8)-width*(i+1),0,width,S(28));
-            chatModeBar.SetBounds(edge,height,Math.Max(0,ClientSize.Width-edge*2),S(38));
-            chatModeLabel.SetBounds(S(10),0,S(58),S(38));
-            chatModeButton.SetBounds(S(68),S(3),S(104),S(32));
-            chatModeStatus.SetBounds(S(180),0,Math.Max(0,chatModeBar.Width-S(190)),S(38));
-            height+=chatModeBar.Height;
+            int available=Math.Max(0,ClientSize.Width-S(192)),selectorWidth=Math.Min(S(148),available);
+            chatModeButton.SetBounds(S(112)+(available-selectorWidth)/2,0,selectorWidth,S(28));
             if(selectionBar.Visible) {
                 selectionBar.SetBounds(edge,height,Math.Max(0,ClientSize.Width-edge*2),S(76));
                 int choicesWidth=Math.Max(1,selectionBar.Width-S(192));
@@ -315,13 +310,18 @@ namespace DeepSeekFloat
             if(capturing) return;
             var source=Native.GetForegroundWindow();
             var target=captureWakeTarget();
+            bool failed=false;
             capturing=true;
             try {
                 var result=await SelectionCapture.CaptureAsync(source);
                 if(resourcesDisposed || quitting || IsDisposed) return;
                 await PresentSelectionAt(result,target);
-            } catch(Exception) { if(!resourcesDisposed) { selectionStatus.Text="取词未完成，请复制后从设置导入"; } }
+            } catch(Exception) { failed=!resourcesDisposed; }
             finally { capturing=false; }
+            // Unexpected capture errors must still surface somewhere visible,
+            // not inside the hidden selection bar.
+            if(failed && !resourcesDisposed && !quitting && !IsDisposed)
+                await PresentSelectionAt(SelectionResult.Fail("取词未完成，请复制后从设置导入"),target);
         }
         private async Task PresentSelection(SelectionResult result)
         {
@@ -331,7 +331,9 @@ namespace DeepSeekFloat
         {
             selectionVersion++;
             selectedText=result.Text;
-            selectionBar.Show(); LayoutContent(); ShowChatAt(target); selectionBar.BringToFront(); chrome.BringToFront(); frame.BringToFront();
+            // Failed captures keep the user's foreground: the window appears
+            // without activation so a mistyped hotkey does not interrupt reading.
+            selectionBar.Show(); LayoutContent(); WakeChatAt(target,selectedText!=null); selectionBar.BringToFront(); chrome.BringToFront(); frame.BringToFront();
             insertSelection.Enabled=copySelection.Enabled=selectedText!=null;
             selectionStatus.Text=result.Error ?? ("已取词 "+selectedText.Length+" 字，正在填入…");
             if(selectedText!=null) await FillSelection();
@@ -389,21 +391,26 @@ namespace DeepSeekFloat
         }
         private void ShowChatAt(WakeTarget target)
         {
+            WakeChatAt(target,true);
+        }
+        // A distinct name keeps ShowChatAt unambiguous for the reflection-based tests.
+        private void WakeChatAt(WakeTarget target,bool activate)
+        {
             wakeVersion++;
             startupPositioned=true;
             if(!settingsOpen&&!guideOpen)PositionForWake(target);
             allowShow = true;
+            showWithoutActivation=!activate;
             Show();
+            showWithoutActivation=false;
+            if(!activate)Native.SetWindowPos(Handle,IntPtr.Zero,0,0,0,0,0x53); // top of z-order, no activation
             if (WindowState == FormWindowState.Minimized) WindowState=restoreState;
             if(settingsOpen||guideOpen) {
                 var dialog=OwnedForms.FirstOrDefault(f=>f is SettingsDialog||f is GettingStartedDialog);
                 if(dialog!=null){if(!dialog.Visible)dialog.Show(this);if(dialog.WindowState==FormWindowState.Minimized)dialog.WindowState=FormWindowState.Normal;dialog.Activate();}
                 return;
             }
-            Activate();
-            Native.SetForegroundWindow(Handle);
-            browser.Focus();
-            RequestComposerFocus();
+            if(activate){Activate();Native.SetForegroundWindow(Handle);browser.Focus();RequestComposerFocus();}
             QueueIntroduction();
             WriteHealth();
         }
@@ -446,6 +453,7 @@ namespace DeepSeekFloat
                 SaveBounds();
             }));
         }
+        protected override bool ShowWithoutActivation { get { return showWithoutActivation; } }
         protected override void SetVisibleCore(bool value)
         {
             if (background && !allowShow && value) { if (!IsHandleCreated) CreateHandle(); base.SetVisibleCore(false); return; }
@@ -454,6 +462,7 @@ namespace DeepSeekFloat
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
+            if(bridge==null)bridge=new ReflexBridge(StageFromBridge);
             EnableNativeSizing(Handle);
             WindowFrame.ConfigureNativeBorder(Handle);
             frame.UpdateShape(this,dpiScale);
@@ -476,16 +485,42 @@ namespace DeepSeekFloat
             mode.AccessibleName=settings.Mode=="reading" ? "切换到小窗尺寸" : "切换到阅读尺寸";
             mode.Text=mode.AccessibleName;tips.SetToolTip(mode,mode.AccessibleName);mode.Invalidate();
         }
+        private Task<string> StageFromBridge(BridgeRequest request,System.Threading.CancellationToken cancel) {
+            var completion=new TaskCompletionSource<string>();
+            if(resourcesDisposed||!IsHandleCreated){completion.SetResult("loading");return completion.Task;}
+            try{BeginInvoke(new Action(async delegate{
+                if(cancel.IsCancellationRequested||resourcesDisposed||quitting){completion.TrySetResult("outcome-unknown");return;}
+                if(bridgeInFlight){completion.TrySetResult("busy");return;}
+                var target=captureWakeTarget();
+                if(settingsOpen||guideOpen){ShowChatAt(target);completion.TrySetResult("busy");return;}
+                var core=browser.CoreWebView2;
+                ShowChatAt(target);
+                if(core==null||initializing||updatingChatMode){completion.TrySetResult("loading");return;}
+                bridgeInFlight=true;
+                try{
+                    if(!request.Valid){completion.TrySetResult("invalid");return;}
+                    string prompt=ChatModes.Prefix(ChatModes.Find(request.mode))+request.text;
+                    completion.TrySetResult(await PromptInserter.InsertAsync(core,prompt,null));
+                }catch(Exception){completion.TrySetResult("outcome-unknown");}
+                finally{bridgeInFlight=false;}
+            }));}catch(InvalidOperationException){completion.TrySetResult("loading");}
+            return completion.Task;
+        }
         private void RefreshChatMode() {
             var current=ChatModes.Find(settings.ChatMode);
+            chatModeError=null;
             chatModeButton.Text=current.Name+" ▾";chatModeButton.Chosen=current.Id!="normal";
-            chatModeButton.AccessibleDescription=current.Name;
-            chatModeStatus.Text=current.Id=="normal"?"直接聊天":"每次输入自动应用";
+            chatModeButton.AccessibleDescription=current.Name+(current.Id=="normal"?"，按原文发送":"，每次输入自动应用；检查后发送");
             tips.SetToolTip(chatModeButton,current.Id=="normal"?"按原文发送，不添加提示词":current.Instruction+"\n每条消息都会在输入框中自动填入提示词，可检查后发送。取词请求单独处理一次。");
-            tips.SetToolTip(chatModeStatus,chatModeStatus.Text);
         }
+        private void SetChatModeError(string message){chatModeError=message;chatModeButton.AccessibleDescription=message;tips.SetToolTip(chatModeButton,message);}
         private void ShowChatModeMenu() {
+            var menu=CreateChatModeMenu();
+            menu.Show(chatModeButton,new Point(0,chatModeButton.Height));
+        }
+        private TrayMenu CreateChatModeMenu() {
             var menu=new TrayMenu(dpiScale);
+            if(chatModeError!=null){menu.AddAction(chatModeError,delegate{}).Enabled=false;menu.AddDivider();}
             foreach(var definition in ChatModes.All) {
                 var choice=definition;
                 menu.AddAction((choice.Id==settings.ChatMode?"✓ ":"")+choice.Name,async delegate{await SwitchChatMode(choice.Id);});
@@ -494,13 +529,13 @@ namespace DeepSeekFloat
                 if(!resourcesDisposed&&!quitting&&IsHandleCreated){chatModeButton.Focus();BeginInvoke(new Action(menu.Dispose));}
                 else menu.Dispose();
             };
-            menu.Show(chatModeButton,new Point(0,chatModeButton.Height));
+            return menu;
         }
         private async Task SwitchChatMode(string value) {
             if(ChatModes.Find(value).Id==settings.ChatMode)return;
             var next=settings.Clone();next.ChatMode=ChatModes.Find(value).Id;
             try{next.Save();}
-            catch(Exception error){if(!Preferences.IsStorageFailure(error))throw;chatModeStatus.Text="模式未保存，请重试";tips.SetToolTip(chatModeStatus,chatModeStatus.Text);return;}
+            catch(Exception error){if(!Preferences.IsStorageFailure(error))throw;SetChatModeError("模式未保存，请重试");return;}
             settings=next;RefreshChatMode();await UpdateChatMode();WriteHealth();
         }
         private async Task UpdateChatMode() {
@@ -514,13 +549,12 @@ namespace DeepSeekFloat
                         string result=(await core.ExecuteScriptAsync(ChatModeInjector.Script(chosen))).Trim('"');
                         if(resourcesDisposed||quitting||chosen!=settings.ChatMode||!Object.ReferenceEquals(core,browser.CoreWebView2))continue;
                         RefreshChatMode();
-                        if(chosen!="normal"&&result=="unsupported-editor")chatModeStatus.Text="此输入框暂不支持";
-                        else if(chosen!="normal"&&result=="no-editor")chatModeStatus.Text="打开对话后自动应用";
-                        else if(result=="wrong-host")chatModeStatus.Text="仅在聊天官网生效";
-                        else if(result=="failed")chatModeStatus.Text="填入失败，请重试";
-                        else if(result=="edited-prefix")chatModeStatus.Text="已保留修改的提示词";
-                        tips.SetToolTip(chatModeStatus,chatModeStatus.Text);
-                    }catch(Exception){if(!resourcesDisposed&&!quitting){chatModeStatus.Text="页面就绪后自动应用";tips.SetToolTip(chatModeStatus,chatModeStatus.Text);}}
+                        if(chosen!="normal"&&result=="unsupported-editor")SetChatModeError("此输入框暂不支持");
+                        else if(chosen!="normal"&&result=="no-editor")SetChatModeError("打开对话后自动应用");
+                        else if(result=="wrong-host")SetChatModeError("仅在聊天官网生效");
+                        else if(result=="failed")SetChatModeError("填入失败，请重试");
+                        else if(result=="edited-prefix")SetChatModeError("已保留修改的提示词");
+                    }catch(Exception){if(!resourcesDisposed&&!quitting)SetChatModeError("页面就绪后自动应用");}
                 }
             }finally{updatingChatMode=false;}
         }
@@ -809,6 +843,7 @@ namespace DeepSeekFloat
         {
             if(disposing && !resourcesDisposed) {
                 resourcesDisposed=true;
+                if(bridge!=null)bridge.Dispose();
                 if(smoothFrame!=null)smoothFrame.Dispose();
                 selectedText=null; lastInserted=null;
                 if(autoSelection!=null)autoSelection.Dispose();

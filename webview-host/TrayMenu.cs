@@ -8,13 +8,13 @@ namespace DeepSeekFloat {
         private readonly Font menuFont;
         internal bool NativeCornersRequested {get;private set;}
         internal TrayMenu(float dpiScale) {
-            scale=dpiScale;menuFont=new Font("Microsoft YaHei UI",10f,FontStyle.Regular);Font=menuFont;
+            scale=dpiScale;menuFont=PanelTheme.TextFont();Font=menuFont;
             ShowImageMargin=false;ShowCheckMargin=false;BackColor=Color.White;ForeColor=PanelTheme.Ink;
             AutoSize=false;AutoClose=true;Renderer=new TrayRenderer(scale);Padding=new Padding(S(8));DropShadowEnabled=true;
         }
         private int S(int value){return Math.Max(1,(int)Math.Round(value*scale));}
         internal ToolStripMenuItem AddAction(string text,EventHandler action) {
-            var item=new ToolStripMenuItem(text,null,action) {AutoSize=false,Size=new Size(S(200),S(38)),Margin=Padding.Empty,Padding=new Padding(S(12),0,S(8),0)};
+            var item=new ToolStripMenuItem(text,null,action) {AutoSize=false,Size=new Size(S(200),S(PanelTheme.MenuRowHeight)),Margin=Padding.Empty,Padding=new Padding(S(12),0,S(8),0)};
             Items.Add(item);UpdateSize();return item;
         }
         internal void AddDivider(){Items.Add(new ToolStripSeparator {AutoSize=false,Size=new Size(S(200),S(14)),Margin=Padding.Empty});UpdateSize();}
@@ -33,7 +33,7 @@ namespace DeepSeekFloat {
                 if(NativeCornersRequested)Native.DwmSetWindowAttribute(Handle,34,ref border,4);
             }
             var renderer=Renderer as TrayRenderer;if(renderer!=null)renderer.NativeOutline=NativeCornersRequested;
-            if(!NativeCornersRequested)using(var path=PanelTheme.Rounded(new RectangleF(0,0,Width,Height),14*scale))Region=new Region(path);
+            if(!NativeCornersRequested)using(var path=PanelTheme.Rounded(new RectangleF(0,0,Width,Height),PanelTheme.PanelRadius*scale))Region=new Region(path);
         }
         protected override void Dispose(bool disposing){base.Dispose(disposing);if(disposing&&menuFont!=null)menuFont.Dispose();}
     }
@@ -45,15 +45,15 @@ namespace DeepSeekFloat {
         protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e) {
             if(NativeOutline)return;
             e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
-            using(var path=PanelTheme.Rounded(new RectangleF(scale/2,scale/2,e.ToolStrip.Width-scale,e.ToolStrip.Height-scale),14*scale-scale/2))using(var pen=new Pen(PanelTheme.Border,scale))e.Graphics.DrawPath(pen,path);
+            using(var path=PanelTheme.Rounded(new RectangleF(scale/2,scale/2,e.ToolStrip.Width-scale,e.ToolStrip.Height-scale),PanelTheme.PanelRadius*scale-scale/2))using(var pen=new Pen(PanelTheme.Border,scale))e.Graphics.DrawPath(pen,path);
         }
         protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e) {
             if(!e.Item.Selected||!e.Item.Enabled)return;e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
-            using(var path=PanelTheme.Rounded(new RectangleF(0,0,e.Item.Width-1,e.Item.Height-1),8*scale))using(var brush=new SolidBrush(PanelTheme.Hover))e.Graphics.FillPath(brush,path);
+            using(var path=PanelTheme.Rounded(new RectangleF(0,0,e.Item.Width-1,e.Item.Height-1),PanelTheme.ControlRadius*scale))using(var brush=new SolidBrush(PanelTheme.Hover))e.Graphics.FillPath(brush,path);
         }
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e){
             int inset=(int)Math.Round(16*scale);
-            TextRenderer.DrawText(e.Graphics,e.Text,e.Item.Font,new Rectangle(inset,0,e.Item.Width-inset*2,e.Item.Height),PanelTheme.Ink,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPrefix|TextFormatFlags.EndEllipsis);
+            TextRenderer.DrawText(e.Graphics,e.Text,e.Item.Font,new Rectangle(inset,0,e.Item.Width-inset*2,e.Item.Height),e.Item.Enabled?PanelTheme.Ink:PanelTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPrefix|TextFormatFlags.EndEllipsis);
         }
         protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e){using(var pen=new Pen(PanelTheme.Border,scale))e.Graphics.DrawLine(pen,8*scale,e.Item.Height/2,e.Item.Width-8*scale,e.Item.Height/2);}
     }

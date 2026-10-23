@@ -88,7 +88,10 @@ namespace DeepSeekFloat
         }
         internal static SelectionResult FromClipboard()
         {
-            try { return Validate(Clipboard.ContainsText() ? Clipboard.GetText() : null,"剪贴板导入"); }
+            try {
+                if(!Clipboard.ContainsText()) return SelectionResult.Fail("剪贴板里没有文字，请先复制，再导入或取词。");
+                return Validate(Clipboard.GetText(),"剪贴板导入");
+            }
             catch(ExternalException) { return SelectionResult.Fail("剪贴板正忙，请稍后重试。"); }
         }
         // Keep a materialized snapshot, not a delayed IDataObject owned by another application.

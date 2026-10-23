@@ -1,6 +1,7 @@
 param(
     [string]$OutputDirectory = (Join-Path ([IO.Path]::GetTempPath()) ('DeepSeekFloat-tests-'+[Guid]::NewGuid().ToString('N'))),
-    [string]$NodePath = 'node'
+    [string]$NodePath = 'node',
+    [switch]$InteractionOnly
 )
 $ErrorActionPreference = 'Stop'
 $HostSources = Split-Path -Parent $PSScriptRoot
@@ -32,11 +33,15 @@ foreach ($Dpi in @('default','high-dpi')) {
     foreach ($Name in @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','icon.ico')) {
         Copy-Item -LiteralPath (Join-Path $HostSources "dist\$Name") -Destination $RunDirectory -Force
     }
-    & $TestExe $RunDirectory | Tee-Object -FilePath (Join-Path $RunDirectory 'regression.log')
+    $TestArgs=@($RunDirectory);if($InteractionOnly){$TestArgs+='--interaction-only'}
+    & $TestExe @TestArgs | Tee-Object -FilePath (Join-Path $RunDirectory 'regression.log')
     if ($LASTEXITCODE -ne 0) { throw "Window regression failed: $Dpi" }
-    & $Node "$PSScriptRoot\focus-tests.cjs" $RunDirectory | Tee-Object -FilePath (Join-Path $RunDirectory 'focus.log')
-    if ($LASTEXITCODE -ne 0) { throw "Focus script regression failed: $Dpi" }
+    if(-not $InteractionOnly){
+        & $Node "$PSScriptRoot\focus-tests.cjs" $RunDirectory | Tee-Object -FilePath (Join-Path $RunDirectory 'focus.log')
+        if ($LASTEXITCODE -ne 0) { throw "Focus script regression failed: $Dpi" }
+    }
 }
+if($InteractionOnly){Write-Output "Focused interaction evidence: $OutputDirectory";return}
 & (Join-Path $PSScriptRoot 'test-legacy-launcher.ps1') -OutputDirectory $OutputDirectory
 & (Join-Path $PSScriptRoot 'run-boundary-tests.ps1') -OutputDirectory (Join-Path $OutputDirectory 'boundary')
 Write-Output "Test evidence: $OutputDirectory"

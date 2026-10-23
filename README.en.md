@@ -47,7 +47,7 @@ Use Reflex for a quick explanation, translation, or rewrite, then return to your
 
 ### DSH plugin direction (planned; not in the current release)
 
-The source directory `plugins/dsh-reflex` now contains a standalone plugin prototype: copy the request and open the website window, manually copy a reply, then preview and confirm draft fill-back. It is not part of the current Windows release. Installation in the real UI, native-window wake, manual fill-back with synthetic text, and conflict protection were verified in an isolated local Windows DSH `0.1.5-rc.2` instance. System clipboard access and a complete website round trip remain unverified. Automatic transfer and reply extraction remain future work.
+The source directory `plugins/dsh-reflex` contains a standalone prototype, outside the current Windows release. Version 0.1.1 was installed and checked in an isolated Windows DSH `0.1.5-rc.2` instance for window wake and manual preview/fill-back. The 0.2.0 development prototype adds one-click draft handoff, verified through real HTTP → helper process → pipe → window WebView on an isolated test page, preserving existing drafts without automatic sending. Existing installations retain copy/open, manual reply copy, preview and confirmed fill-back. System clipboard access, the complete logged-in website round trip and automatic reply extraction remain unverified or future work. See the [ADR-0002 stage record](docs/adr/0002-review.md).
 
 Retain the website window and its text-processing modes. An entry beside the DSH composer would let users explicitly pass a draft or selected text to the independent window for polishing, translation, summarization, or another mode. Only after user confirmation would a result return to the original DSH draft, without automatic sending or importing the entire side conversation into the main session.
 
@@ -136,6 +136,8 @@ The compact layout is 410×616 DIP and the reading layout is 752×720 DIP, adjus
 Selected-text import depends on the source application's accessibility support. It first uses Windows UI Automation and may fall back to copying and restoring the clipboard. Password fields, scanned images, empty selections, and input longer than 20,000 characters are not supported. If capture fails, copy the text and use **导入剪贴板 (Import clipboard)** in Settings. The experimental automatic selection popup is disabled by default and has no V1 interface for enabling it.
 
 ### Persistent chat modes
+
+Source development follows [ADR-0002](docs/adr/0002-compact-mode-and-dsh-handoff.md): the mode selector moves into the title bar, reclaiming the old 38-DIP row. The downloadable v1.0.17 still uses the separate bar described below. See the [stage record](docs/adr/0002-review.md) for implementation and acceptance status; this does not indicate a new release or an updated local installation.
 
 The **对话模式 (Chat mode)** selector below the title bar stays visible. It adds the selected instruction to the current draft and each subsequent message, so you can inspect the actual text before sending. Translation converts Chinese to English and other languages to Chinese. Regular chat removes the tool's unchanged prefix and preserves your material. The selected mode is saved locally and restored on restart.
 

@@ -130,22 +130,35 @@ internal static class SettingsTests {
     window.Width=width;typeof(ChatWindow).GetMethod("LayoutContent",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
     var fill=(PanelButton)Field(window,"insertSelection");var copy=(PanelButton)Field(window,"copySelection");var close=(ChromeButton)Field(window,"dismissSelection");
     Check(bar.ClientRectangle.Contains(action.Bounds)&&bar.ClientRectangle.Contains(close.Bounds)&&action.Right<=fill.Left&&fill.Right<=copy.Left&&copy.Right<=close.Left,"selection controls fit without overlaps at width "+width);
-    var modes=(Panel)Field(window,"chatModeBar");var selector=(PanelButton)Field(window,"chatModeButton");var hint=(Label)Field(window,"chatModeStatus");
-    Check(modes.Visible&&modes.ClientRectangle.Contains(selector.Bounds)&&modes.ClientRectangle.Contains(hint.Bounds)&&selector.Right<=hint.Left&&modes.Bottom<=bar.Top,"persistent mode controls fit above selection tools at width "+width);
+    var modes=(Panel)Field(window,"chrome");var selector=(PanelButton)Field(window,"chatModeButton");
+    Check(selector.Visible&&selector.Parent==modes&&modes.ClientRectangle.Contains(selector.Bounds)&&((Control)Field(window,"mode")).Right<=selector.Left&&selector.Right<=((Control)Field(window,"more")).Left&&bar.Top==modes.Bottom,"persistent mode fits inside title chrome without an extra row at width "+width);
     using(var bitmap=new Bitmap(modes.Width,modes.Height)){modes.DrawToBitmap(bitmap,modes.ClientRectangle);bitmap.Save(Path.Combine(directory,"chat-mode-bar-"+width+".png"));}
     using(var bitmap=new Bitmap(bar.Width,bar.Height)){bar.DrawToBitmap(bitmap,bar.ClientRectangle);bitmap.Save(Path.Combine(directory,"selection-bar-"+width+".png"));}
    }
    Check(Children(bar).OfType<ComboBox>().Count()==0&&action.Controls[1].AccessibleName=="学生解释","selection actions use the shared segmented control and keep their meaning");
    var browser=(Control)Field(window,"browser");int withBar=browser.Height;((ChromeButton)Field(window,"dismissSelection")).PerformClick();Check(!bar.Visible&&browser.Height>withBar,"dismissing the selection bar returns its space to chat");
-   Check(((Panel)Field(window,"chatModeBar")).Visible,"dismissing selection keeps the persistent mode selector accessible");
+   Check(((PanelButton)Field(window,"chatModeButton")).Visible&&browser.Top==((Control)Field(window,"chrome")).Bottom,"dismissing selection keeps the mode accessible and returns all space below chrome");
+   foreach(float scale in new[]{1f,1.5f,2f})foreach(int logicalWidth in new[]{360,410,752}){
+    window.ApplyDpi(scale,new Rectangle(window.Left,window.Top,(int)(logicalWidth*scale),(int)(616*scale)));Application.DoEvents();
+    var selector=(Control)Field(window,"chatModeButton");var chrome=(Control)Field(window,"chrome");
+    Check(chrome.ClientRectangle.Contains(selector.Bounds)&&((Control)Field(window,"mode")).Right<=selector.Left&&selector.Right<=((Control)Field(window,"more")).Left&&browser.Top==(int)Math.Round(44*scale),"compact title geometry recovers 38 DIP at width "+logicalWidth+" scale "+scale);
+   }
    var change=typeof(ChatWindow).GetMethod("SwitchChatMode",BindingFlags.Instance|BindingFlags.NonPublic);
    ((System.Threading.Tasks.Task)change.Invoke(window,new object[]{"translate"})).GetAwaiter().GetResult();
    Check(WindowSettings.Load().ChatMode=="translate"&&((PanelButton)Field(window,"chatModeButton")).Text.StartsWith("翻译模式"),"native mode selection updates display and persisted preference before browser loading");
-   var activeModes=(Panel)Field(window,"chatModeBar");using(var bitmap=new Bitmap(activeModes.Width,activeModes.Height)){activeModes.DrawToBitmap(bitmap,activeModes.ClientRectangle);bitmap.Save(Path.Combine(directory,"chat-mode-translate.png"));}
+   var activeModes=(Panel)Field(window,"chrome");using(var bitmap=new Bitmap(activeModes.Width,activeModes.Height)){activeModes.DrawToBitmap(bitmap,activeModes.ClientRectangle);bitmap.Save(Path.Combine(directory,"chat-mode-translate.png"));}
    string blocked=Path.Combine(Preferences.Root,"window-settings.json.new");Directory.CreateDirectory(blocked);
-   try{((System.Threading.Tasks.Task)change.Invoke(window,new object[]{"explain"})).GetAwaiter().GetResult();Check(WindowSettings.Load().ChatMode=="translate"&&((WindowSettings)Field(window,"settings")).ChatMode=="translate","denied mode save preserves the selected mode on disk and in memory");}
+   try{((System.Threading.Tasks.Task)change.Invoke(window,new object[]{"explain"})).GetAwaiter().GetResult();Check(WindowSettings.Load().ChatMode=="translate"&&((WindowSettings)Field(window,"settings")).ChatMode=="translate"&&((Control)Field(window,"chatModeButton")).AccessibleDescription.Contains("未保存"),"denied mode save preserves mode and exposes its failure accessibly");}
    finally{Directory.Delete(blocked);}
    ((System.Threading.Tasks.Task)change.Invoke(window,new object[]{"normal"})).GetAwaiter().GetResult();
+   var modeMenu=(TrayMenu)typeof(ChatWindow).GetMethod("CreateChatModeMenu",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);
+   Check(modeMenu.Items.Count==6&&ChatModes.All.All(m=>modeMenu.Items.Cast<ToolStripItem>().Any(item=>item.Text.EndsWith(m.Name))),"title menu retains all six modes with current selection indicated");
+   var modeSelector=(PanelButton)Field(window,"chatModeButton");
+   window.ApplyDpi(WindowDpi.Scale(window),new Rectangle(window.Left,window.Top,410,616));window.Activate();Pump(150);
+   ToolStripDropDownCloseReason? closeReason=null;modeMenu.Closed+=delegate(object sender,ToolStripDropDownClosedEventArgs e){closeReason=e.CloseReason;};
+   modeMenu.Show(modeSelector,new Point(0,modeSelector.Height));var menuHandle=modeMenu.Handle;
+   Native.PostMessage(menuHandle,0x100,new IntPtr((int)Keys.Escape),IntPtr.Zero);Pump(80);
+   Check(closeReason==ToolStripDropDownCloseReason.Keyboard&&!modeMenu.Visible&&modeSelector.Focused,"Escape dismisses the native mode menu and returns keyboard focus");
    typeof(ChatWindow).GetField("quitting",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);window.Close();
   }
   using(var shell=new Form())using(var pin=new ChromeButton("pin","测试置顶"))using(var toggle=new PanelSwitch("测试开关")) {
@@ -166,6 +179,7 @@ internal static class SettingsTests {
    Application.EnableVisualStyles();
    var root=Path.Combine(args[0],"test-preferences-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
    typeof(Preferences).GetField("Root",BindingFlags.NonPublic|BindingFlags.Static).SetValue(null,root);
+   if(args.Contains("--interaction-only")){GettingStarted.Acknowledge();TestInteractionPolish(args[0]);Console.WriteLine("TOTAL "+passed+" focused interaction checks");return;}
    Check(GettingStarted.NeedsIntroduction,"fresh or upgraded install offers introduction before acknowledgement");
    Preferences.Write(GettingStarted.Marker,"broken");Check(GettingStarted.NeedsIntroduction,"malformed introduction marker does not silently suppress help");
    File.Delete(Path.Combine(root,GettingStarted.Marker));Directory.CreateDirectory(Path.Combine(root,GettingStarted.Marker));
@@ -423,8 +437,8 @@ internal static class SettingsTests {
     Check(menu.Items.Cast<ToolStripItem>().Any(i=>i.Text=="设置")&&menu.Items.Count==5,"compact tray actions and settings entry wired");Check(Object.ReferenceEquals(((NotifyIcon)Field(window,"tray")).ContextMenuStrip,menu)&&menu.AutoClose,"real tray icon owns the automatically dismissible menu");
     var button=(ChromeButton)Field(window,"mode");Check(button.AccessibleName.Length>0&&button.Text==button.AccessibleName,"size button has accessible name");
     var settingsButton=(ChromeButton)Field(window,"more");Check(settingsButton.Kind=="settings"&&settingsButton.AccessibleName=="设置","titlebar settings icon replaces dropdown trigger");
-    var label=(Label)Field(window,"title");var minimize=(ChromeButton)Field(window,"minimize");var pin=(ChromeButton)Field(window,"pin");var sizeButton=(ChromeButton)Field(window,"mode");
-    Check(label.Text=="DeepSeek-Reflex"&&label.TextAlign==ContentAlignment.MiddleCenter&&Math.Abs(label.Left+label.Width/2-window.Width/2)<=1,"full DeepSeek-Reflex brand is centered without Beta label");
+    var label=(PanelButton)Field(window,"chatModeButton");var minimize=(ChromeButton)Field(window,"minimize");var pin=(ChromeButton)Field(window,"pin");var sizeButton=(ChromeButton)Field(window,"mode");
+    Check(window.Text=="DeepSeek-Reflex"&&label.Text.EndsWith(" ▾")&&label.AccessibleName=="选择持续生效的对话模式","window identity is retained while its title area provides an accessible mode selector");
     Check(minimize.Left<pin.Left&&pin.Left<sizeButton.Left&&sizeButton.Right<label.Left&&settingsButton.Left>label.Right,"left controls ordered minimize pin size and right settings");
     Check(window.Region!=null&&!window.Region.IsVisible(1,1)&&window.Region.IsVisible(window.Width/2,1)&&window.Region.IsVisible(window.Width/2,window.Height-2),"real window region clips corners while retaining top and bottom edges");
     var outline=(WindowFrame)Field(window,"frame");Check(!outline.Region.IsVisible(window.Width/2,window.Height/2)&&outline.Region.IsVisible(window.Width/2,1),"outline covers border only and leaves website interaction open");

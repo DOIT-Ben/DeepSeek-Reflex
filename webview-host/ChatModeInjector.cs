@@ -26,7 +26,7 @@ if(!state){
    return read(e)===text;
   }finally{state.writing=false;}
  };
- state.adopt=(e,text)=>{state.marker=null;state.oneShot={element:e,url:location.href,header:text.split('\n')[0]};};
+ state.adopt=(e,text)=>{const end=text.indexOf('\n',Math.max(0,text.search(/\S/)));state.marker=null;state.oneShot={element:e,url:location.href,header:end<0?text:text.slice(0,end)};};
  state.apply=()=>{
   if(state.suspended||state.writing||state.composing)return 'busy';
   if(state.mode==='normal'&&!state.marker)return 'ready';
@@ -36,7 +36,7 @@ if(!state){
   if(state.oneShotPending&&text===state.oneShotPending){state.adopt(e,text);state.oneShotPending=null;return 'one-shot';}
   if(state.oneShot){
    const once=state.oneShot;
-   if(once.element===e&&once.url===location.href&&text.startsWith(once.header))return 'one-shot';
+   if(text.trim()&&once.header&&once.element===e&&once.url===location.href&&text.startsWith(once.header))return 'one-shot';
    state.oneShot=null;
   }
   let raw=text,oldPrefix='';

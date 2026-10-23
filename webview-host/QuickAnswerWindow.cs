@@ -14,7 +14,7 @@ namespace DeepSeekFloat
         private readonly Label caption=new Label();
         private readonly Label selectionPreview=new Label();
         private readonly Label message=new Label();
-        private readonly Button translate=new Button(), explain=new Button(), question=new Button(), retry=new Button();
+        private readonly PanelButton translate=new PanelButton("翻译") {Ghost=true}, explain=new PanelButton("解释") {Ghost=true}, question=new PanelButton("问一问") {Ghost=true}, retry=new PanelButton("登录后继续");
         private readonly ChromeButton close=new ChromeButton("close","关闭划词浮窗");
         private readonly Timer expiry=new Timer { Interval=20000 };
         private readonly float scale;
@@ -32,23 +32,18 @@ namespace DeepSeekFloat
             Text="DeepSeek-Reflex 划词浮窗";AutoScaleMode=AutoScaleMode.None;
             KeyPreview=true;KeyDown+=delegate(object sender,KeyEventArgs e) { if(e.KeyCode==Keys.Escape) { e.Handled=true;Close(); } };
             FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;BackColor=Color.White;
-            Font=new Font("Microsoft YaHei UI",9f);
+            Font=PanelTheme.TextFont();
             header.BackColor=Color.White;
-            foreach(var b in new[]{translate,explain,question,retry}) {
-                b.FlatStyle=FlatStyle.Flat;b.FlatAppearance.BorderSize=0;
-                b.BackColor=Color.FromArgb(242,245,253);b.ForeColor=Color.FromArgb(52,82,180);
-            }
-            translate.Text="翻译";explain.Text="解释";question.Text="问一问";retry.Text="登录后继续";
             translate.Click+=async delegate { await Request(0); };
             explain.Click+=async delegate { await Request(1); };
             question.Click+=async delegate { await Request(2); };
             retry.Click+=async delegate { await Request(pendingAction); };
             close.Click+=delegate { Close(); };
-            caption.Text="划词 · DeepSeek-Reflex";caption.ForeColor=Color.FromArgb(78,87,107);caption.TextAlign=ContentAlignment.MiddleLeft;
+            caption.Text="划词 · DeepSeek-Reflex";caption.ForeColor=PanelTheme.Ink;caption.TextAlign=ContentAlignment.MiddleLeft;
             caption.MouseDown+=delegate(object s,MouseEventArgs e) { if(Expanded && e.Button==MouseButtons.Left) { Native.ReleaseCapture();Native.SendMessage(Handle,0xA1,new IntPtr(2),IntPtr.Zero); } };
-            selectionPreview.Text=text.Replace('\r',' ').Replace('\n',' ');selectionPreview.AutoEllipsis=true;selectionPreview.ForeColor=Color.FromArgb(100,110,130);
+            selectionPreview.Text=text.Replace('\r',' ').Replace('\n',' ');selectionPreview.AutoEllipsis=true;selectionPreview.ForeColor=PanelTheme.Muted;
             selectionPreview.TextAlign=ContentAlignment.MiddleLeft;
-            message.TextAlign=ContentAlignment.MiddleLeft;message.ForeColor=Color.FromArgb(85,95,115);
+            message.TextAlign=ContentAlignment.MiddleLeft;message.ForeColor=PanelTheme.Muted;message.Font=PanelTheme.TextFont(PanelTheme.CaptionSize);
             header.Controls.AddRange(new Control[]{caption,translate,explain,question,close});
             Controls.AddRange(new Control[]{header,selectionPreview,message,retry});
             expiry.Tick+=delegate { if(!Expanded)Close(); };expiry.Start();

@@ -38,12 +38,34 @@ export async function runChecks() {
   window.fixture.switchSession('fixture-b'); await pause(40); await openPanel();
   check('new session cannot import previous result', button('读取复制的回复').disabled && button('确认填回输入框').disabled);
   const localRequests = performance.getEntriesByType('resource').filter(entry => entry.initiatorType === 'fetch');
-  check('requests contain only local status and open endpoints', localRequests.length > 0 && localRequests.every(entry => /^\/reflex-window\/(status|open)$/.test(new URL(entry.name).pathname)));
+  check('requests contain only local Reflex endpoints', localRequests.length > 0 && localRequests.every(entry => /^\/reflex-window\/(status|open|stage)$/.test(new URL(entry.name).pathname)));
   const composer = document.getElementById('composer');
   composer.style.marginTop = '4vh'; composer.style.transform = 'translateZ(0)'; composer.style.overflow = 'hidden';
   window.dispatchEvent(new Event('resize')); await pause(40);
   const bounds = document.querySelector('.reflex-panel').getBoundingClientRect();
   check('centered composer popup remains inside viewport', bounds.left >= 0 && bounds.top >= 0 && bounds.right <= innerWidth && bounds.bottom <= innerHeight);
   check('popover escapes transformed and clipped ancestors', document.querySelector('.reflex-panel').matches(':popover-open'));
+  const fetchOriginal = window.fetch, observed = [];
+  let status = 'filled', delay = 0;
+  window.fetch = async (url, options) => {
+    if (!url.endsWith('/stage')) return fetchOriginal(url, options);
+    const body = JSON.parse(options.body); observed.push(body); if (delay) await pause(delay);
+    return new Response(JSON.stringify({ id: body.id, status }), { headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const writes = window.fixture.clipboardState.writes.length;
+    window.fixture.edit('一键带入自有草稿'); await pause(30);
+    const stageButton = button('带入小窗'); stageButton.click(); stageButton.click(); await pause(40);
+    check('single click and rapid duplicate make only one stage call', observed.length === 1);
+    check('stage sends raw draft and selected mode', observed[0].text === '一键带入自有草稿' && observed[0].mode === 'polish');
+    check('stage never writes clipboard or changes DSH draft', window.fixture.clipboardState.writes.length === writes && window.fixture.state.draft === '一键带入自有草稿');
+    check('filled response binds original draft for reply preview', !button('读取复制的回复').disabled && document.querySelector('[role=status]').textContent.includes('已填入小窗'));
+    status = 'draft'; button('带入小窗').click(); await pause(35);
+    check('existing website draft refusal is visible', document.querySelector('[role=status]').textContent.includes('已有草稿'));
+    status = 'outcome-unknown'; button('带入小窗').click(); await pause(35);
+    check('unknown result asks user to check without retry', document.querySelector('[role=status]').textContent.includes('未能确认') && observed.length === 3);
+    status = 'filled'; delay = 100; button('带入小窗').click(); window.fixture.switchSession('fixture-c'); await pause(180); await openPanel();
+    check('session switch during stage never binds reply to new session', button('读取复制的回复').disabled && button('确认填回输入框').disabled);
+  } finally { window.fetch = fetchOriginal; }
   return { passed: checks.length, checks };
 }

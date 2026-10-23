@@ -17,10 +17,10 @@ namespace DeepSeekFloat {
         private float scale;
         private bool closing;
         internal PopupWindow(Uri uri,float dpiScale) {
-            scale=dpiScale;Text="DeepSeek-Reflex · 登录或链接";BackColor=Color.White;AutoScaleMode=AutoScaleMode.None;
+            scale=dpiScale;Text="DeepSeek-Reflex · 登录或链接";Font=PanelTheme.TextFont();BackColor=Color.White;AutoScaleMode=AutoScaleMode.None;
             FormBorderStyle=FormBorderStyle.None;StartPosition=FormStartPosition.CenterParent;ShowInTaskbar=false;
             Size=new Size(S(440),S(640));MinimumSize=new Size(S(320),S(360));
-            origin.Text=uri.Host;origin.AccessibleName="当前页面域名";origin.Font=new Font("Segoe UI",9f);
+            origin.Text=uri.Host;origin.AccessibleName="当前页面域名";
             close.Click+=delegate{Close();};chrome.Controls.AddRange(new Control[]{origin,close});
             chrome.MouseDown+=Drag;origin.MouseDown+=Drag;
             Browser.CoreWebView2InitializationCompleted+=delegate {

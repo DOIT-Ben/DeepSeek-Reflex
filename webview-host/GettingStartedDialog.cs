@@ -28,23 +28,23 @@ namespace DeepSeekFloat {
         internal int Step {get;private set;}
         internal GettingStartedDialog(WindowSettings settings) {
             using(var graphics=Graphics.FromHwnd(IntPtr.Zero))scale=graphics.DpiX/96f;
-            Text="DeepSeek-Reflex 使用帮助";Font=new Font("Microsoft YaHei UI",10f);BackColor=Color.White;ForeColor=PanelTheme.Ink;
+            Text="DeepSeek-Reflex 使用帮助";Font=PanelTheme.TextFont();BackColor=Color.White;ForeColor=PanelTheme.Ink;
             DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;FormBorderStyle=FormBorderStyle.None;
             ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;ClientSize=new Size(S(400),S(452));
             surface=new Panel {Name="guide-surface",Dock=DockStyle.Fill,BackColor=Color.White};Controls.Add(surface);
-            brand=LabelAt(surface,"DeepSeek-Reflex",24,24,312,30,12f,true);
+            brand=LabelAt(surface,"DeepSeek-Reflex",24,24,312,30,PanelTheme.TitleSize,true);
             close=new ChromeButton("close","跳过引导，开始使用");Place(surface,close,344,22,32,28);
             close.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
-            progress=LabelAt(surface,"",24,68,352,22,9f,false);progress.ForeColor=PanelTheme.Muted;
-            heading=LabelAt(surface,"",24,105,352,58,18f,true);
-            body=LabelAt(surface,"",24,174,352,58,10f,false);
+            progress=LabelAt(surface,"",24,68,352,22,PanelTheme.CaptionSize,false);progress.ForeColor=PanelTheme.Muted;
+            heading=LabelAt(surface,"",24,105,352,58,PanelTheme.HeadingSize,true);
+            body=LabelAt(surface,"",24,174,352,58,PanelTheme.BodySize,false);
             var card=new PanelCard();Place(surface,card,24,248,352,96);
-            key=LabelAt(card,"",16,12,320,30,14f,true);key.ForeColor=PanelTheme.Accent;key.BackColor=PanelTheme.Surface;
-            hint=LabelAt(card,"",16,48,320,36,9f,false);hint.ForeColor=PanelTheme.Muted;hint.BackColor=PanelTheme.Surface;
-            help=LabelAt(surface,"以后可以在设置 → 使用帮助中重新查看。",24,356,352,22,9f,false);help.ForeColor=PanelTheme.Muted;
-            skip=new PanelButton("跳过");Place(surface,skip,24,396,76,34);skip.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
-            previous=new PanelButton("上一步");Place(surface,previous,180,396,88,34);previous.Click+=delegate{SetStep(Step-1);};
-            next=new PanelButton("下一步") {Primary=true};Place(surface,next,280,396,96,34);
+            key=LabelAt(card,"",16,12,320,30,PanelTheme.TitleSize,true);key.ForeColor=PanelTheme.Accent;key.BackColor=PanelTheme.Surface;
+            hint=LabelAt(card,"",16,48,320,36,PanelTheme.CaptionSize,false);hint.ForeColor=PanelTheme.Muted;hint.BackColor=PanelTheme.Surface;
+            help=LabelAt(surface,"以后可以在设置 → 使用帮助中重新查看。",24,356,352,22,PanelTheme.CaptionSize,false);help.ForeColor=PanelTheme.Muted;
+            skip=new PanelButton("跳过");Place(surface,skip,24,396,76,PanelTheme.ControlHeight);skip.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
+            previous=new PanelButton("上一步");Place(surface,previous,180,396,88,PanelTheme.ControlHeight);previous.Click+=delegate{SetStep(Step-1);};
+            next=new PanelButton("下一步") {Primary=true};Place(surface,next,280,396,96,PanelTheme.ControlHeight);
             next.Click+=delegate{if(Step==3){DialogResult=DialogResult.OK;Close();}else SetStep(Step+1);};
             headings=new[]{"先登录，就能开始聊","按一下，问题就在身边","选中文字，带入小窗","问完收起，继续工作"};
             bodies=new[]{
@@ -79,13 +79,13 @@ namespace DeepSeekFloat {
             viewport.SetBounds(S(24),S(96),width,Math.Max(1,ClientSize.Height-S(164)));
             viewport.AutoScrollMinSize=new Size(0,S(290));content.SetBounds(0,viewport.AutoScrollPosition.Y,Math.Max(1,viewport.ClientSize.Width),S(290));
             foreach(Control item in content.Controls)item.Width=content.Width;
-            skip.SetBounds(S(24),ClientSize.Height-S(56),S(76),S(34));
-            previous.SetBounds(ClientSize.Width-S(220),ClientSize.Height-S(56),S(88),S(34));next.SetBounds(ClientSize.Width-S(120),ClientSize.Height-S(56),S(96),S(34));
+            skip.SetBounds(S(24),ClientSize.Height-S(56),S(76),S(PanelTheme.ControlHeight));
+            previous.SetBounds(ClientSize.Width-S(220),ClientSize.Height-S(56),S(88),S(PanelTheme.ControlHeight));next.SetBounds(ClientSize.Width-S(120),ClientSize.Height-S(56),S(96),S(PanelTheme.ControlHeight));
         }
         internal void ApplyDpi(float value,Rectangle bounds){if(value<=0)return;float ratio=value/scale;scale=value;surface.Scale(new SizeF(ratio,ratio));Bounds=SettingsDialog.FitBounds(bounds,Screen.FromRectangle(bounds).WorkingArea,scale);smoothFrame.UpdateScale(value);Arrange();frame.UpdateShape(this,scale,smoothFrame.Ready);}
         protected override void WndProc(ref Message m){if(m.Msg==0x2e0){ApplyDpi(WindowDpi.MessageScale(m.WParam),WindowDpi.Suggested(m.LParam));m.Result=IntPtr.Zero;return;}base.WndProc(ref m);}
         private void Place(Control parent,Control child,int x,int y,int w,int h){child.SetBounds(S(x),S(y),S(w),S(h));parent.Controls.Add(child);}
-        private Label LabelAt(Control parent,string text,int x,int y,int w,int h,float size,bool bold){var label=new Label{Text=text,Font=new Font(Font.FontFamily,size,bold?FontStyle.Bold:FontStyle.Regular),ForeColor=PanelTheme.Ink,BackColor=Color.White,TextAlign=ContentAlignment.MiddleLeft};Place(parent,label,x,y,w,h);return label;}
+        private Label LabelAt(Control parent,string text,int x,int y,int w,int h,float size,bool bold){var label=new Label{Text=text,Font=PanelTheme.TextFont(size,bold),ForeColor=PanelTheme.Ink,BackColor=Color.White,TextAlign=ContentAlignment.MiddleLeft};Place(parent,label,x,y,w,h);return label;}
         private void Drag(object sender,MouseEventArgs e){if(e.Button==MouseButtons.Left){Native.ReleaseCapture();Native.SendMessage(Handle,0xA1,new IntPtr(2),IntPtr.Zero);}}
         protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);WindowFrame.ConfigureNativeBorder(Handle);frame.UpdateShape(this,scale,smoothFrame!=null&&smoothFrame.Ready);}
         protected override void Dispose(bool disposing){if(disposing&&smoothFrame!=null)smoothFrame.Dispose();base.Dispose(disposing);}
