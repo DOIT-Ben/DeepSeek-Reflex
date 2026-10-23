@@ -290,7 +290,7 @@ internal static class SettingsTests {
    var more=(PanelButton)Field(window,"moreSelection");
    typeof(ChatWindow).GetField("customChoice",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,customs[0]);
    Com(window,"RefreshSelectionChoice",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.InvokeMethod);
-   Check(more.Text=="划重点 ▾"&&more.Chosen&&((PanelChoices)Field(window,"selectionAction")).SelectedIndex==-1,"choosing a custom command moves the chosen state to the more button");
+   Check(more.Text=="划重点"&&more.DropDown&&more.Chosen&&((PanelChoices)Field(window,"selectionAction")).SelectedIndex==-1,"choosing a custom command moves the chosen state to the more button");
    Check(more.AccessibleName=="自定义指令 划重点"&&((Label)Field(window,"selectionStatus")).Text.Contains("划重点"),"chosen command exposes its full name and a fill hint");
    typeof(ChatWindow).GetField("selectedText",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,"演示材料");
    var composeSelector=typeof(ChatWindow).GetMethod("ComposeSelection",BindingFlags.Instance|BindingFlags.NonPublic);
@@ -340,6 +340,26 @@ internal static class SettingsTests {
    Check((bool)Field(dialog,"confirming")&&dialog.Visible,"closing with unsaved command edits asks first");
    Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="放弃并返回"));
    Check(!dialog.Visible&&dialog.DialogResult==DialogResult.Cancel,"discarding unsaved edits from close leaves the dialog");
+  }
+  // FB feedback dialog contract
+  string captured=null;
+  using(var dialog=new FeedbackDialog(json=>{captured=json;return null;})) {
+   dialog.Show();Application.DoEvents();
+   var text=(TextBox)Field(dialog,"body");var send=(PanelButton)Field(dialog,"send");
+   Check(!send.Enabled&&((Label)Field(dialog,"counter")).Text=="0 / "+FeedbackDialog.MaxChars,"feedback send stays disabled without content");
+   text.Text="希望支持深色模式";
+   Check(send.Enabled&&((Label)Field(dialog,"counter")).Text.Contains("1000"),"feedback counter and enable state track input");
+   Click(send);
+   for(int i=0;i<60&&dialog.DialogResult==DialogResult.None;i++){Application.DoEvents();System.Threading.Thread.Sleep(10);}
+   Check(captured!=null&&captured.Contains("希望支持深色模式")&&captured.Contains("\"version\"")&&captured.Contains("\"app\":\"deepseek-reflex\""),"feedback posts app, version and text");
+   Check(dialog.DialogResult==DialogResult.OK,"successful feedback closes the dialog");
+  }
+  using(var dialog=new FeedbackDialog(json=>"网络不可用")) {
+   dialog.Show();Application.DoEvents();
+   ((TextBox)Field(dialog,"body")).Text="测试反馈";
+   Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="发送"));
+   for(int i=0;i<60&&dialog.Visible&&!((Label)Field(dialog,"status")).Text.Contains("失败");i++){Application.DoEvents();System.Threading.Thread.Sleep(10);}
+   Check(dialog.Visible&&((Label)Field(dialog,"status")).Text.Contains("失败"),"failed feedback stays open with the text and an inline reason");
   }
  }
  static void Click(Button button){typeof(Button).GetMethod("OnClick",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(button,new object[]{EventArgs.Empty});}
@@ -607,11 +627,11 @@ internal static class SettingsTests {
     var method=typeof(ChatWindow).GetMethod("BuildMenu",BindingFlags.Instance|BindingFlags.NonPublic);var menu=(ContextMenuStrip)method.Invoke(window,null);
     bool same=true;for(int i=0;i<30;i++)same&=Object.ReferenceEquals(menu,method.Invoke(window,null));
     Check(same&&!menu.IsDisposed&&menu.Items[menu.Items.Count-1].Text=="退出","persistent menu lifecycle and deferred exit retained");
-    Check(menu.Items.Cast<ToolStripItem>().Any(i=>i.Text=="设置")&&menu.Items.Count==5,"compact tray actions and settings entry wired");Check(Object.ReferenceEquals(((NotifyIcon)Field(window,"tray")).ContextMenuStrip,menu)&&menu.AutoClose,"real tray icon owns the automatically dismissible menu");
+    Check(menu.Items.Cast<ToolStripItem>().Any(i=>i.Text=="设置")&&menu.Items.Cast<ToolStripItem>().Any(i=>i.Text=="反馈")&&menu.Items.Count==6,"compact tray actions plus settings and feedback entries wired");Check(Object.ReferenceEquals(((NotifyIcon)Field(window,"tray")).ContextMenuStrip,menu)&&menu.AutoClose,"real tray icon owns the automatically dismissible menu");
     var button=(ChromeButton)Field(window,"mode");Check(button.AccessibleName.Length>0&&button.Text==button.AccessibleName,"size button has accessible name");
     var settingsButton=(ChromeButton)Field(window,"more");Check(settingsButton.Kind=="settings"&&settingsButton.AccessibleName=="设置","titlebar settings icon replaces dropdown trigger");
     var label=(PanelButton)Field(window,"chatModeButton");var minimize=(ChromeButton)Field(window,"minimize");var pin=(ChromeButton)Field(window,"pin");var sizeButton=(ChromeButton)Field(window,"mode");
-    Check(window.Text=="DeepSeek-Reflex"&&label.Text.EndsWith(" ▾")&&label.AccessibleName=="选择持续生效的对话模式","window identity is retained while its title area provides an accessible mode selector");
+    Check(window.Text=="DeepSeek-Reflex"&&label.Text=="普通对话"&&label.DropDown&&label.AccessibleName=="选择持续生效的对话模式","window identity is retained while its title area provides an accessible mode selector");
     Check(minimize.Left<pin.Left&&pin.Left<sizeButton.Left&&sizeButton.Right<label.Left&&settingsButton.Left>label.Right,"left controls ordered minimize pin size and right settings");
     Check(window.Region!=null&&!window.Region.IsVisible(1,1)&&window.Region.IsVisible(window.Width/2,1)&&window.Region.IsVisible(window.Width/2,window.Height-2),"real window region clips corners while retaining top and bottom edges");
     var outline=(WindowFrame)Field(window,"frame");Check(!outline.Region.IsVisible(window.Width/2,window.Height/2)&&outline.Region.IsVisible(window.Width/2,1),"outline covers border only and leaves website interaction open");

@@ -1,0 +1,16 @@
+[Unit]
+Description=DeepSeek-Reflex feedback receiver (127.0.0.1:8787)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/reflex-feedback/receiver.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/reflex-feedback
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

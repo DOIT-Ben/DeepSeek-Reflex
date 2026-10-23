@@ -18,7 +18,19 @@ namespace DeepSeekFloat {
             Items.Add(item);UpdateSize();return item;
         }
         internal void AddDivider(){Items.Add(new ToolStripSeparator {AutoSize=false,Size=new Size(S(200),S(14)),Margin=Padding.Empty});UpdateSize();}
-        private void UpdateSize(){int height=S(16);foreach(ToolStripItem item in Items)height+=item.Height;Size=new Size(S(216),height);}
+        private void UpdateSize(){
+            // Width hugs the widest item; the fixed 216 DIP pill left large
+            // blank margins next to short mode names.
+            int textWidth=0;
+            foreach(ToolStripItem item in Items){
+                if(item is ToolStripSeparator)continue;
+                textWidth=Math.Max(textWidth,TextRenderer.MeasureText(item.Text,menuFont).Width);
+            }
+            int inner=Math.Max(S(96),Math.Min(S(300),textWidth+S(68)));
+            int height=S(16);
+            foreach(ToolStripItem item in Items){item.Size=new Size(inner,item.Height);height+=item.Height;}
+            Size=new Size(inner+S(16),height);
+        }
         protected override void OnSizeChanged(EventArgs e) {
             base.OnSizeChanged(e);if(scale<=0||Width<1||Height<1)return;
             UpdateOutline();

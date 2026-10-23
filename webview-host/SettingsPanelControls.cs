@@ -6,7 +6,7 @@ namespace DeepSeekFloat {
     internal static class PanelTheme {
         // Shared with the DSH bundle at build time. Font sizes are points (96-DPI CSS px = pt * 4/3).
         internal const string FontFamily="Microsoft YaHei UI";
-        internal const float CaptionSize=9f,BodySize=10.5f,TitleSize=12f,HeadingSize=15f;
+        internal const float CaptionSize=9f,BodySize=10.5f,TitleSize=12f,HeadingSize=14f;
         internal const float CompactFontStep=1.5f;
         internal const int ControlRadius=8,PanelRadius=12,ControlHeight=32,InputHeight=40,MenuRowHeight=36;
         internal const int CompactControlHeight=30,CompactInputHeight=34;
@@ -57,6 +57,7 @@ namespace DeepSeekFloat {
     internal sealed class PanelButton : Button {
         internal bool Primary;
         internal bool Ghost,Segment;
+        internal bool DropDown; // vector chevron shares the text color; Text never carries a glyph suffix
         // Quiet ghost buttons stay borderless unless an outline is requested
         // for actions that otherwise read as plain text.
         internal bool Outline;
@@ -81,7 +82,16 @@ namespace DeepSeekFloat {
                 using(var brush=new SolidBrush(color))g.FillPath(brush,shape);
                 if((!Ghost&&!Segment)||Outline||InputFocused||(Segment&&chosen))using(var pen=new Pen(Primary||InputFocused?PanelTheme.Accent:InputFrame?PanelTheme.InputBorder:Segment?PanelTheme.Border:PanelTheme.Mix(PanelTheme.Border,PanelTheme.Accent,choiceMotion.Value),scale))g.DrawPath(pen,shape);
             }
-            TextRenderer.DrawText(g,Text,Font,new Rectangle(4,(int)Math.Round(offset),Width-8,Height),!Enabled?PanelTheme.Muted:Primary?Color.White:PanelTheme.Mix(ForeColor,PanelTheme.AccentHover,choiceMotion.Value),TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
+            var textColor=!Enabled?PanelTheme.Muted:Primary?Color.White:PanelTheme.Mix(ForeColor,PanelTheme.AccentHover,choiceMotion.Value);
+            // Reserve room for the chevron so text and arrow read as one centered group.
+            float chevron=DropDown?13f*scale:0f;
+            TextRenderer.DrawText(g,Text,Font,new Rectangle((int)Math.Round(4-chevron/2),(int)Math.Round(offset),Width-8,Height),textColor,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
+            if(DropDown) {
+                var measured=TextRenderer.MeasureText(g,Text,Font,new Size(int.MaxValue,Height),TextFormatFlags.NoPrefix);
+                float cx=measured.Width>Width-8-chevron?Width-7f*scale:Width/2f+measured.Width/2f-chevron/2f+scale;
+                float cy=Height/2f+1f*scale,r=2.5f*scale;
+                using(var pen=new Pen(textColor,1.5f*scale)){pen.StartCap=LineCap.Round;pen.EndCap=LineCap.Round;g.DrawLines(pen,new[]{new PointF(cx-r,cy-r*0.7f),new PointF(cx,cy+r*0.7f),new PointF(cx+r,cy-r*0.7f)});}
+            }
             if(Focused&&ShowFocusCues)PanelTheme.FocusRing(g,Size,scale,PanelTheme.ControlRadius-3,Primary?Color.White:PanelTheme.Accent);
         }
         protected override void Dispose(bool disposing){if(disposing){hoverMotion.Dispose();pressMotion.Dispose();choiceMotion.Dispose();}base.Dispose(disposing);}

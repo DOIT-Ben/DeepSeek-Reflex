@@ -78,13 +78,13 @@ namespace DeepSeekFloat
         private readonly NotifyIcon tray = new NotifyIcon();
         private readonly Icon windowIcon, trayIcon;
         private readonly Timer healthTimer = new Timer();
-        private readonly PanelButton chatModeButton = new PanelButton("普通对话 ▾") {Ghost=true};
+        private readonly PanelButton chatModeButton = new PanelButton("普通对话") {Ghost=true,DropDown=true};
         private string chatModeError;
         private bool updatingChatMode,chatModeUpdatePending;
         private readonly Panel selectionBar = new Panel();
         private readonly PanelChoices selectionAction = new PanelChoices("翻译","解释","提问");
         private readonly Label selectionStatus = new AnnouncingLabel();
-        private readonly PanelButton moreSelection = new PanelButton("更多指令 ▾") {Ghost=true,Outline=true};
+        private readonly PanelButton moreSelection = new PanelButton("更多指令") {Ghost=true,Outline=true,DropDown=true};
         private readonly PanelButton insertSelection = new PanelButton("填入") {Chosen=true};
         private readonly PanelButton copySelection = new PanelButton("复制请求") {Ghost=true};
         private readonly ChromeButton dismissSelection = new ChromeButton("close","收起取词栏");
@@ -319,7 +319,9 @@ namespace DeepSeekFloat
             for(int i=0;i<leftButtons.Length;i++)leftButtons[i].SetBounds(S(8)+width*i,0,width,S(28));
             var rightButtons = new[]{close,more};
             for(int i=0;i<rightButtons.Length;i++)rightButtons[i].SetBounds(ClientSize.Width-S(8)-width*(i+1),0,width,S(28));
-            int available=Math.Max(0,ClientSize.Width-S(192)),selectorWidth=Math.Min(S(148),available);
+            int available=Math.Max(0,ClientSize.Width-S(192));
+            // Hug the mode text plus chevron instead of a fixed pill width.
+            int selectorWidth=Math.Min(Math.Max(S(92),TextRenderer.MeasureText(chatModeButton.Text,chatModeButton.Font).Width+S(32)),Math.Max(S(92),available));
             chatModeButton.SetBounds(S(112)+(available-selectorWidth)/2,0,selectorWidth,S(28));
             if(selectionBar.Visible) {
                 // Two fixed rows per the dock/capture contract: choices, more
@@ -382,7 +384,7 @@ namespace DeepSeekFloat
                 updatingChoice=true;
                 if(selectionAction.SelectedIndex!=-1)selectionAction.SelectedIndex=-1;
                 updatingChoice=false;
-                moreSelection.Text=customChoice.Name+" ▾";moreSelection.Chosen=true;
+                moreSelection.Text=customChoice.Name;moreSelection.Chosen=true;
                 // Overflow is ellipsized by the painter; the full name lives in
                 // the accessible name and tooltip instead.
                 moreSelection.AccessibleName="自定义指令 "+customChoice.Name;
@@ -392,7 +394,7 @@ namespace DeepSeekFloat
                 updatingChoice=true;
                 if(selectionAction.SelectedIndex<0)selectionAction.SelectedIndex=0;
                 updatingChoice=false;
-                moreSelection.Text="更多指令 ▾";moreSelection.Chosen=false;
+                moreSelection.Text="更多指令";moreSelection.Chosen=false;
                 moreSelection.AccessibleName="更多取词指令";
                 tips.SetToolTip(moreSelection,"选择自定义取词指令");
                 if(selectedText==null)selectionStatus.Text="";
@@ -625,7 +627,8 @@ namespace DeepSeekFloat
         private void RefreshChatMode() {
             var current=ChatModes.Find(settings.ChatMode);
             chatModeError=null;
-            chatModeButton.Text=current.Name+" ▾";chatModeButton.Chosen=current.Id!="normal";
+            chatModeButton.Text=current.Name;chatModeButton.Chosen=current.Id!="normal";
+            if(IsHandleCreated)LayoutContent();
             chatModeButton.AccessibleDescription=current.Name+(current.Id=="normal"?"，按原文发送":"，每次输入自动应用；检查后发送");
             tips.SetToolTip(chatModeButton,current.Id=="normal"?"按原文发送，不添加提示词":current.Instruction+"\n每条消息都会在输入框中自动填入提示词，可检查后发送。取词请求单独处理一次。");
         }
@@ -702,6 +705,12 @@ namespace DeepSeekFloat
             if(previousMode!=settings.Mode)ApplyMode(settings.Mode);
             RefreshMode();WriteHealth();return null;
         }
+        private void ShowFeedback() {
+            if(resourcesDisposed||quitting)return;
+            if(edgeDock!=null&&edgeDock.Docked){edgeDock.Restore();ShowChatAt(captureWakeTarget());}
+            using(var dialog=new FeedbackDialog()){dialog.Icon=Icon;dialog.ShowDialog(this);}
+            WriteHealth();
+        }
         private void ShowSettings(){ShowSettingsPage(null);}
         private void ShowSettingsPage(string openPage)
         {
@@ -711,6 +720,7 @@ namespace DeepSeekFloat
             try {
                 using(var dialog=new SettingsDialog(settings,ApplySettings,delegate(string action) {
                     BeginInvoke(new Action(async delegate {
+                        if(action=="feedback")ShowFeedback();
                         if(action=="refresh")await InitializeBrowser();
                         if(action=="import")await PresentSelection(SelectionCapture.FromClipboard());
                         if(action=="help")ShowHelp();
@@ -765,6 +775,7 @@ namespace DeepSeekFloat
             var pinItem=menu.AddAction(TopMost?"取消置顶":"置顶窗口",delegate { BeginInvoke(new Action(delegate { SetPinned(!TopMost); })); });
             menu.AddDivider();
             menu.AddAction("设置",delegate { BeginInvoke(new Action(ShowSettings)); });
+            menu.AddAction("反馈",delegate { BeginInvoke(new Action(ShowFeedback)); });
             menu.AddAction("退出",delegate { BeginInvoke(new Action(delegate { quitting=true;Close(); })); });
             menu.Opening+=delegate { pinItem.Text=TopMost?"取消置顶":"置顶窗口"; };
             contextMenu=menu;return menu;

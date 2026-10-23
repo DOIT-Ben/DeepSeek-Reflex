@@ -31,7 +31,7 @@ namespace DeepSeekFloat {
         private readonly Label nameError=new Label {AutoSize=false,ForeColor=PanelTheme.Error};
         private readonly Label instructionError=new Label {AutoSize=false,ForeColor=PanelTheme.Error};
         private readonly ChromeButton close=new ChromeButton("close","关闭设置");
-        private readonly Label heading,subtitle;
+        private readonly Label heading;
         private readonly WindowSettings original;
         private static readonly string[][] Examples={
             new[]{"提炼要点","请从下面的材料提炼 3–5 个要点，用简短列表输出，不添加材料中没有的事实。"},
@@ -47,35 +47,34 @@ namespace DeepSeekFloat {
         private readonly WindowFrame frame=new WindowFrame();
         private SmoothFrame smoothFrame;
         private bool arranging;
-        private const int GeneralContentHeight=426,CommandsContentHeight=344;
+        private const int GeneralContentHeight=332,CommandsContentHeight=332;
         internal SettingsDialog(WindowSettings settings,Func<WindowSettings,string> apply,Action<string> quickAction=null,string openPage=null) {
             original=settings.Clone();toggle=new HotkeyBox(settings.ToggleKeys);capture=new HotkeyBox(settings.CaptureKeys);
             toggle.AccessibleName="唤出 / 收起快捷键";capture.AccessibleName="选中文字取词快捷键";
             using(var graphics=Graphics.FromHwnd(IntPtr.Zero))scale=graphics.DpiX/96f;
             Text="DeepSeek-Reflex 设置";Font=PanelTheme.CompactFont();BackColor=Color.White;ForeColor=PanelTheme.Ink;DoubleBuffered=true;
             FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;MinimizeBox=false;ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;
-            AutoScaleMode=AutoScaleMode.None;ClientSize=new Size(S(380),S(536));Padding=Padding.Empty;
+            AutoScaleMode=AutoScaleMode.None;ClientSize=new Size(S(380),S(480));Padding=Padding.Empty;
             Controls.Add(surface);
-            heading=LabelAt(surface,"小窗设置",20,16,292,28,PanelTheme.HeadingSize,true);
-            subtitle=LabelAt(surface,"顺手唤起，随时问答"+VersionSuffix(),20,48,340,18,PanelTheme.CaptionSize,false);subtitle.ForeColor=PanelTheme.Muted;
+            heading=LabelAt(surface,"小窗设置",20,14,292,28,PanelTheme.HeadingSize,true);
             surface.Controls.Add(close);close.Click+=delegate{AttemptClose();};
-            heading.MouseDown+=Drag;subtitle.MouseDown+=Drag;surface.MouseDown+=Drag;
+            heading.MouseDown+=Drag;surface.MouseDown+=Drag;
             surface.Controls.Add(body);body.Controls.Add(content);body.Controls.Add(commandsPage);surface.Controls.Add(footer);
             content.Size=new Size(S(340),S(GeneralContentHeight));
-            LabelAt(content,"快捷键",0,0,340,18,PanelTheme.BodySize,true);
-            var card=new PanelCard();Place(content,card,0,24,340,80);card.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            KeyRow(card,"唤出 / 收起",toggle,4);KeyRow(card,"选中文字取词",capture,42);
-            hint.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);hint.Text="点击按键框开始录入，Esc 取消，保存后生效。";Place(content,hint,0,112,340,28);hint.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            LabelAt(content,"快捷键",0,0,340,16,PanelTheme.BodySize,true);
+            var card=new PanelCard();Place(content,card,0,20,340,76);card.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            KeyRow(card,"唤出 / 收起",toggle,4);KeyRow(card,"选中文字取词",capture,40);
+            hint.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);hint.Text="点击按键框开始录入，Esc 取消，保存后生效。";Place(content,hint,0,100,340,18);hint.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             toggle.FeedbackChanged+=RecordingFeedback;capture.FeedbackChanged+=RecordingFeedback;
-            focus.Checked=settings.FocusOnOpen;var focusCard=new PanelCard();Place(content,focusCard,0,148,340,36);focusCard.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;Place(focusCard,focus,12,3,316,30);focus.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            dock.Checked=settings.EdgeDockEnabled;var dockCard=new PanelCard();Place(content,dockCard,0,192,340,36);dockCard.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;Place(dockCard,dock,12,3,316,30);dock.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            tips.SetToolTip(dock,"开启后，把窗口拖到屏幕左右边缘释放即收纳为标签；点击标签或按唤起键恢复。");
-            LabelAt(content,"快捷键收起方式",0,244,340,18,PanelTheme.BodySize,true);
-            hideMode.SelectedIndex=settings.HideToTrayOnToggle?1:0;Place(content,hideMode,0,268,340,32);hideMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            LabelAt(content,"窗口尺寸",0,316,340,18,PanelTheme.BodySize,true);
-            windowMode.SelectedIndex=settings.Mode=="reading"?2:settings.Mode=="compact"?1:0;Place(content,windowMode,0,340,340,32);windowMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            focus.Checked=settings.FocusOnOpen;var focusCard=new PanelCard();Place(content,focusCard,0,122,340,32);focusCard.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;Place(focusCard,focus,12,1,316,30);focus.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            dock.Checked=settings.EdgeDockEnabled;var dockCard=new PanelCard();Place(content,dockCard,0,158,340,32);dockCard.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;Place(dockCard,dock,12,1,316,30);dock.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            tips.SetToolTip(dock,"拖到屏幕左右边缘释放即收纳为标签，点击标签恢复。");
+            LabelAt(content,"快捷键收起方式",0,194,340,16,PanelTheme.BodySize,true);
+            hideMode.SelectedIndex=settings.HideToTrayOnToggle?1:0;Place(content,hideMode,0,212,340,30);hideMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            LabelAt(content,"窗口尺寸",0,246,340,16,PanelTheme.BodySize,true);
+            windowMode.SelectedIndex=settings.Mode=="reading"?2:settings.Mode=="compact"?1:0;Place(content,windowMode,0,264,340,30);windowMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             var actions=new Panel {Margin=Padding.Empty,Padding=Padding.Empty,BackColor=Color.White};
-            Place(content,actions,0,388,340,PanelTheme.CompactControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            Place(content,actions,0,298,340,PanelTheme.CompactControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             var refresh=new PanelButton("刷新页面") {Ghost=true,Outline=true};var import=new PanelButton("粘贴导入") {Ghost=true,Outline=true};var help=new PanelButton("使用帮助") {Ghost=true,Outline=true};
             tips.SetToolTip(import,"导入剪贴板中的文字");
             var actionButtons=new[]{refresh,import,help};
@@ -89,6 +88,12 @@ namespace DeepSeekFloat {
             var allActions=new[]{refresh,import,help,commands};
             Action arrangeActions=delegate{for(int i=0;i<allActions.Length;i++){int left=actions.Width*i/allActions.Length,right=actions.Width*(i+1)/allActions.Length;allActions[i].SetBounds(left,0,right-left,actions.Height);}};
             actions.Resize+=delegate{arrangeActions();};arrangeActions();
+            // Same close-then-act contract as the other quick actions; the host
+            // restores a docked window before showing the feedback dialog.
+            var feedback=new PanelButton("反馈") {Ghost=true,Outline=true};feedback.Margin=Padding.Empty;feedback.AccessibleName="发送反馈";
+            tips.SetToolTip(feedback,"把建议直接发给开发者");
+            feedback.Click+=delegate{DialogResult=DialogResult.Cancel;Close();if(quickAction!=null)quickAction("feedback");};
+            actions.Controls.Add(feedback);allActions=new[]{refresh,import,help,commands,feedback};
             refresh.Click+=delegate{DialogResult=DialogResult.Cancel;Close();quickAction("refresh");};
             import.Click+=delegate{DialogResult=DialogResult.Cancel;Close();quickAction("import");};
             help.Click+=delegate{DialogResult=DialogResult.Cancel;Close();quickAction("help");};
@@ -128,10 +133,10 @@ namespace DeepSeekFloat {
         // ----- commands page -----
         private readonly ToolTip tips=new ToolTip();
         private void BuildCommandsPage(Action<string> quickAction) {
-            var intro=LabelAt(commandsPage,"内置指令：翻译、解释、提问（不可修改）",0,0,340,20,PanelTheme.CaptionSize,false);intro.ForeColor=PanelTheme.Muted;
-            Place(commandsPage,commandList,0,24,340,128);commandList.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            var intro=LabelAt(commandsPage,"内置指令：翻译、解释、提问（不可修改）",0,0,340,18,PanelTheme.CaptionSize,false);intro.ForeColor=PanelTheme.Muted;
+            Place(commandsPage,commandList,0,22,340,118);commandList.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             commandList.Resize+=delegate{RenderCommandList();};
-            var editor=new PanelCard();Place(commandsPage,editor,0,160,340,140);editor.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            var editor=new PanelCard();Place(commandsPage,editor,0,148,340,138);editor.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             var nameLabel=LabelAt(editor,"名称",12,8,44,26,PanelTheme.BodySize,false);
             var nameFrame=new PanelButton("") {TabStop=false,InputFrame=true,BackColor=PanelTheme.Surface};Place(editor,nameFrame,62,6,266,28);nameFrame.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             commandName.Font=PanelTheme.CompactFont();commandName.BackColor=PanelTheme.Surface;nameFrame.Controls.Add(commandName);
@@ -145,8 +150,8 @@ namespace DeepSeekFloat {
             Action bodyArrange=delegate{commandBody.SetBounds(S(8),S(6),Math.Max(1,bodyFrame.Width-S(16)),Math.Max(1,bodyFrame.Height-S(12)));};
             bodyFrame.Resize+=delegate{bodyArrange();};bodyArrange();
             Place(editor,instructionError,12,116,316,18);instructionError.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            Place(commandsPage,addCommand,0,308,110,PanelTheme.CompactControlHeight);
-            Place(commandsPage,saveEntry,118,308,110,PanelTheme.CompactControlHeight);
+            Place(commandsPage,addCommand,0,294,110,PanelTheme.CompactControlHeight);
+            Place(commandsPage,saveEntry,118,294,110,PanelTheme.CompactControlHeight);
             addCommand.Click+=delegate{
                 editing=null;var example=Examples[exampleIndex++%Examples.Length];
                 commandName.Text=example[0];commandBody.Text=example[1];
@@ -222,7 +227,7 @@ namespace DeepSeekFloat {
         // ----- page switching -----
         private void ShowGeneralPage() {
             onCommandsPage=false;confirming=false;
-            heading.Text="小窗设置";subtitle.Text="顺手唤起，随时问答"+VersionSuffix();
+            heading.Text="小窗设置";
             commandsPage.Visible=false;content.Visible=true;
             error.Text="";
             UpdateFooterButtons();
@@ -233,7 +238,7 @@ namespace DeepSeekFloat {
         private void ShowCommandsPage(bool fresh) {
             if(fresh){LoadDraft();editing=null;ClearEditor();}
             onCommandsPage=true;confirming=false;
-            heading.Text="快捷指令";subtitle.Text="自定义取词栏「更多指令」中的条目";
+            heading.Text="快捷指令";
             content.Visible=false;commandsPage.Visible=true;
             error.Text=loadError??"";
             RenderCommandList();
@@ -276,9 +281,9 @@ namespace DeepSeekFloat {
             if(arranging)return;arranging=true;
             try {
                 int width=Math.Max(1,surface.ClientSize.Width-S(40));
-                heading.Width=Math.Max(1,surface.Width-S(76));subtitle.Width=width;
+                heading.Width=Math.Max(1,surface.Width-S(76));
                 close.SetBounds(surface.Width-S(52),S(16),S(32),S(28));
-                body.SetBounds(S(20),S(80),width,Math.Max(1,surface.Height-S(160)));
+                body.SetBounds(S(20),S(52),width,Math.Max(1,surface.Height-S(136)));
                 footer.SetBounds(S(20),surface.Height-S(72),width,S(64));
                 error.SetBounds(0,0,width,S(28));
                 Button primary,secondary;
