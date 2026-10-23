@@ -162,10 +162,11 @@ internal static class SettingsTests {
    window.ApplyDpi(WindowDpi.Scale(window),new Rectangle(window.Left,window.Top,410,616));window.Activate();Pump(150);
    ToolStripDropDownCloseReason? closeReason=null;modeMenu.Closed+=delegate(object sender,ToolStripDropDownClosedEventArgs e){closeReason=e.CloseReason;};
    var itemFont=modeMenu.Items[0].Font;int widest=0;
-   foreach(var item in modeMenu.Items.Cast<ToolStripItem>())if(!string.IsNullOrEmpty(item.Text))widest=Math.Max(widest,TextRenderer.MeasureText(item.Text,itemFont).Width);
+   foreach(var item in modeMenu.Items.Cast<ToolStripItem>())if(!string.IsNullOrEmpty(item.Text))widest=Math.Max(widest,TextRenderer.MeasureText(item.Text,itemFont,new Size(int.MaxValue,int.MaxValue),TextFormatFlags.Left|TextFormatFlags.NoPadding).Width);
    var menuScale=(float)Field(modeMenu,"scale");
    Func<int,int> ms=v=>Math.Max(1,(int)Math.Round(v*menuScale));
-   var expected=Math.Max(ms(76),Math.Min(ms(300),widest+ms(32)))+ms(16);
+   var side=Math.Max(ms(4),(int)Math.Round(widest*0.18f));
+   var expected=Math.Max(ms(56),Math.Min(ms(300),widest+side*2))+ms(8);
    Check(modeMenu.Width==expected,"mode menu width hugs the widest item plus fixed chrome, no blank column");
    modeMenu.Show(modeSelector,new Point(0,modeSelector.Height));var menuHandle=modeMenu.Handle;var anchorScreen=modeSelector.PointToScreen(Point.Empty);
    Check(modeMenu.Left==anchorScreen.X&&modeMenu.Top==anchorScreen.Y+modeSelector.Height,"mode menu drops with its left edge flush to the anchor button");
@@ -731,7 +732,7 @@ internal static class SettingsTests {
     Check(menu.Region!=null&&!menu.Region.IsVisible(1,1)&&menu.Region.IsVisible(menu.Width/2,1),"popup shape is genuinely rounded");
     menu.Items[0].PerformClick();menu.Items[1].PerformClick();menu.Items[3].PerformClick();menu.Items[4].PerformClick();Check(menuCalls==4,"all four menu actions dispatch");
     bool alive=true;for(int i=0;i<50;i++){typeof(ToolStripDropDown).GetMethod("OnClosed",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(menu,new object[]{new ToolStripDropDownClosedEventArgs(ToolStripDropDownCloseReason.AppClicked)});alive&=!menu.IsDisposed;}Check(alive,"fifty close cycles retain reusable popup");
-    var high=new TrayMenu(2);using(high){high.AddAction("打开 DeepSeek 小窗",delegate{});high.AddAction("取消置顶",delegate{});high.AddDivider();high.AddAction("设置",delegate{});high.AddAction("退出",delegate{});high.PerformLayout();Console.WriteLine("low="+menu.Size+" row="+menu.Items[0].Size+" high="+high.Size+" row="+high.Items[0].Size);Check(high.Width>menu.Width&&high.Items[0].Height==menu.Items[0].Height*2,"menu row geometry respects two scaling factors");using(var bitmap=new Bitmap(high.Width,high.Height)){high.DrawToBitmap(bitmap,new Rectangle(0,0,bitmap.Width,bitmap.Height));bitmap.Save(Path.Combine(args[0],"tray-menu-preview-high-dpi.png"));}}
+    var high=new TrayMenu(2);using(high){high.AddAction("打开 DeepSeek 小窗",delegate{});high.AddAction("取消置顶",delegate{});high.AddDivider();high.AddAction("设置",delegate{});high.AddAction("退出",delegate{});high.PerformLayout();Console.WriteLine("low="+menu.Size+" row="+menu.Items[0].Size+" high="+high.Size+" row="+high.Items[0].Size);Check(high.Height>menu.Height&&high.Items[0].Height==menu.Items[0].Height*2,"menu row geometry respects two scaling factors");using(var bitmap=new Bitmap(high.Width,high.Height)){high.DrawToBitmap(bitmap,new Rectangle(0,0,bitmap.Width,bitmap.Height));bitmap.Save(Path.Combine(args[0],"tray-menu-preview-high-dpi.png"));}}
     using(var bitmap=new Bitmap(menu.Width,menu.Height)){menu.DrawToBitmap(bitmap,new Rectangle(0,0,bitmap.Width,bitmap.Height));bitmap.Save(Path.Combine(args[0],"tray-menu-preview.png"));}
    }
       // Exercise the framework's real NotifyIcon menu path, with only test-owned

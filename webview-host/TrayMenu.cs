@@ -14,22 +14,28 @@ namespace DeepSeekFloat {
         }
         private int S(int value){return Math.Max(1,(int)Math.Round(value*scale));}
         internal ToolStripMenuItem AddAction(string text,EventHandler action) {
-            var item=new ToolStripMenuItem(text,null,action) {AutoSize=false,Size=new Size(S(200),S(PanelTheme.MenuRowHeight)),Margin=Padding.Empty,Padding=new Padding(S(8),0,S(4),0)};
+            var item=new ToolStripMenuItem(text,null,action) {AutoSize=false,Size=new Size(S(200),S(PanelTheme.MenuRowHeight)),Margin=Padding.Empty,Padding=Padding.Empty};
             Items.Add(item);UpdateSize();return item;
         }
         internal void AddDivider(){Items.Add(new ToolStripSeparator {AutoSize=false,Size=new Size(S(200),S(14)),Margin=Padding.Empty});UpdateSize();}
+        internal int Side{get;private set;}
         private void UpdateSize(){
             // Width hugs the widest item; the fixed 216 DIP pill left large
-            // blank margins next to short mode names.
+            // blank margins next to short mode names. Side margins derive
+            // from the measured text itself, not from dpiScale: GDI measures
+            // at a DC that does not always follow the window scale, and any
+            // mismatch between the two surfaced as a blank column after the
+            // last glyph.
             int textWidth=0;
             foreach(ToolStripItem item in Items){
                 if(item is ToolStripSeparator)continue;
-                textWidth=Math.Max(textWidth,TextRenderer.MeasureText(item.Text,menuFont).Width);
+                textWidth=Math.Max(textWidth,TextRenderer.MeasureText(item.Text,menuFont,new Size(int.MaxValue,int.MaxValue),TextFormatFlags.Left|TextFormatFlags.NoPadding).Width);
             }
-            int inner=Math.Max(S(76),Math.Min(S(300),textWidth+S(32)));
+            Side=Math.Max(S(4),(int)Math.Round(textWidth*0.18f));
+            int inner=Math.Max(S(56),Math.Min(S(300),textWidth+Side*2));
             int height=S(16);
             foreach(ToolStripItem item in Items){item.Size=new Size(inner,item.Height);height+=item.Height;}
-            Size=new Size(inner+S(16),height);
+            Size=new Size(inner+S(8),height);
         }
         protected override void OnSizeChanged(EventArgs e) {
             base.OnSizeChanged(e);if(scale<=0||Width<1||Height<1)return;
@@ -64,7 +70,8 @@ namespace DeepSeekFloat {
             using(var path=PanelTheme.Rounded(new RectangleF(0,0,e.Item.Width-1,e.Item.Height-1),PanelTheme.ControlRadius*scale))using(var brush=new SolidBrush(PanelTheme.Hover))e.Graphics.FillPath(brush,path);
         }
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e){
-            int inset=(int)Math.Round(8*scale);
+            var owner=e.Item.Owner as TrayMenu;
+            int inset=owner!=null?owner.Side:(int)Math.Round(8*scale);
             TextRenderer.DrawText(e.Graphics,e.Text,e.Item.Font,new Rectangle(inset,0,e.Item.Width-inset*2,e.Item.Height),e.Item.Enabled?PanelTheme.Ink:PanelTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPrefix|TextFormatFlags.EndEllipsis);
         }
         protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e){using(var pen=new Pen(PanelTheme.Border,scale))e.Graphics.DrawLine(pen,4*scale,e.Item.Height/2,e.Item.Width-4*scale,e.Item.Height/2);}
