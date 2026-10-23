@@ -355,20 +355,34 @@ internal static class SettingsTests {
   using(var dialog=new FeedbackDialog(json=>{captured=json;return null;})) {
    dialog.Show();Application.DoEvents();
    var text=(TextBox)Field(dialog,"body");var send=(PanelButton)Field(dialog,"send");
-   Check(!send.Enabled&&((Label)Field(dialog,"counter")).Text=="0 / "+FeedbackDialog.MaxChars,"feedback send stays disabled without content");
+   var contactBox=(TextBox)Field(dialog,"contact");var chips=(PanelButton[])Field(dialog,"chips");
+   Check(!send.Enabled&&((Label)Field(dialog,"bodyHint")).Visible&&((Label)Field(dialog,"counter")).Text.Length==0,"feedback stays disabled with placeholder and hidden counter until content");
    text.Text="希望支持深色模式";
-   Check(send.Enabled&&((Label)Field(dialog,"counter")).Text.Contains("1000"),"feedback counter and enable state track input");
+   Check(send.Enabled&&!((Label)Field(dialog,"bodyHint")).Visible&&((Label)Field(dialog,"counter")).Text.Length==0,"placeholder clears and the counter stays hidden below the threshold");
+   text.Text=new string('很',900);
+   Check(((Label)Field(dialog,"counter")).Text.Contains("1000"),"counter appears near the limit");
+   text.Text="希望支持深色模式";
+   Click(chips[1]);contactBox.Text="QQ 12345678";
+   Check(chips[1].Chosen&&!chips[0].Chosen&&!chips[2].Chosen,"category chip selects alone");
+   using(var bitmap=new Bitmap(dialog.Width,dialog.Height)){dialog.DrawToBitmap(bitmap,new Rectangle(0,0,bitmap.Width,bitmap.Height));bitmap.Save(Path.Combine(directory,"feedback-dialog-preview.png"));}
    Click(send);
-   for(int i=0;i<60&&dialog.DialogResult==DialogResult.None;i++){Application.DoEvents();System.Threading.Thread.Sleep(10);}
-   Check(captured!=null&&captured.Contains("希望支持深色模式")&&captured.Contains("\"version\"")&&captured.Contains("\"app\":\"deepseek-reflex\""),"feedback posts app, version and text");
-   Check(dialog.DialogResult==DialogResult.OK,"successful feedback closes the dialog");
+   for(int i=0;i<80&&!((Label)Field(dialog,"thanksText")).Visible&&dialog.DialogResult==DialogResult.None;i++){Application.DoEvents();System.Threading.Thread.Sleep(10);}
+   Check(captured!=null&&captured.Contains("希望支持深色模式")&&captured.Contains("\"category\":\"建议\"")&&captured.Contains("\"contact\":\"QQ 12345678\"")&&captured.Contains("\"version\"")&&captured.Contains("\"app\":\"deepseek-reflex\""),"feedback posts app, version, text, category and contact");
+   Check(((Label)Field(dialog,"thanksText")).Visible&&send.Visible==false,"successful send shows the thank-you state");
+   using(var bitmap=new Bitmap(dialog.Width,dialog.Height)){dialog.DrawToBitmap(bitmap,new Rectangle(0,0,bitmap.Width,bitmap.Height));bitmap.Save(Path.Combine(directory,"feedback-thanks-preview.png"));}
+   // The suite's earlier recording tests leave message filters that swallow
+   // WM_TIMER under DoEvents, so drive the elapsed tick directly instead of
+   // waiting for wall-clock delivery here.
+   typeof(Timer).GetMethod("OnTick",BindingFlags.Instance|BindingFlags.NonPublic).Invoke((Timer)Field(dialog,"thanksTimer"),new object[]{EventArgs.Empty});
+   Application.DoEvents();
+   Check(dialog.DialogResult==DialogResult.OK&&!dialog.Visible,"thank-you state closes the dialog when the timer elapses");
   }
   using(var dialog=new FeedbackDialog(json=>"网络不可用")) {
    dialog.Show();Application.DoEvents();
    ((TextBox)Field(dialog,"body")).Text="测试反馈";
-   Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="发送"));
+   Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="发送反馈"));
    for(int i=0;i<60&&dialog.Visible&&!((Label)Field(dialog,"status")).Text.Contains("失败");i++){Application.DoEvents();System.Threading.Thread.Sleep(10);}
-   Check(dialog.Visible&&((Label)Field(dialog,"status")).Text.Contains("失败"),"failed feedback stays open with the text and an inline reason");
+   Check(dialog.Visible&&((Label)Field(dialog,"status")).Text.Contains("失败")&&((PanelButton)Field(dialog,"send")).Enabled,"failed feedback restores the form with an inline reason");
   }
  }
  static void Click(Button button){typeof(Button).GetMethod("OnClick",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(button,new object[]{EventArgs.Empty});}

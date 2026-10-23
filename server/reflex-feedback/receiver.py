@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 LOCK = threading.Lock()
 RECENT = {}
 WINDOW_SECONDS, LIMIT_PER_WINDOW = 3600.0, 6
-MAX_BYTES = 4096
+MAX_BYTES = 8192
 STORE = "/opt/reflex-feedback/feedback.jsonl"
 
 
@@ -24,7 +24,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/feedback":
             self._reply(404)
             return
-        ip = self.client_address[0]
+        # nginx is the direct peer, so the real client IP arrives in X-Real-IP.
+        ip = self.headers.get("X-Real-IP") or self.client_address[0]
         now = time.time()
         with LOCK:
             hits = [t for t in RECENT.get(ip, []) if now - t < WINDOW_SECONDS]
@@ -53,6 +54,12 @@ class Handler(BaseHTTPRequestHandler):
                 "version": str(data.get("version", ""))[:32],
                 "text": text[:1000],
             }
+            category = data.get("category")
+            if isinstance(category, str) and category.strip():
+                entry["category"] = category.strip()[:16]
+            contact = data.get("contact")
+            if isinstance(contact, str) and contact.strip():
+                entry["contact"] = contact.strip()[:100]
         except Exception:
             self._reply(400)
             return
