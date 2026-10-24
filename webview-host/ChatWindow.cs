@@ -95,6 +95,7 @@ namespace DeepSeekFloat
         private bool capturing, inserting, settingsOpen, pendingComposerFocus,layingOut,guideOpen,guideQueued;
         private int focusVersion;
         private WindowSettings settings;
+        private IntPtr foregroundHook;private Native.WinEventDelegate foregroundHandler;private TrayMenu openMenu;private bool pinned;
         private HotkeyBindings hotkeys;
         private int selectionVersion;
         private string selectedText, lastInserted;
@@ -154,7 +155,10 @@ namespace DeepSeekFloat
                     health.iconBackgroundTransparent=(bitmap.GetPixel(0,0).ToArgb()&0xffffff)==0xff00ff&&(bitmap.GetPixel(bitmap.Width-1,bitmap.Height-1).ToArgb()&0xffffff)==0xff00ff;
                 }
             } catch (IOException) { }
-            TopMost = Preferences.ReadBool("pin.json");
+            pinned = Preferences.ReadBool("pin.json");TopMost = pinned;
+            Deactivate+=delegate{CloseOpenMenus();};
+            foregroundHandler=OnForegroundChanged;
+            foregroundHook=Native.SetWinEventHook(0x0003,0x0003,IntPtr.Zero,foregroundHandler,0,0,0); // EVENT_SYSTEM_FOREGROUND, out of context
             settings = WindowSettings.Load();
             if(settings.Theme!="light"&&settings.Theme!="dark")Microsoft.Win32.SystemEvents.UserPreferenceChanged+=OnSystemPreferenceChanged;
             browser.DefaultBackgroundColor=PanelTheme.Back;
@@ -424,7 +428,9 @@ namespace DeepSeekFloat
             }
             menu.AddDivider();
             menu.AddAction("去设置添加",delegate { ShowSettingsPage("commands"); });
+            openMenu=menu;
             menu.Closed+=delegate {
+                if(openMenu==menu)openMenu=null;
                 if(!resourcesDisposed&&!quitting&&IsHandleCreated){moreSelection.Focus();BeginInvoke(new Action(menu.Dispose));}
                 else menu.Dispose();
             };
@@ -482,7 +488,7 @@ namespace DeepSeekFloat
         {
             try { Preferences.Write("pin.json",value ? "true" : "false"); }
             catch(Exception error) { if(!Preferences.IsStorageFailure(error))throw;tips.SetToolTip(pin,"置顶设置未能保存，请重试。");return; }
-            TopMost = value;
+            pinned=value;TopMost = value;
             if(smoothFrame!=null)smoothFrame.SyncOwner();
             RefreshPin();
             WriteHealth();
@@ -491,6 +497,20 @@ namespace DeepSeekFloat
         {
             ShowChatAt(captureWakeTarget());
         }
+        // Screenshot overlays (WeChat, QQ, Snipaste) are topmost themselves; a
+        // pinned floating window would cover them and their selection would
+        // stick. Yield while a sibling topmost window owns the foreground and
+        // return to the pin state as soon as a normal window leads again.
+        internal static bool TopmostForForeground(bool pinned,bool selfForeground,bool foreignTopmost){return pinned&&(selfForeground||!foreignTopmost);}
+        private void OnForegroundChanged(IntPtr hook,uint eventId,IntPtr hwnd,int idObject,int idChild,uint thread,uint time) {
+            if(idObject!=0||resourcesDisposed||quitting||!IsHandleCreated)return;
+            BeginInvoke(new Action(delegate {
+                if(resourcesDisposed||quitting||!IsHandleCreated)return;
+                var foreground=Native.GetForegroundWindow();
+                TopMost=TopmostForForeground(pinned,foreground==Handle,Native.IsTopmostWindow(foreground));
+            }));
+        }
+        internal void CloseOpenMenus(){var menu=openMenu;if(menu!=null&&menu.Visible)menu.Close();}
         private void ShowChatAt(WakeTarget target)
         {
             WakeChatAt(target,true);
@@ -655,7 +675,9 @@ namespace DeepSeekFloat
                 var choice=definition;
                 menu.AddAction((choice.Id==settings.ChatMode?"✓ ":"")+choice.Name,async delegate{await SwitchChatMode(choice.Id);});
             }
+            openMenu=menu;
             menu.Closed+=delegate{
+                if(openMenu==menu)openMenu=null;
                 if(!resourcesDisposed&&!quitting&&IsHandleCreated){chatModeButton.Focus();BeginInvoke(new Action(menu.Dispose));}
                 else menu.Dispose();
             };
@@ -1020,6 +1042,7 @@ namespace DeepSeekFloat
                 resourcesDisposed=true;
                 Microsoft.Win32.SystemEvents.DisplaySettingsChanged-=OnDisplaySettingsChanged;
                 Microsoft.Win32.SystemEvents.UserPreferenceChanged-=OnSystemPreferenceChanged;
+                if(foregroundHook!=IntPtr.Zero){Native.UnhookWinEvent(foregroundHook);foregroundHook=IntPtr.Zero;}
                 if(edgeDock!=null)edgeDock.Shutdown();
                 if(bridge!=null)bridge.Dispose();
                 if(smoothFrame!=null)smoothFrame.Dispose();

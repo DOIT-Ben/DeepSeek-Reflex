@@ -189,6 +189,14 @@ internal static class SettingsTests {
    using(var bitmap=new Bitmap(window.Width,window.Height)){window.DrawToBitmap(bitmap,new Rectangle(0,0,window.Width,window.Height));bitmap.Save(Path.Combine(directory,"dark-titlebar.png"));}
    PanelTheme.SetMode(UiTheme.Light);typeof(ChatWindow).GetMethod("ApplyTheme",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
    Check(chromePanel.BackColor==System.Drawing.Color.White&&PanelTheme.Mode==UiTheme.Light,"light theme restores the chrome");
+   Check(!ChatWindow.TopmostForForeground(true,false,true)&&ChatWindow.TopmostForForeground(true,false,false)&&ChatWindow.TopmostForForeground(true,true,true)&&!ChatWindow.TopmostForForeground(false,false,false),"pinned floating yields to sibling topmost overlays and returns to the pin state");
+   typeof(ChatWindow).GetMethod("ShowChatModeMenu",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
+   var liveMenu=(TrayMenu)Field(window,"openMenu");
+   Check(liveMenu!=null&&liveMenu.Visible&&!liveMenu.IsDisposed,"the live mode menu registers for outside dismissal");
+   window.CloseOpenMenus();Application.DoEvents();
+   Check(liveMenu.IsDisposed||!liveMenu.Visible&&Field(window,"openMenu")==null,"deactivating the window dismisses the open mode menu");
+   using(var probeForm=new Form{TopMost=true}){probeForm.Show();Application.DoEvents();
+    Check(Native.IsTopmostWindow(probeForm.Handle)&&!Native.IsTopmostWindow(window.Handle),"topmost probe reads the real ex-style");}
    typeof(ChatWindow).GetField("quitting",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);window.Close();
   }
   using(var shell=new Form())using(var pin=new ChromeButton("pin","测试置顶"))using(var toggle=new PanelSwitch("测试开关")) {

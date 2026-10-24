@@ -15,6 +15,10 @@ namespace DeepSeekFloat
         [StructLayout(LayoutKind.Sequential)] internal struct POINT { internal int x,y; }
         [StructLayout(LayoutKind.Sequential)] internal struct MOUSEHOOKDATA { internal POINT point; internal uint mouseData,flags,time; internal UIntPtr extra; }
         [DllImport("user32.dll")] internal static extern IntPtr GetForegroundWindow();
+        public delegate void WinEventDelegate(IntPtr hook,uint eventId,IntPtr hwnd,int idObject,int idChild,uint thread,uint time);
+        [DllImport("user32.dll")] internal static extern IntPtr SetWinEventHook(uint eventMin,uint eventMax,IntPtr mode,WinEventDelegate handler,uint idProcess,uint idThread,uint flags);
+        [DllImport("user32.dll")] internal static extern bool UnhookWinEvent(IntPtr hook);
+        internal static bool IsTopmostWindow(IntPtr hwnd){return hwnd!=IntPtr.Zero&&(GetWindowLong(hwnd,-20)&0x8)!=0;} // GWL_EXSTYLE, WS_EX_TOPMOST
         [DllImport("user32.dll")] internal static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
         [DllImport("user32.dll")] internal static extern short GetAsyncKeyState(int key);
         [DllImport("user32.dll")] internal static extern uint GetClipboardSequenceNumber();
