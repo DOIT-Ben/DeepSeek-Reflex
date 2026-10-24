@@ -102,7 +102,7 @@ namespace DeepSeekFloat {
                 using(var g=Graphics.FromImage(bitmap)) {
                     g.Clear(Color.Transparent);g.SmoothingMode=SmoothingMode.AntiAlias;
                     float radius=WindowFrame.Radius*scale,band=(WindowResize.Border+1)*scale;
-                    using(var path=PanelTheme.Rounded(new RectangleF(0,0,size.Width,size.Height),radius))using(var white=new SolidBrush(Color.White))g.FillPath(white,path);
+                    using(var path=PanelTheme.Rounded(new RectangleF(0,0,size.Width,size.Height),radius))using(var white=new SolidBrush(PanelTheme.Back))g.FillPath(white,path);
                     g.CompositingMode=CompositingMode.SourceCopy;
                     using(var path=PanelTheme.Rounded(new RectangleF(band,band,size.Width-band*2,size.Height-band*2),radius-band))using(var clear=new SolidBrush(Color.Transparent))g.FillPath(clear,path);
                     g.CompositingMode=CompositingMode.SourceOver;

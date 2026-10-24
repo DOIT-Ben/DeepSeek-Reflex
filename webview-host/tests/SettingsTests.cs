@@ -90,7 +90,8 @@ internal static class SettingsTests {
  static void PressKey(Control control,Keys keys) {typeof(Control).GetMethod("OnKeyDown",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(control,new object[]{new KeyEventArgs(keys)});}
  static void TestInteractionPolish(string directory) {
   var original=WindowSettings.Defaults();original.ToggleKeys=K(Keys.F20);original.CaptureKeys=K(Keys.F21);
-  using(var dialog=new SettingsDialog(original,delegate(WindowSettings next){return null;},delegate(string action){})) {
+  WindowSettings received=null;
+  using(var dialog=new SettingsDialog(original,delegate(WindowSettings next){received=next;return null;},delegate(string action){})) {
    dialog.Show();Application.DoEvents();var toggle=(HotkeyBox)Field(dialog,"toggle");var capture=(HotkeyBox)Field(dialog,"capture");var save=(PanelButton)Field(dialog,"save");var hint=(Label)Field(dialog,"hint");
    toggle.Focus();Check(toggle.Recording&&toggle.Text.Contains("请按")&&hint.Text.Contains("Esc"),"focusing a shortcut shows recording instructions without changing its binding");
    PressKey(toggle,Keys.D);Check(toggle.Invalid&&toggle.Combination==original.ToggleKeys&&hint.Text.Contains("Ctrl"),"modifierless input reports a useful error and preserves the shortcut");
@@ -103,6 +104,8 @@ internal static class SettingsTests {
    var choices=(PanelChoices)Field(dialog,"windowMode");choices.SelectedIndex=0;var buttons=choices.Controls.OfType<PanelButton>().ToArray();buttons[0].Focus();PressKey(buttons[0],Keys.Right);
    Check(choices.SelectedIndex==1&&buttons[1].Focused&&buttons.Count(b=>b.TabStop)==1,"segmented choices support arrow navigation and one keyboard tab stop");
    PressKey(buttons[1],Keys.End);Check(choices.SelectedIndex==2,"segmented choices support End without moving the panel geometry");
+   var themeChoice=(PanelChoices)Field(dialog,"themeChoice");
+   Check(themeChoice.SelectedIndex==0&&themeChoice.Controls.OfType<PanelButton>().Count()==3,"theme row defaults to following the system with three choices");
    float scale=(float)Field(dialog,"scale");var body=(Panel)Field(dialog,"body");var footer=(Panel)Field(dialog,"footer");
    var preferred=dialog.ClientSize;var sizes=new[]{new Size((int)(440*scale),(int)(644*scale)),new Size((int)(360*scale),(int)(480*scale)),new Size((int)(340*scale),(int)(390*scale))};
    foreach(var size in sizes) {
@@ -119,6 +122,11 @@ internal static class SettingsTests {
    ((ChromeButton)Field(dialog,"close")).Focus();Application.DoEvents();using(var bitmap=new Bitmap(surface.Width,surface.Height)){surface.DrawToBitmap(bitmap,surface.ClientRectangle);bitmap.Save(Path.Combine(directory,"settings-polished-preview.png"));}
    Native.PostMessage(((ChromeButton)Field(dialog,"close")).Handle,0x100,new IntPtr((int)Keys.Escape),IntPtr.Zero);Pump(35);
    Check(!dialog.Visible&&dialog.DialogResult==DialogResult.Cancel,"Escape outside recording dismisses settings without applying edits");
+   using(var themeDialog=new SettingsDialog(original,delegate(WindowSettings next){received=next;return null;},null)) {
+    themeDialog.Show();Application.DoEvents();
+    var choices2=(PanelChoices)Field(themeDialog,"themeChoice");choices2.SelectedIndex=2;var saveButton=(PanelButton)Field(themeDialog,"save");saveButton.Enabled=true;Click(saveButton);
+   }
+   Check(received!=null&&received.Theme=="dark","saving persists the dark theme preference");
   }
   foreach(float scale in new[]{1f,1.5f,2f}) {
    var area=new Rectangle(-1280,40,1280,680);var fitted=SettingsDialog.FitBounds(new Rectangle(-1400,-20,(int)(440*scale),(int)(644*scale)),area,scale);
@@ -174,6 +182,13 @@ internal static class SettingsTests {
    using(var menuBitmap=new Bitmap(modeMenu.Width,modeMenu.Height)){modeMenu.DrawToBitmap(menuBitmap,new Rectangle(0,0,modeMenu.Width,modeMenu.Height));menuBitmap.Save(Path.Combine(directory,"mode-menu-open.png"));}
    Native.PostMessage(menuHandle,0x100,new IntPtr((int)Keys.Escape),IntPtr.Zero);Pump(80);
    Check(closeReason==ToolStripDropDownCloseReason.Keyboard&&!modeMenu.Visible&&modeSelector.Focused,"Escape dismisses the native mode menu and returns keyboard focus");
+   Check(ChatWindow.ResolveTheme("light")==UiTheme.Light&&ChatWindow.ResolveTheme("dark")==UiTheme.Dark&&((ChatWindow.ResolveTheme("auto")==UiTheme.Dark)==PanelTheme.SystemPrefersDark()),"theme preference resolution follows explicit and system values");
+   PanelTheme.SetMode(UiTheme.Dark);typeof(ChatWindow).GetMethod("ApplyTheme",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
+   var chromePanel=(Control)Field(window,"chrome");
+   Check(PanelTheme.Mode==UiTheme.Dark&&chromePanel.BackColor==PanelTheme.Back&&chromePanel.BackColor!=System.Drawing.Color.White,"dark theme repaints the title chrome");
+   using(var bitmap=new Bitmap(window.Width,window.Height)){window.DrawToBitmap(bitmap,new Rectangle(0,0,window.Width,window.Height));bitmap.Save(Path.Combine(directory,"dark-titlebar.png"));}
+   PanelTheme.SetMode(UiTheme.Light);typeof(ChatWindow).GetMethod("ApplyTheme",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
+   Check(chromePanel.BackColor==System.Drawing.Color.White&&PanelTheme.Mode==UiTheme.Light,"light theme restores the chrome");
    typeof(ChatWindow).GetField("quitting",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);window.Close();
   }
   using(var shell=new Form())using(var pin=new ChromeButton("pin","测试置顶"))using(var toggle=new PanelSwitch("测试开关")) {

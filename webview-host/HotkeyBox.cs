@@ -11,7 +11,7 @@ namespace DeepSeekFloat {
         internal event EventHandler FeedbackChanged;
         internal HotkeyBox(int value) {
             ReadOnly=true;Combination=value;Text=HotkeyBindings.Format(value);
-            BackColor=Color.White;ForeColor=PanelTheme.Ink;BorderStyle=BorderStyle.None;
+            BackColor=PanelTheme.Card;ForeColor=PanelTheme.Ink;BorderStyle=BorderStyle.None;
             TextAlign=HorizontalAlignment.Center;HideSelection=true;
         }
         private void Report(string message,bool invalid) {

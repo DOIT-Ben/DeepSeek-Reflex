@@ -10,14 +10,15 @@ namespace DeepSeekFloat {
         private readonly PanelSwitch dock=new PanelSwitch("拖到屏幕边缘时收纳为标签");
         private readonly PanelChoices hideMode=new PanelChoices("最小化到任务栏","收进托盘");
         private readonly PanelChoices windowMode=new PanelChoices("当前尺寸","小窗模式","阅读模式");
+        private readonly PanelChoices themeChoice=new PanelChoices("跟随系统","浅色","深色");
         private readonly Label error=new Label {AutoSize=false,ForeColor=PanelTheme.Error};
         private readonly Label hint=new Label {AutoSize=false,ForeColor=PanelTheme.Muted};
-        private readonly Panel surface=new Panel {Name="settings-surface",Dock=DockStyle.Fill,BackColor=Color.White};
-        private readonly Panel body=new Panel {Name="settings-body",AutoScroll=true,BackColor=Color.White,TabStop=false};
-        private readonly Panel content=new Panel {BackColor=Color.White,TabStop=false};
-        private readonly Panel commandsPage=new Panel {Name="settings-commands",BackColor=Color.White,TabStop=false};
-        private readonly Panel footer=new Panel {Name="settings-footer",BackColor=Color.White};
-        private readonly Panel commandList=new Panel {AutoScroll=true,BackColor=Color.White,TabStop=false};
+        private readonly Panel surface=new Panel {Name="settings-surface",Dock=DockStyle.Fill,BackColor=PanelTheme.Back};
+        private readonly Panel body=new Panel {Name="settings-body",AutoScroll=true,BackColor=PanelTheme.Back,TabStop=false};
+        private readonly Panel content=new Panel {BackColor=PanelTheme.Back,TabStop=false};
+        private readonly Panel commandsPage=new Panel {Name="settings-commands",BackColor=PanelTheme.Back,TabStop=false};
+        private readonly Panel footer=new Panel {Name="settings-footer",BackColor=PanelTheme.Back};
+        private readonly Panel commandList=new Panel {AutoScroll=true,BackColor=PanelTheme.Back,TabStop=false};
         private readonly PanelButton save=new PanelButton("保存") {Primary=true};
         private readonly PanelButton cancel=new PanelButton("取消") {DialogResult=DialogResult.Cancel};
         private readonly PanelButton saveCommands=new PanelButton("保存指令") {Primary=true};
@@ -47,12 +48,12 @@ namespace DeepSeekFloat {
         private readonly WindowFrame frame=new WindowFrame();
         private SmoothFrame smoothFrame;
         private bool arranging;
-        private const int GeneralContentHeight=332,CommandsContentHeight=332;
+        private const int GeneralContentHeight=384,CommandsContentHeight=332;
         internal SettingsDialog(WindowSettings settings,Func<WindowSettings,string> apply,Action<string> quickAction=null,string openPage=null) {
             original=settings.Clone();toggle=new HotkeyBox(settings.ToggleKeys);capture=new HotkeyBox(settings.CaptureKeys);
             toggle.AccessibleName="唤出 / 收起快捷键";capture.AccessibleName="选中文字取词快捷键";
             using(var graphics=Graphics.FromHwnd(IntPtr.Zero))scale=graphics.DpiX/96f;
-            Text="DeepSeek-Reflex 设置";Font=PanelTheme.CompactFont();BackColor=Color.White;ForeColor=PanelTheme.Ink;DoubleBuffered=true;
+            Text="DeepSeek-Reflex 设置";Font=PanelTheme.CompactFont();BackColor=PanelTheme.Back;ForeColor=PanelTheme.Ink;DoubleBuffered=true;
             FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;MinimizeBox=false;ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;
             AutoScaleMode=AutoScaleMode.None;ClientSize=new Size(S(460),S(480));Padding=Padding.Empty;
             Controls.Add(surface);
@@ -73,8 +74,11 @@ namespace DeepSeekFloat {
             hideMode.SelectedIndex=settings.HideToTrayOnToggle?1:0;Place(content,hideMode,0,212,420,30);hideMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             LabelAt(content,"窗口尺寸",0,246,420,16,PanelTheme.BodySize,true);
             windowMode.SelectedIndex=settings.Mode=="reading"?2:settings.Mode=="compact"?1:0;Place(content,windowMode,0,264,420,30);windowMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            var actions=new Panel {Margin=Padding.Empty,Padding=Padding.Empty,BackColor=Color.White};
-            Place(content,actions,0,298,420,PanelTheme.CompactControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            themeChoice.SelectedIndex=settings.Theme=="dark"?2:settings.Theme=="light"?1:0;LabelAt(content,"主题",0,298,420,16,PanelTheme.BodySize,true);
+            Place(content,themeChoice,0,316,420,30);themeChoice.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            themeChoice.AccessibleName="界面主题";
+            var actions=new Panel {Margin=Padding.Empty,Padding=Padding.Empty,BackColor=PanelTheme.Back};
+            Place(content,actions,0,350,420,PanelTheme.CompactControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             var refresh=new PanelButton("刷新页面") {Ghost=true,Outline=true};var import=new PanelButton("粘贴导入") {Ghost=true,Outline=true};var help=new PanelButton("使用帮助") {Ghost=true,Outline=true};
             tips.SetToolTip(import,"导入剪贴板中的文字");
             var actionButtons=new[]{refresh,import,help};
@@ -106,6 +110,7 @@ namespace DeepSeekFloat {
                 if(toggle.Recording||capture.Recording){hint.Text="请先完成或取消快捷键录入。";return;}
                 var next=original.Clone();next.ToggleKeys=toggle.Combination;next.CaptureKeys=capture.Combination;next.FocusOnOpen=focus.Checked;next.EdgeDockEnabled=dock.Checked;next.HideToTrayOnToggle=hideMode.SelectedIndex==1;
                 next.Mode=windowMode.SelectedIndex==2?"reading":windowMode.SelectedIndex==1?"compact":"custom";
+                next.Theme=themeChoice.SelectedIndex==2?"dark":themeChoice.SelectedIndex==1?"light":"auto";
                 string failure=apply(next);if(failure!=null){error.Text=failure;return;}
                 DialogResult=DialogResult.OK;Close();
             };
@@ -330,7 +335,7 @@ namespace DeepSeekFloat {
         }
         private void Place(Control parent,Control child,int x,int y,int w,int h){child.SetBounds(S(x),S(y),S(w),S(h));parent.Controls.Add(child);}
         private Label LabelAt(Control parent,string text,int x,int y,int w,int h,float size,bool bold) {
-            var label=new Label {Text=text,Font=PanelTheme.CompactFont(size,bold),ForeColor=PanelTheme.Ink,BackColor=Color.White,TextAlign=ContentAlignment.MiddleLeft};Place(parent,label,x,y,w,h);if(parent==content||parent==commandsPage)label.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;return label;
+            var label=new Label {Text=text,Font=PanelTheme.CompactFont(size,bold),ForeColor=PanelTheme.Ink,BackColor=PanelTheme.Back,TextAlign=ContentAlignment.MiddleLeft};Place(parent,label,x,y,w,h);if(parent==content||parent==commandsPage)label.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;return label;
         }
         private void KeyRow(PanelCard card,string label,HotkeyBox box,int y) {
             var text=LabelAt(card,label,12,y,116,PanelTheme.CompactInputHeight,PanelTheme.BodySize,false);text.BackColor=PanelTheme.Surface;

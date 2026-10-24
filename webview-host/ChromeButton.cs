@@ -19,7 +19,7 @@ namespace DeepSeekFloat
             AccessibleRole = AccessibleRole.PushButton;
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
-            BackColor = Color.White;
+            BackColor = PanelTheme.Back;
             Cursor = Cursors.Hand;
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
             hoverMotion=new UiMotion(this);pressMotion=new UiMotion(this);choiceMotion=new UiMotion(this);
@@ -29,10 +29,10 @@ namespace DeepSeekFloat
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            var background = PanelTheme.Mix(PanelTheme.Mix(Color.White,PanelTheme.Tint,choiceMotion.Value),Kind=="close"?PanelTheme.CloseHover:PanelTheme.Hover,hoverMotion.Value);
+            var background = PanelTheme.Mix(PanelTheme.Mix(PanelTheme.Card,PanelTheme.Tint,choiceMotion.Value),Kind=="close"?PanelTheme.CloseHover:PanelTheme.Hover,hoverMotion.Value);
             background=PanelTheme.Mix(background,Kind=="close"?PanelTheme.ClosePressed:PanelTheme.Pressed,pressMotion.Value);
-            g.Clear(Color.White);
-            if(background!=Color.White)using(var shape=PanelTheme.Rounded(new RectangleF(1,1,Width-2,Height-2),PanelTheme.ControlRadius*Width/32f))using(var brush=new SolidBrush(background))g.FillPath(brush,shape);
+            g.Clear(PanelTheme.Back);
+            if(background!=PanelTheme.Card)using(var shape=PanelTheme.Rounded(new RectangleF(1,1,Width-2,Height-2),PanelTheme.ControlRadius*Width/32f))using(var brush=new SolidBrush(background))g.FillPath(brush,shape);
             float scale = Width / 32f;
             g.TranslateTransform(Width / 2f, Height / 2f+pressMotion.Value*scale);
             g.ScaleTransform(scale, scale);

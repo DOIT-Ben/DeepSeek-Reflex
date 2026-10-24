@@ -6,13 +6,13 @@ namespace DeepSeekFloat {
     internal sealed class WindowFrame : Control {
         internal const int Radius=22;
         internal const double DefaultZoom=0.9;
-        internal static readonly Color Outline=Color.FromArgb(178,188,204);
+        internal static Color Outline{get{return PanelTheme.Mode==UiTheme.Dark?Color.FromArgb(70,76,85):Color.FromArgb(178,188,204);}}
         internal static int OutlineWidth(float dpiScale){return Math.Max(1,(int)Math.Round(dpiScale));}
         internal static void DrawStraightOutline(Graphics graphics,Size size,float dpiScale,int tangent) {
             int width=OutlineWidth(dpiScale);
             // Erase the antialias fringe only along the straight tangents so
             // cached corners join the opaque host without an extra gray seam.
-            using(var brush=new SolidBrush(Color.White)) {
+            using(var brush=new SolidBrush(PanelTheme.Back)) {
                 graphics.FillRectangle(brush,tangent,0,size.Width-tangent*2,width+1);
                 graphics.FillRectangle(brush,tangent,size.Height-width-1,size.Width-tangent*2,width+1);
                 graphics.FillRectangle(brush,0,tangent,width+1,size.Height-tangent*2);
@@ -30,7 +30,7 @@ namespace DeepSeekFloat {
         private Size shapedSize;
         private Region hostShape,interactionShape;
         internal int ShapeUpdates {get;private set;}
-        internal WindowFrame() {TabStop=false;BackColor=Color.White;SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);}
+        internal WindowFrame() {TabStop=false;BackColor=PanelTheme.Back;SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);}
         internal void UpdateShape(Form form,float dpiScale,bool smoothOutline=false) {
             if(form.WindowState==FormWindowState.Minimized||form.ClientSize.Width<1||form.ClientSize.Height<1)return;
             bool maximized=form.WindowState==FormWindowState.Maximized;

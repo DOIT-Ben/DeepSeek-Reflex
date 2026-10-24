@@ -17,6 +17,7 @@ namespace DeepSeekFloat
         [DataMember] internal bool EdgeDockEnabled;
         [DataMember] internal string Mode="custom";
         [DataMember] internal string ChatMode="normal";
+        [DataMember(EmitDefaultValue=false)] internal string Theme="auto";
         internal WindowSettings Clone() { return (WindowSettings)MemberwiseClone(); }
         internal static WindowSettings Defaults()
         {
@@ -31,7 +32,7 @@ namespace DeepSeekFloat
                 using(var file=File.OpenRead(Path.Combine(Preferences.Root,"window-settings.json"))) {
                     var settings=(WindowSettings)new DataContractJsonSerializer(typeof(WindowSettings)).ReadObject(file);
                     if(settings!=null && settings.Version==1 && HotkeyBindings.Validate(settings.ToggleKeys,settings.CaptureKeys)==null && (settings.Mode=="custom"||settings.Mode=="compact"||settings.Mode=="reading")){
-                        settings.ChatMode=ChatModes.Find(settings.ChatMode).Id;return settings;
+                        settings.ChatMode=ChatModes.Find(settings.ChatMode).Id;if(settings.Theme!="light"&&settings.Theme!="dark")settings.Theme="auto";return settings;
                     }
                 }
             }catch(Exception e) { if(!(Preferences.IsStorageFailure(e) || e is SerializationException || e is ArgumentException))throw; }

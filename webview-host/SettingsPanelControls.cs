@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 namespace DeepSeekFloat {
+    internal enum UiTheme { Light, Dark }
     internal static class PanelTheme {
         // Shared with the DSH bundle at build time. Font sizes are points (96-DPI CSS px = pt * 4/3).
         internal const string FontFamily="Microsoft YaHei UI";
@@ -10,9 +11,32 @@ namespace DeepSeekFloat {
         internal const float CompactFontStep=1.5f;
         internal const int ControlRadius=8,PanelRadius=12,ControlHeight=32,InputHeight=40,MenuRowHeight=36;
         internal const int CompactControlHeight=30,CompactInputHeight=34;
-        internal static readonly Color Ink=Color.FromArgb(42,49,63),Muted=Color.FromArgb(103,112,130),Accent=Color.FromArgb(67,102,238),Tint=Color.FromArgb(237,242,255),Border=Color.FromArgb(225,231,240),Surface=Color.FromArgb(247,249,252);
-        internal static readonly Color Hover=Color.FromArgb(241,244,248),Pressed=Color.FromArgb(225,233,252),AccentHover=Color.FromArgb(51,82,214),AccentPressed=Color.FromArgb(42,70,190),Error=Color.FromArgb(177,48,48);
-        internal static readonly Color InputBorder=Color.FromArgb(131,143,163),CloseHover=Color.FromArgb(255,235,235),ClosePressed=Color.FromArgb(255,216,216);
+        // Palette members are properties on purpose: painters read them at
+        // paint time, so a mode switch recolors everything that draws through
+        // PanelTheme without rebuilding controls.
+        private static UiTheme mode=UiTheme.Light;
+        internal static UiTheme Mode{get{return mode;}}
+        internal static void SetMode(UiTheme value){mode=value;}
+        internal static bool SystemPrefersDark() {
+            try{using(var key=Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")){var value=key==null?null:key.GetValue("AppsUseLightTheme");return value is int&&(int)value==0;}}
+            catch(Exception){return false;}
+        }
+        internal static Color Ink{get{return mode==UiTheme.Light?Color.FromArgb(42,49,63):Color.FromArgb(232,234,237);}}
+        internal static Color Muted{get{return mode==UiTheme.Light?Color.FromArgb(103,112,130):Color.FromArgb(156,163,174);}}
+        internal static Color Accent{get{return mode==UiTheme.Light?Color.FromArgb(67,102,238):Color.FromArgb(96,131,255);}}
+        internal static Color Tint{get{return mode==UiTheme.Light?Color.FromArgb(237,242,255):Color.FromArgb(38,46,66);}}
+        internal static Color Border{get{return mode==UiTheme.Light?Color.FromArgb(225,231,240):Color.FromArgb(58,64,73);}}
+        internal static Color Surface{get{return mode==UiTheme.Light?Color.FromArgb(247,249,252):Color.FromArgb(38,41,47);}}
+        internal static Color Hover{get{return mode==UiTheme.Light?Color.FromArgb(241,244,248):Color.FromArgb(47,52,60);}}
+        internal static Color Pressed{get{return mode==UiTheme.Light?Color.FromArgb(225,233,252):Color.FromArgb(44,54,78);}}
+        internal static Color AccentHover{get{return mode==UiTheme.Light?Color.FromArgb(51,82,214):Color.FromArgb(117,148,255);}}
+        internal static Color AccentPressed{get{return mode==UiTheme.Light?Color.FromArgb(42,70,190):Color.FromArgb(80,110,235);}}
+        internal static Color Error{get{return mode==UiTheme.Light?Color.FromArgb(177,48,48):Color.FromArgb(248,113,113);}}
+        internal static Color InputBorder{get{return mode==UiTheme.Light?Color.FromArgb(131,143,163):Color.FromArgb(90,99,112);}}
+        internal static Color CloseHover{get{return mode==UiTheme.Light?Color.FromArgb(255,235,235):Color.FromArgb(70,45,45);}}
+        internal static Color ClosePressed{get{return mode==UiTheme.Light?Color.FromArgb(255,216,216):Color.FromArgb(92,56,56);}}
+        internal static Color Back{get{return mode==UiTheme.Light?Color.White:Color.FromArgb(31,34,39);}}
+        internal static Color Card{get{return mode==UiTheme.Light?Color.White:Color.FromArgb(38,41,47);}}
         internal const int HoverDuration=120,PressDuration=60,ReleaseDuration=90,SwitchDuration=160;
         internal static Font TextFont(float size=BodySize,bool bold=false){return new Font(FontFamily,size,bold?FontStyle.Bold:FontStyle.Regular,GraphicsUnit.Point);}
         internal static Font CompactFont(float size=BodySize,bool bold=false){return TextFont(size-CompactFontStep,bold);}
@@ -66,15 +90,15 @@ namespace DeepSeekFloat {
         private readonly UiMotion hoverMotion,pressMotion,choiceMotion;
         internal bool Chosen {get{return chosen;}set{chosen=value;choiceMotion.To(value?1:0);}}
         internal PanelButton(string text) {
-            Text=text;AccessibleName=text;FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;Cursor=Cursors.Hand;BackColor=Color.White;ForeColor=PanelTheme.Ink;
+            Text=text;AccessibleName=text;FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;Cursor=Cursors.Hand;BackColor=PanelTheme.Back;ForeColor=PanelTheme.Ink;
             SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
             hoverMotion=new UiMotion(this);pressMotion=new UiMotion(this);choiceMotion=new UiMotion(this);
             PanelTheme.Feedback(this,hoverMotion,pressMotion);
         }
         protected override void OnPaint(PaintEventArgs e) {
             var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;g.Clear(BackColor);float scale=g.DpiX/96f;
-            var neutral=Segment?PanelTheme.Surface:Color.White;
-            var color=Primary?PanelTheme.Mix(PanelTheme.Accent,PanelTheme.AccentHover,hoverMotion.Value):PanelTheme.Mix(PanelTheme.Mix(neutral,PanelTheme.Hover,hoverMotion.Value),Segment?Color.White:PanelTheme.Tint,choiceMotion.Value);
+            var neutral=Segment?PanelTheme.Surface:PanelTheme.Card;
+            var color=Primary?PanelTheme.Mix(PanelTheme.Accent,PanelTheme.AccentHover,hoverMotion.Value):PanelTheme.Mix(PanelTheme.Mix(neutral,PanelTheme.Hover,hoverMotion.Value),Segment?PanelTheme.Card:PanelTheme.Tint,choiceMotion.Value);
             color=PanelTheme.Mix(color,Primary?PanelTheme.AccentPressed:PanelTheme.Pressed,pressMotion.Value*0.7f);
             if(!Enabled)color=PanelTheme.Surface;
             float inset=scale/2,offset=pressMotion.Value*scale;
@@ -134,7 +158,7 @@ namespace DeepSeekFloat {
             set{if(value<-1||value>=choices.Length)throw new ArgumentOutOfRangeException("value");bool changed=selected!=value;selected=value;for(int i=0;i<choices.Length;i++){choices[i].Chosen=i==value;choices[i].TabStop=i==value;choices[i].AccessibleDescription=i==value?"已选择":"未选择";choices[i].Invalidate();}if(changed&&SelectedIndexChanged!=null)SelectedIndexChanged(this,EventArgs.Empty);}
         }
         internal PanelChoices(params string[] names) {
-            BackColor=Color.White;DoubleBuffered=true;TabStop=false;choices=new PanelButton[names.Length];
+            BackColor=PanelTheme.Back;DoubleBuffered=true;TabStop=false;choices=new PanelButton[names.Length];
             for(int i=0;i<names.Length;i++) {
                 int index=i;var button=new PanelButton(names[i]) {Segment=true,BackColor=PanelTheme.Surface};button.AccessibleRole=AccessibleRole.RadioButton;
                 button.Click+=delegate {SelectedIndex=index;};
@@ -151,7 +175,7 @@ namespace DeepSeekFloat {
         protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;using(var shape=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.ControlRadius*e.Graphics.DpiX/96f))using(var brush=new SolidBrush(PanelTheme.Surface))e.Graphics.FillPath(brush,shape);}
     }
     internal sealed class PanelCard : Panel {
-        internal PanelCard() { BackColor=Color.White;DoubleBuffered=true; }
+        internal PanelCard() { BackColor=PanelTheme.Card;DoubleBuffered=true; }
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
             using(var path=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.PanelRadius*e.Graphics.DpiX/96f))using(var brush=new SolidBrush(PanelTheme.Surface))e.Graphics.FillPath(brush,path);

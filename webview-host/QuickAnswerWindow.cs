@@ -31,9 +31,9 @@ namespace DeepSeekFloat
             using(var g=Graphics.FromHwnd(IntPtr.Zero))scale=g.DpiX/96f;
             Text="DeepSeek-Reflex 划词浮窗";AutoScaleMode=AutoScaleMode.None;
             KeyPreview=true;KeyDown+=delegate(object sender,KeyEventArgs e) { if(e.KeyCode==Keys.Escape) { e.Handled=true;Close(); } };
-            FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;BackColor=Color.White;
+            FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;BackColor=PanelTheme.Back;
             Font=PanelTheme.TextFont();
-            header.BackColor=Color.White;
+            header.BackColor=PanelTheme.Back;
             translate.Click+=async delegate { await Request(0); };
             explain.Click+=async delegate { await Request(1); };
             question.Click+=async delegate { await Request(2); };

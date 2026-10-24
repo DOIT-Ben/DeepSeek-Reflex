@@ -23,12 +23,12 @@ namespace DeepSeekFloat {
         private readonly PanelButton cancel=new PanelButton("关闭") {Ghost=true,Outline=true};
         private readonly PanelButton[] chips;
         private readonly AnnouncingLabel status=new AnnouncingLabel();
-        private readonly Label counter=new Label {AutoSize=false,TextAlign=ContentAlignment.MiddleRight,BackColor=Color.White};
-        private readonly Label intro=new Label {AutoSize=false,BackColor=Color.White};
-        private readonly Label heading=new Label {AutoSize=false,BackColor=Color.White,TextAlign=ContentAlignment.MiddleLeft};
-        private readonly Label privacy=new Label {AutoSize=false,BackColor=Color.White};
-        private readonly Label thanksMark=new Label {AutoSize=false,TextAlign=ContentAlignment.MiddleCenter,BackColor=Color.White};
-        private readonly Label thanksText=new Label {AutoSize=false,TextAlign=ContentAlignment.MiddleCenter,BackColor=Color.White};
+        private readonly Label counter=new Label {AutoSize=false,TextAlign=ContentAlignment.MiddleRight,BackColor=PanelTheme.Back};
+        private readonly Label intro=new Label {AutoSize=false,BackColor=PanelTheme.Back};
+        private readonly Label heading=new Label {AutoSize=false,BackColor=PanelTheme.Back,TextAlign=ContentAlignment.MiddleLeft};
+        private readonly Label privacy=new Label {AutoSize=false,BackColor=PanelTheme.Back};
+        private readonly Label thanksMark=new Label {AutoSize=false,TextAlign=ContentAlignment.MiddleCenter,BackColor=PanelTheme.Back};
+        private readonly Label thanksText=new Label {AutoSize=false,TextAlign=ContentAlignment.MiddleCenter,BackColor=PanelTheme.Back};
         private readonly ChromeButton close=new ChromeButton("close","关闭反馈");
         private readonly Timer thanksTimer=new Timer {Interval=1400};
         private readonly Func<string,string> poster;
@@ -38,7 +38,7 @@ namespace DeepSeekFloat {
         internal FeedbackDialog(Func<string,string> testPoster=null) {
             poster=testPoster;
             using(var graphics=Graphics.FromHwnd(IntPtr.Zero))scale=graphics.DpiX/96f;
-            Text="DeepSeek-Reflex 反馈";Font=PanelTheme.CompactFont();BackColor=Color.White;ForeColor=PanelTheme.Ink;DoubleBuffered=true;
+            Text="DeepSeek-Reflex 反馈";Font=PanelTheme.CompactFont();BackColor=PanelTheme.Back;ForeColor=PanelTheme.Ink;DoubleBuffered=true;
             FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;MinimizeBox=false;ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;
             AutoScaleMode=AutoScaleMode.None;ClientSize=new Size(S(420),S(372));Padding=Padding.Empty;
             heading.Text="反馈";heading.Font=PanelTheme.CompactFont(PanelTheme.HeadingSize,true);
@@ -70,7 +70,7 @@ namespace DeepSeekFloat {
             thanksMark.Text="✓";thanksMark.Font=PanelTheme.CompactFont(PanelTheme.HeadingSize,true);thanksMark.ForeColor=PanelTheme.Accent;thanksMark.Visible=false;
             thanksText.Text="已收到，感谢你的反馈！";thanksText.Font=PanelTheme.CompactFont(PanelTheme.TitleSize);thanksText.Visible=false;
             thanksTimer.Tick+=delegate{thanksTimer.Stop();DialogResult=DialogResult.OK;Close();};
-            var surface=new Panel {Dock=DockStyle.Fill,BackColor=Color.White};Controls.Add(surface);
+            var surface=new Panel {Dock=DockStyle.Fill,BackColor=PanelTheme.Back};Controls.Add(surface);
             surface.Controls.Add(heading);surface.Controls.Add(close);surface.Controls.Add(intro);
             foreach(var chip in chips)surface.Controls.Add(chip);
             surface.Controls.Add(bodyFrame);surface.Controls.Add(counter);surface.Controls.Add(contactFrame);

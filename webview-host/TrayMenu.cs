@@ -12,7 +12,7 @@ namespace DeepSeekFloat {
             // Pixel-unit font: GDI measure and paint stay identical at any
             // monitor DPI, unlike point fonts whose pixel size tracks the DC.
             menuFont=new Font(PanelTheme.FontFamily,Math.Max(9f,(float)Math.Round(12f*Math.Max(1f,dpiScale)*2f)/2f),GraphicsUnit.Pixel);Font=menuFont;
-            ShowImageMargin=false;ShowCheckMargin=false;BackColor=Color.White;ForeColor=PanelTheme.Ink;
+            ShowImageMargin=false;ShowCheckMargin=false;BackColor=PanelTheme.Back;ForeColor=PanelTheme.Ink;
             AutoSize=false;AutoClose=true;Renderer=new TrayRenderer(scale);Padding=new Padding(S(4));DropShadowEnabled=true;
         }
         private int S(int value){return Math.Max(1,(int)Math.Round(value*scale));}
@@ -62,7 +62,7 @@ namespace DeepSeekFloat {
         private readonly float scale;
         internal bool NativeOutline;
         internal TrayRenderer(float dpiScale){scale=dpiScale;RoundedEdges=false;}
-        protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e){e.Graphics.Clear(Color.White);}
+        protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e){e.Graphics.Clear(PanelTheme.Back);}
         protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e) {
             if(NativeOutline)return;
             e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;

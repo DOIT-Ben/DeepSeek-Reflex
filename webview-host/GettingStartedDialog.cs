@@ -17,8 +17,8 @@ namespace DeepSeekFloat {
         private readonly PanelButton next,previous;
         private readonly string[] headings,bodies,keys,hints;
         private float scale;
-        private readonly Panel viewport=new Panel {Name="guide-body",AutoScroll=true,BackColor=Color.White};
-        private readonly Panel content=new Panel {BackColor=Color.White};
+        private readonly Panel viewport=new Panel {Name="guide-body",AutoScroll=true,BackColor=PanelTheme.Back};
+        private readonly Panel content=new Panel {BackColor=PanelTheme.Back};
         private Panel surface;
         private PanelButton skip;
         private ChromeButton close;
@@ -31,10 +31,10 @@ namespace DeepSeekFloat {
         private const int ContentHeight=264;
         internal GettingStartedDialog(WindowSettings settings) {
             using(var graphics=Graphics.FromHwnd(IntPtr.Zero))scale=graphics.DpiX/96f;
-            Text="DeepSeek-Reflex 使用帮助";Font=PanelTheme.CompactFont();BackColor=Color.White;ForeColor=PanelTheme.Ink;
+            Text="DeepSeek-Reflex 使用帮助";Font=PanelTheme.CompactFont();BackColor=PanelTheme.Back;ForeColor=PanelTheme.Ink;
             DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;FormBorderStyle=FormBorderStyle.None;
             ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;ClientSize=new Size(S(400),S(452));
-            surface=new Panel {Name="guide-surface",Dock=DockStyle.Fill,BackColor=Color.White};Controls.Add(surface);
+            surface=new Panel {Name="guide-surface",Dock=DockStyle.Fill,BackColor=PanelTheme.Back};Controls.Add(surface);
             brand=LabelAt(surface,"DeepSeek-Reflex",24,24,312,30,PanelTheme.TitleSize,true);
             close=new ChromeButton("close","跳过引导，开始使用");Place(surface,close,344,22,32,28);
             close.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
@@ -88,7 +88,7 @@ namespace DeepSeekFloat {
         internal void ApplyDpi(float value,Rectangle bounds){if(value<=0)return;float ratio=value/scale;scale=value;surface.Scale(new SizeF(ratio,ratio));Bounds=SettingsDialog.FitBounds(bounds,Screen.FromRectangle(bounds).WorkingArea,scale);smoothFrame.UpdateScale(value);Arrange();frame.UpdateShape(this,scale,smoothFrame.Ready);}
         protected override void WndProc(ref Message m){if(m.Msg==0x2e0){ApplyDpi(WindowDpi.MessageScale(m.WParam),WindowDpi.Suggested(m.LParam));m.Result=IntPtr.Zero;return;}base.WndProc(ref m);}
         private void Place(Control parent,Control child,int x,int y,int w,int h){child.SetBounds(S(x),S(y),S(w),S(h));parent.Controls.Add(child);}
-        private Label LabelAt(Control parent,string text,int x,int y,int w,int h,float size,bool bold){var label=new Label{Text=text,Font=PanelTheme.CompactFont(size,bold),ForeColor=PanelTheme.Ink,BackColor=Color.White,TextAlign=ContentAlignment.MiddleLeft};Place(parent,label,x,y,w,h);return label;}
+        private Label LabelAt(Control parent,string text,int x,int y,int w,int h,float size,bool bold){var label=new Label{Text=text,Font=PanelTheme.CompactFont(size,bold),ForeColor=PanelTheme.Ink,BackColor=PanelTheme.Back,TextAlign=ContentAlignment.MiddleLeft};Place(parent,label,x,y,w,h);return label;}
         private void Drag(object sender,MouseEventArgs e){if(e.Button==MouseButtons.Left){Native.ReleaseCapture();Native.SendMessage(Handle,0xA1,new IntPtr(2),IntPtr.Zero);}}
         protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);WindowFrame.ConfigureNativeBorder(Handle);frame.UpdateShape(this,scale,smoothFrame!=null&&smoothFrame.Ready);}
         protected override void Dispose(bool disposing){if(disposing&&smoothFrame!=null)smoothFrame.Dispose();base.Dispose(disposing);}

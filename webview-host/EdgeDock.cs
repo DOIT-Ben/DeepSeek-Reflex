@@ -53,7 +53,7 @@ namespace DeepSeekFloat {
             side=dockSide;scale=dpiScale;appIcon=icon;
             FormBorderStyle=FormBorderStyle.None;StartPosition=FormStartPosition.Manual;
             ShowInTaskbar=false;AutoScaleMode=AutoScaleMode.None;Text="DeepSeek-Reflex";
-            BackColor=Color.White;Cursor=Cursors.Hand;
+            BackColor=PanelTheme.Back;Cursor=Cursors.Hand;
             AccessibleName="展开 DeepSeek-Reflex";
             int width=Dip(DockGeometry.TabWidthDip),height=Dip(DockGeometry.TabHeightDip);
             Size=new Size(width,height);MinimumSize=Size;MaximumSize=Size;
@@ -63,10 +63,11 @@ namespace DeepSeekFloat {
             Click+=delegate{if(ActivateRequested!=null)ActivateRequested(this,EventArgs.Empty);};
             Paint+=PaintTab;
         }
+        internal void ApplyTheme(){BackColor=PanelTheme.Back;Invalidate(true);}
         private int Dip(int value){return DockGeometry.Dip(value,scale);}
         private void PaintTab(object sender,PaintEventArgs e) {
             var g=e.Graphics;g.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            g.Clear(Color.White);
+            g.Clear(PanelTheme.Back);
             int radius=Dip(DockGeometry.TabRadius);
             var rect=new RectangleF(0.5f,0.5f,Width-1,Height-1);
             if(hover)using(var brush=new SolidBrush(PanelTheme.Hover))g.FillPath(brush,PanelTheme.Rounded(rect,radius));
@@ -106,6 +107,7 @@ namespace DeepSeekFloat {
         private float savedScale=1;
         private bool docked;
         internal bool Docked {get{return docked;}}
+        internal void ApplyTheme(){if(tab!=null)tab.ApplyTheme();}
         internal DockSide Side {get{return side;}}
         internal Rectangle SavedRect {get{return savedRect;}}
         internal EdgeDockTab Tab {get{return tab;}}

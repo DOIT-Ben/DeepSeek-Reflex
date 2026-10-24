@@ -8,16 +8,16 @@ namespace DeepSeekFloat {
     // Shared opaque WebView host and cached alpha frame; the origin is always visible.
     internal sealed class PopupWindow : Form {
         internal readonly WebView2 Browser=new WebView2();
-        private readonly Panel chrome=new Panel {BackColor=Color.White};
+        private readonly Panel chrome=new Panel {BackColor=PanelTheme.Back};
         private readonly Label origin=new Label {AutoEllipsis=true,TextAlign=ContentAlignment.MiddleCenter,ForeColor=PanelTheme.Ink};
-        private readonly Label error=new Label {TextAlign=ContentAlignment.MiddleCenter,BackColor=Color.White,ForeColor=PanelTheme.Error,Visible=false};
+        private readonly Label error=new Label {TextAlign=ContentAlignment.MiddleCenter,BackColor=PanelTheme.Back,ForeColor=PanelTheme.Error,Visible=false};
         private readonly ChromeButton close=new ChromeButton("close","关闭登录或链接窗口");
         private readonly WindowFrame frame=new WindowFrame();
         private SmoothFrame smoothFrame;
         private float scale;
         private bool closing;
         internal PopupWindow(Uri uri,float dpiScale) {
-            scale=dpiScale;Text="DeepSeek-Reflex · 登录或链接";Font=PanelTheme.TextFont();BackColor=Color.White;AutoScaleMode=AutoScaleMode.None;
+            scale=dpiScale;Text="DeepSeek-Reflex · 登录或链接";Font=PanelTheme.TextFont();BackColor=PanelTheme.Back;AutoScaleMode=AutoScaleMode.None;
             FormBorderStyle=FormBorderStyle.None;StartPosition=FormStartPosition.CenterParent;ShowInTaskbar=false;
             Size=new Size(S(440),S(640));MinimumSize=new Size(S(320),S(360));
             origin.Text=uri.Host;origin.AccessibleName="当前页面域名";

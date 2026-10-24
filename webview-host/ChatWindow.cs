@@ -130,7 +130,9 @@ namespace DeepSeekFloat
             Text = "DeepSeek-Reflex";
             AutoScaleMode = AutoScaleMode.None;
             using (var graphics = Graphics.FromHwnd(IntPtr.Zero)) dpiScale = graphics.DpiX / 96f;
-            BackColor = Color.White;
+            // Resolve the theme before any control captures a color.
+            PanelTheme.SetMode(ResolveTheme(WindowSettings.Load().Theme));
+            BackColor = PanelTheme.Back;
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.Manual;
             MinimumSize = new Size(S(360),S(480));
@@ -154,12 +156,14 @@ namespace DeepSeekFloat
             } catch (IOException) { }
             TopMost = Preferences.ReadBool("pin.json");
             settings = WindowSettings.Load();
+            if(settings.Theme!="light"&&settings.Theme!="dark")Microsoft.Win32.SystemEvents.UserPreferenceChanged+=OnSystemPreferenceChanged;
+            browser.DefaultBackgroundColor=PanelTheme.Back;
             if(settings.Mode=="compact") {
                 Bounds=WindowModes.Calculate("compact",Bounds,Screen.FromRectangle(Bounds).WorkingArea,dpiScale);
                 SaveBounds();
             }
 
-            chrome.BackColor = Color.White;
+            chrome.BackColor = PanelTheme.Back;
             chrome.Controls.AddRange(new Control[]{mode,pin,more,minimize,close});
             chrome.Paint += delegate(object sender,PaintEventArgs e) { using(var pen = new Pen(Color.FromArgb(233,237,243))) e.Graphics.DrawLine(pen,0,chrome.Height-1,chrome.Width,chrome.Height-1); };
             chrome.MouseDown += Drag;
@@ -183,7 +187,7 @@ namespace DeepSeekFloat
             Font=PanelTheme.TextFont();
             status.Font = PanelTheme.TextFont();
             status.ForeColor = PanelTheme.Muted;
-            status.BackColor = Color.White;
+            status.BackColor = PanelTheme.Back;
             status.Click += async delegate { await InitializeBrowser(); };
             // WebView defaults to opaque white. Avoid requesting an optional
             // background-color controller interface just to set the default.
@@ -193,7 +197,7 @@ namespace DeepSeekFloat
             chatModeButton.Click+=delegate{ShowChatModeMenu();};
             chrome.Controls.Add(chatModeButton);
             RefreshChatMode();
-            selectionBar.BackColor=Color.White;
+            selectionBar.BackColor=PanelTheme.Back;
             selectionBar.Font=PanelTheme.TextFont();
             selectionBar.Paint+=delegate(object sender,PaintEventArgs e){using(var pen=new Pen(PanelTheme.Border))e.Graphics.DrawLine(pen,S(10),selectionBar.Height-1,selectionBar.Width-S(10),selectionBar.Height-1);};
             selectionBar.Visible=false;
@@ -710,6 +714,7 @@ namespace DeepSeekFloat
             }
             string previousMode=settings.Mode;settings=next;
             if(previousMode!=settings.Mode)ApplyMode(settings.Mode);
+            ApplyThemeFromSettings();
             RefreshMode();WriteHealth();return null;
         }
         private void ShowFeedback() {
@@ -719,6 +724,32 @@ namespace DeepSeekFloat
             WriteHealth();
         }
         private void ShowSettings(){ShowSettingsPage(null);}
+        internal static UiTheme ResolveTheme(string preference) {
+            if(preference=="dark")return UiTheme.Dark;
+            if(preference=="light")return UiTheme.Light;
+            return PanelTheme.SystemPrefersDark()?UiTheme.Dark:UiTheme.Light;
+        }
+        private void ApplyThemeFromSettings() {
+            var mode=ResolveTheme(settings.Theme);
+            if(PanelTheme.Mode==mode)return;
+            PanelTheme.SetMode(mode);
+            ApplyTheme();
+        }
+        // Captured colors track the theme that was active at construction, so
+        // a runtime switch re-assigns them from the palette and repaints.
+        internal void ApplyTheme() {
+            BackColor=PanelTheme.Back;
+            if(chrome!=null){chrome.BackColor=PanelTheme.Back;foreach(Control child in chrome.Controls){child.BackColor=PanelTheme.Back;if(child is PanelButton||child is ChromeButton)child.ForeColor=PanelTheme.Ink;}}
+            if(selectionBar!=null){selectionBar.BackColor=PanelTheme.Back;foreach(Control child in selectionBar.Controls){child.BackColor=PanelTheme.Back;if(child is PanelButton||child is ChromeButton)child.ForeColor=PanelTheme.Ink;}}
+            if(status!=null){status.BackColor=PanelTheme.Back;status.ForeColor=PanelTheme.Muted;}
+            if(edgeDock!=null)edgeDock.ApplyTheme();
+            browser.DefaultBackgroundColor=PanelTheme.Back;
+            Invalidate(true);
+        }
+        private void OnSystemPreferenceChanged(object sender,Microsoft.Win32.UserPreferenceChangedEventArgs e) {
+            if(e.Category!=Microsoft.Win32.UserPreferenceCategory.General||resourcesDisposed||quitting||!IsHandleCreated)return;
+            BeginInvoke(new Action(delegate{if(!resourcesDisposed&&!quitting)ApplyThemeFromSettings();}));
+        }
         private void ShowSettingsPage(string openPage)
         {
             if(settingsOpen||guideOpen)return;
@@ -794,7 +825,7 @@ namespace DeepSeekFloat
             if(recreateBrowser) {
                 foreach(var popup in OwnedForms.OfType<PopupWindow>().ToArray())popup.Close();
                 Controls.Remove(browser);browser.Dispose();
-                browser=new WebView2 {AccessibleName="DeepSeek 官网聊天"};
+                browser=new WebView2 {AccessibleName="DeepSeek 官网聊天",DefaultBackgroundColor=PanelTheme.Back};
                 Controls.Add(browser);recreateBrowser=false;browserExited=false;environment=null;health.initialized=false;
                 lastInserted=null;LayoutContent();chrome.BringToFront();frame.BringToFront();
             }
@@ -988,6 +1019,7 @@ namespace DeepSeekFloat
             if(disposing && !resourcesDisposed) {
                 resourcesDisposed=true;
                 Microsoft.Win32.SystemEvents.DisplaySettingsChanged-=OnDisplaySettingsChanged;
+                Microsoft.Win32.SystemEvents.UserPreferenceChanged-=OnSystemPreferenceChanged;
                 if(edgeDock!=null)edgeDock.Shutdown();
                 if(bridge!=null)bridge.Dispose();
                 if(smoothFrame!=null)smoothFrame.Dispose();
