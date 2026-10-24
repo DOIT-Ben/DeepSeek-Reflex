@@ -322,7 +322,9 @@ namespace DeepSeekFloat
             int available=Math.Max(0,ClientSize.Width-S(192));
             // Hug the mode text plus chevron instead of a fixed pill width.
             int selectorWidth=Math.Min(Math.Max(S(92),TextRenderer.MeasureText(chatModeButton.Text,chatModeButton.Font).Width+S(32)),Math.Max(S(92),available));
-            chatModeButton.SetBounds(S(112)+(available-selectorWidth)/2,0,selectorWidth,S(28));
+            // Center on the whole title bar rather than the left/right button
+            // clusters, so the pill reads as the window's title.
+            chatModeButton.SetBounds(Math.Max(S(112),(ClientSize.Width-selectorWidth)/2),0,selectorWidth,S(28));
             if(selectionBar.Visible) {
                 // Two fixed rows per the dock/capture contract: choices, more
                 // commands and dismiss on top; status, fill and copy below.

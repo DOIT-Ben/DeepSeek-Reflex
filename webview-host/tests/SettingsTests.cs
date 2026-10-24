@@ -137,6 +137,7 @@ internal static class SettingsTests {
      &&action.Bottom<=status.Top&&copy.Bottom<=bar.ClientRectangle.Bottom,"selection controls fit the two-row bar without overlaps at width "+width);
     var modes=(Panel)Field(window,"chrome");var selector=(PanelButton)Field(window,"chatModeButton");
     Check(selector.Visible&&selector.Parent==modes&&modes.ClientRectangle.Contains(selector.Bounds)&&((Control)Field(window,"mode")).Right<=selector.Left&&selector.Right<=((Control)Field(window,"more")).Left&&bar.Top==modes.Bottom,"persistent mode fits inside title chrome without an extra row at width "+width);
+    Check(Math.Abs((selector.Left+selector.Width/2)-modes.Width/2)<=2,"mode pill is centered on the title bar at width "+width);
     using(var bitmap=new Bitmap(modes.Width,modes.Height)){modes.DrawToBitmap(bitmap,modes.ClientRectangle);bitmap.Save(Path.Combine(directory,"chat-mode-bar-"+width+".png"));}
     using(var bitmap=new Bitmap(bar.Width,bar.Height)){bar.DrawToBitmap(bitmap,bar.ClientRectangle);bitmap.Save(Path.Combine(directory,"selection-bar-"+width+".png"));}
    }
