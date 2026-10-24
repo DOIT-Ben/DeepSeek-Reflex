@@ -13,9 +13,9 @@ namespace DeepSeekFloat {
         internal const int MaxChars=1000;
         internal const int ContactMaxChars=100;
         internal static readonly string[] Categories={"问题","建议","其他"};
-        private readonly TextBox body=new TextBox {BorderStyle=BorderStyle.None,Multiline=true};
+        private readonly TextBox body=new TextBox {BorderStyle=BorderStyle.None,Multiline=true,BackColor=PanelTheme.Card,ForeColor=PanelTheme.Ink};
         private readonly Label bodyHint=new Label {AutoSize=false,BackColor=Color.Transparent,Cursor=Cursors.IBeam};
-        private readonly TextBox contact=new TextBox {BorderStyle=BorderStyle.None};
+        private readonly TextBox contact=new TextBox {BorderStyle=BorderStyle.None,BackColor=PanelTheme.Card,ForeColor=PanelTheme.Ink};
         private readonly Label contactHint=new Label {AutoSize=false,BackColor=Color.Transparent,Cursor=Cursors.IBeam};
         private readonly PanelButton bodyFrame=new PanelButton("") {TabStop=false,InputFrame=true,BackColor=PanelTheme.Surface};
         private readonly PanelButton contactFrame=new PanelButton("") {TabStop=false,InputFrame=true,BackColor=PanelTheme.Surface};
@@ -47,10 +47,10 @@ namespace DeepSeekFloat {
             privacy.Text="只提交你输入的内容和应用版本，不含聊天内容和机器信息。";
             privacy.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);privacy.ForeColor=PanelTheme.Muted;
             body.Font=PanelTheme.CompactFont();body.MaxLength=MaxChars;body.AcceptsReturn=true;body.AccessibleName="反馈内容";
-            bodyHint.Text="遇到的问题、想要的功能，或者任何想法…";bodyHint.Font=PanelTheme.CompactFont();bodyHint.ForeColor=PanelTheme.Muted;bodyHint.AccessibleName="反馈内容";
+            bodyHint.Text="遇到的问题、想要的功能，或者任何想法…";bodyHint.Font=PanelTheme.CompactFont();bodyHint.ForeColor=PanelTheme.Muted;bodyHint.BackColor=PanelTheme.Card;bodyHint.AccessibleName="反馈内容";
             bodyHint.Click+=delegate{body.Focus();};
             contact.Font=PanelTheme.CompactFont();contact.MaxLength=ContactMaxChars;contact.AccessibleName="联系方式（选填）";
-            contactHint.Text="联系方式（选填）：QQ 或邮箱，方便回复你";contactHint.Font=PanelTheme.CompactFont();contactHint.ForeColor=PanelTheme.Muted;
+            contactHint.Text="联系方式（选填）：QQ 或邮箱，方便回复你";contactHint.Font=PanelTheme.CompactFont();contactHint.ForeColor=PanelTheme.Muted;contactHint.BackColor=PanelTheme.Card;
             contactHint.Click+=delegate{contact.Focus();};
             bodyFrame.Controls.Add(body);bodyFrame.Controls.Add(bodyHint);
             contactFrame.Controls.Add(contact);contactFrame.Controls.Add(contactHint);

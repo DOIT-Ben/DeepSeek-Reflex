@@ -11,9 +11,9 @@ namespace DeepSeekFloat
     internal sealed class QuickAnswerWindow : Form
     {
         private readonly Panel header=new Panel();
-        private readonly Label caption=new Label();
-        private readonly Label selectionPreview=new Label();
-        private readonly Label message=new Label();
+        private readonly Label caption=new Label {BackColor=PanelTheme.Back};
+        private readonly Label selectionPreview=new Label {BackColor=PanelTheme.Back};
+        private readonly Label message=new Label {BackColor=PanelTheme.Back};
         private readonly PanelButton translate=new PanelButton("翻译") {Ghost=true}, explain=new PanelButton("解释") {Ghost=true}, question=new PanelButton("问一问") {Ghost=true}, retry=new PanelButton("登录后继续");
         private readonly ChromeButton close=new ChromeButton("close","关闭划词浮窗");
         private readonly Timer expiry=new Timer { Interval=20000 };
@@ -79,7 +79,7 @@ namespace DeepSeekFloat
             if(Expanded)return;Expanded=true;expiry.Stop();
             var area=Screen.FromPoint(anchor).WorkingArea;
             Size=new Size(Math.Min(S(440),area.Width),Math.Min(S(540),area.Height));
-            view=new WebView2 {AccessibleName="独立划词问答"};
+            view=new WebView2 {AccessibleName="独立划词问答",DefaultBackgroundColor=PanelTheme.Back};
             Controls.Add(view);LayoutPopup();Place();
         }
         private async Task<bool> LoadWebsite()

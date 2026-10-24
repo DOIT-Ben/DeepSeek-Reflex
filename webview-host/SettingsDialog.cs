@@ -144,14 +144,14 @@ namespace DeepSeekFloat {
             var editor=new PanelCard();Place(commandsPage,editor,0,148,420,138);editor.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             var nameLabel=LabelAt(editor,"名称",12,8,44,26,PanelTheme.BodySize,false);
             var nameFrame=new PanelButton("") {TabStop=false,InputFrame=true,BackColor=PanelTheme.Surface};Place(editor,nameFrame,62,6,266,28);nameFrame.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            commandName.Font=PanelTheme.CompactFont();commandName.BackColor=PanelTheme.Surface;nameFrame.Controls.Add(commandName);
+            commandName.Font=PanelTheme.CompactFont();commandName.BackColor=PanelTheme.Surface;commandName.ForeColor=PanelTheme.Ink;nameFrame.Controls.Add(commandName);
             Action nameArrange=delegate{commandName.SetBounds(S(8),Math.Max(0,(nameFrame.Height-commandName.PreferredHeight)/2),Math.Max(1,nameFrame.Width-S(16)),commandName.PreferredHeight);};
             nameFrame.Resize+=delegate{nameArrange();};nameArrange();
             nameFrame.Click+=delegate{commandName.Focus();};
             Place(editor,nameError,12,36,316,18);nameError.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             var bodyLabel=LabelAt(editor,"指令",12,58,44,26,PanelTheme.BodySize,false);
             var bodyFrame=new PanelButton("") {TabStop=false,InputFrame=true,BackColor=PanelTheme.Surface};Place(editor,bodyFrame,62,56,266,56);bodyFrame.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            commandBody.Font=PanelTheme.CompactFont();commandBody.BackColor=PanelTheme.Surface;bodyFrame.Controls.Add(commandBody);
+            commandBody.Font=PanelTheme.CompactFont();commandBody.BackColor=PanelTheme.Surface;commandBody.ForeColor=PanelTheme.Ink;bodyFrame.Controls.Add(commandBody);
             Action bodyArrange=delegate{commandBody.SetBounds(S(8),S(6),Math.Max(1,bodyFrame.Width-S(16)),Math.Max(1,bodyFrame.Height-S(12)));};
             bodyFrame.Resize+=delegate{bodyArrange();};bodyArrange();
             Place(editor,instructionError,12,116,316,18);instructionError.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;

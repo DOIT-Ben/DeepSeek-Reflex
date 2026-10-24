@@ -186,6 +186,13 @@ internal static class SettingsTests {
    PanelTheme.SetMode(UiTheme.Dark);typeof(ChatWindow).GetMethod("ApplyTheme",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
    var chromePanel=(Control)Field(window,"chrome");
    Check(PanelTheme.Mode==UiTheme.Dark&&chromePanel.BackColor==PanelTheme.Back&&chromePanel.BackColor!=System.Drawing.Color.White,"dark theme repaints the title chrome");
+   Check(((Control)Field(window,"chatModeButton")).ForeColor==PanelTheme.Ink,"dark repaint recolors the mode pill text");
+   var themeSettings=(WindowSettings)Field(window,"settings");var originalPreference=themeSettings.Theme;var sync=typeof(ChatWindow).GetMethod("UpdateThemeSubscription",BindingFlags.Instance|BindingFlags.NonPublic);
+   themeSettings.Theme="dark";sync.Invoke(window,null);
+   Check(!(bool)Field(window,"themeHooked"),"fixed theme does not watch the system preference");
+   themeSettings.Theme="auto";sync.Invoke(window,null);
+   Check((bool)Field(window,"themeHooked"),"auto theme watches the system preference");
+   themeSettings.Theme=originalPreference;sync.Invoke(window,null);
    using(var bitmap=new Bitmap(window.Width,window.Height)){window.DrawToBitmap(bitmap,new Rectangle(0,0,window.Width,window.Height));bitmap.Save(Path.Combine(directory,"dark-titlebar.png"));}
    PanelTheme.SetMode(UiTheme.Light);typeof(ChatWindow).GetMethod("ApplyTheme",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
    Check(chromePanel.BackColor==System.Drawing.Color.White&&PanelTheme.Mode==UiTheme.Light,"light theme restores the chrome");

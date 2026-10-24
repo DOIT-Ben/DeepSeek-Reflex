@@ -160,7 +160,9 @@ namespace DeepSeekFloat
             foregroundHandler=OnForegroundChanged;
             foregroundHook=Native.SetWinEventHook(0x0003,0x0003,IntPtr.Zero,foregroundHandler,0,0,0); // EVENT_SYSTEM_FOREGROUND, out of context
             settings = WindowSettings.Load();
-            if(settings.Theme!="light"&&settings.Theme!="dark")Microsoft.Win32.SystemEvents.UserPreferenceChanged+=OnSystemPreferenceChanged;
+            UpdateThemeSubscription();
+            // Field initializers ran before the theme resolved; recolor now.
+            ApplyTheme();
             browser.DefaultBackgroundColor=PanelTheme.Back;
             if(settings.Mode=="compact") {
                 Bounds=WindowModes.Calculate("compact",Bounds,Screen.FromRectangle(Bounds).WorkingArea,dpiScale);
@@ -169,10 +171,10 @@ namespace DeepSeekFloat
 
             chrome.BackColor = PanelTheme.Back;
             chrome.Controls.AddRange(new Control[]{mode,pin,more,minimize,close});
-            chrome.Paint += delegate(object sender,PaintEventArgs e) { using(var pen = new Pen(Color.FromArgb(233,237,243))) e.Graphics.DrawLine(pen,0,chrome.Height-1,chrome.Width,chrome.Height-1); };
+            chrome.Paint += delegate(object sender,PaintEventArgs e) { using(var pen = new Pen(PanelTheme.Border)) e.Graphics.DrawLine(pen,0,chrome.Height-1,chrome.Width,chrome.Height-1); };
             chrome.MouseDown += Drag;
             chrome.DoubleClick += delegate { ToggleMaximize(); };
-            pin.Click += delegate { SetPinned(!TopMost); };
+            pin.Click += delegate { SetPinned(!pinned); };
             mode.Click += delegate { SwitchMode(settings.Mode=="reading" ? "compact" : "reading"); };
             minimize.Click += delegate { WindowState = FormWindowState.Minimized; };
             close.Click += delegate { Hide(); WriteHealth(); };
@@ -299,7 +301,9 @@ namespace DeepSeekFloat
             dpiScale=value;
             // Pixel-unit font for the mode pill keeps its measured width equal
             // to its painted width after any resolution/DPI change.
+            var previousFont=chatModeButton.Font;
             chatModeButton.Font=new Font(PanelTheme.FontFamily,Math.Max(9f,(float)Math.Round(12f*Math.Max(1f,value)*2f)/2f),GraphicsUnit.Pixel);
+            if(previousFont!=null)previousFont.Dispose();
             if(pendingWakePlacement!=null)bounds=pendingWakePlacement.Bounds(value);
             var area=Screen.FromRectangle(bounds).WorkingArea;
             MinimumSize=new Size(Math.Min(S(360),area.Width),Math.Min(S(480),area.Height));
@@ -427,7 +431,7 @@ namespace DeepSeekFloat
                 var empty=menu.AddAction("还没有自定义指令",delegate{});empty.Enabled=false;
             }
             menu.AddDivider();
-            menu.AddAction("去设置添加",delegate { ShowSettingsPage("commands"); });
+            menu.AddAction("去设置添加",delegate { BeginInvoke(new Action(delegate{ShowSettingsPage("commands");})); });
             openMenu=menu;
             menu.Closed+=delegate {
                 if(openMenu==menu)openMenu=null;
@@ -478,8 +482,8 @@ namespace DeepSeekFloat
         private void ToggleMaximize() { WindowState = WindowState == FormWindowState.Maximized ? FormWindowState.Normal : FormWindowState.Maximized; }
         private void RefreshPin()
         {
-            pin.Active = TopMost;
-            pin.AccessibleName = TopMost ? "取消置顶" : "置顶窗口";
+            pin.Active = pinned;
+            pin.AccessibleName = pinned ? "取消置顶" : "置顶窗口";
             pin.Text=pin.AccessibleName;
             tips.SetToolTip(pin,pin.AccessibleName);
             pin.Invalidate();
@@ -526,7 +530,7 @@ namespace DeepSeekFloat
             showWithoutActivation=!activate;
             Show();
             showWithoutActivation=false;
-            if(!activate)Native.SetWindowPos(Handle,IntPtr.Zero,0,0,0,0,0x53); // top of z-order, no activation
+            if(!activate){Native.SetWindowPos(Handle,IntPtr.Zero,0,0,0,0,0x53);if(pinned)TopMost=true;} // top of z-order, no activation; a pinned capture must clear a topmost source window
             if (WindowState == FormWindowState.Minimized) WindowState=restoreState;
             if(settingsOpen||guideOpen) {
                 var dialog=OwnedForms.FirstOrDefault(f=>f is SettingsDialog||f is GettingStartedDialog);
@@ -737,6 +741,7 @@ namespace DeepSeekFloat
             string previousMode=settings.Mode;settings=next;
             if(previousMode!=settings.Mode)ApplyMode(settings.Mode);
             ApplyThemeFromSettings();
+            UpdateThemeSubscription();
             RefreshMode();WriteHealth();return null;
         }
         private void ShowFeedback() {
@@ -753,6 +758,7 @@ namespace DeepSeekFloat
         }
         private void ApplyThemeFromSettings() {
             var mode=ResolveTheme(settings.Theme);
+            UpdateThemeSubscription();
             if(PanelTheme.Mode==mode)return;
             PanelTheme.SetMode(mode);
             ApplyTheme();
@@ -762,11 +768,29 @@ namespace DeepSeekFloat
         internal void ApplyTheme() {
             BackColor=PanelTheme.Back;
             if(chrome!=null){chrome.BackColor=PanelTheme.Back;foreach(Control child in chrome.Controls){child.BackColor=PanelTheme.Back;if(child is PanelButton||child is ChromeButton)child.ForeColor=PanelTheme.Ink;}}
-            if(selectionBar!=null){selectionBar.BackColor=PanelTheme.Back;foreach(Control child in selectionBar.Controls){child.BackColor=PanelTheme.Back;if(child is PanelButton||child is ChromeButton)child.ForeColor=PanelTheme.Ink;}}
+            if(selectionBar!=null){
+                selectionBar.BackColor=PanelTheme.Back;
+                foreach(Control child in selectionBar.Controls){
+                    child.BackColor=PanelTheme.Back;
+                    if(child is PanelButton||child is ChromeButton)child.ForeColor=PanelTheme.Ink;
+                    if(child is Label)child.ForeColor=PanelTheme.Muted;
+                    foreach(Control nested in child.Controls){nested.BackColor=PanelTheme.Back;if(nested is PanelButton||nested is ChromeButton)nested.ForeColor=PanelTheme.Ink;}
+                }
+            }
             if(status!=null){status.BackColor=PanelTheme.Back;status.ForeColor=PanelTheme.Muted;}
+            if(frame!=null)frame.BackColor=PanelTheme.Back;
             if(edgeDock!=null)edgeDock.ApplyTheme();
+            if(smoothFrame!=null)smoothFrame.InvalidateTheme();
             browser.DefaultBackgroundColor=PanelTheme.Back;
             Invalidate(true);
+        }
+        private bool themeHooked;
+        private void UpdateThemeSubscription() {
+            bool wanted=settings!=null&&settings.Theme!="light"&&settings.Theme!="dark";
+            if(wanted==themeHooked)return;
+            if(wanted)Microsoft.Win32.SystemEvents.UserPreferenceChanged+=OnSystemPreferenceChanged;
+            else Microsoft.Win32.SystemEvents.UserPreferenceChanged-=OnSystemPreferenceChanged;
+            themeHooked=wanted;
         }
         private void OnSystemPreferenceChanged(object sender,Microsoft.Win32.UserPreferenceChangedEventArgs e) {
             if(e.Category!=Microsoft.Win32.UserPreferenceCategory.General||resourcesDisposed||quitting||!IsHandleCreated)return;
@@ -832,12 +856,12 @@ namespace DeepSeekFloat
             var menu=new TrayMenu(dpiScale);
             // Finish the dropdown click before opening a modal window or disposing the host.
             menu.AddAction("打开 DeepSeek-Reflex",delegate { var target=captureWakeTarget();BeginInvoke(new Action(delegate{ShowChatAt(target);})); });
-            var pinItem=menu.AddAction(TopMost?"取消置顶":"置顶窗口",delegate { BeginInvoke(new Action(delegate { SetPinned(!TopMost); })); });
+            var pinItem=menu.AddAction(pinned?"取消置顶":"置顶窗口",delegate { BeginInvoke(new Action(delegate { SetPinned(!pinned); })); });
             menu.AddDivider();
             menu.AddAction("设置",delegate { BeginInvoke(new Action(ShowSettings)); });
             menu.AddAction("反馈",delegate { BeginInvoke(new Action(ShowFeedback)); });
             menu.AddAction("退出",delegate { BeginInvoke(new Action(delegate { quitting=true;Close(); })); });
-            menu.Opening+=delegate { pinItem.Text=TopMost?"取消置顶":"置顶窗口"; };
+            menu.Opening+=delegate { pinItem.Text=pinned?"取消置顶":"置顶窗口"; };
             contextMenu=menu;return menu;
         }
         private async Task InitializeBrowser()

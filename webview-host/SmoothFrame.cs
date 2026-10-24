@@ -55,6 +55,9 @@ namespace DeepSeekFloat {
             return Native.SendMessage(corners[index].Handle,0x84,IntPtr.Zero,packed).ToInt32()==expected;
         }
         private void Hide(){foreach(var corner in corners)corner.Hide();SetReady(false);}
+        // Corner sprites bake the window background color; a theme switch
+        // must re-render and re-upload them.
+        internal void InvalidateTheme(){foreach(var corner in corners)corner.InvalidateTheme();SyncOwner();}
         internal void SyncOwner() {
             if(synchronizing||disposed||host.IsDisposed)return;
             synchronizing=true;
@@ -127,6 +130,7 @@ namespace DeepSeekFloat {
         private readonly Form host;private float scale;private readonly bool resizable;
         internal bool Uploaded {get;private set;}
         internal void UpdateScale(float value){scale=value;Uploaded=false;}
+        internal void InvalidateTheme(){Uploaded=false;}
         internal CornerSurface(Form owner,float dpiScale,bool allowResize) {
             host=owner;scale=dpiScale;resizable=allowResize;AutoScaleMode=AutoScaleMode.None;FormBorderStyle=FormBorderStyle.None;
             ShowInTaskbar=false;StartPosition=FormStartPosition.Manual;Text="DeepSeek-Reflex 圆角绘制层";
