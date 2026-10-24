@@ -217,7 +217,7 @@ internal static class SettingsTests {
   var material="带\"引号\"的材料";
   var customPrompt=PromptInserter.ComposeInstruction("请总结。",material);
   Check(customPrompt.StartsWith("请总结。")&&customPrompt.Contains("<选中文字>\n"+material+"\n</选中文字>"),"custom instructions use the shared quoted material envelope");
-  Check(PromptInserter.Compose(material,0).StartsWith("请将下面的文字翻译成中文")&&PromptInserter.Compose(material,2).Contains("值得进一步提问"),"builtin integer mapping unchanged");
+  Check(PromptInserter.Compose(material,0).StartsWith(ChatModes.Find("translate").Instruction)&&PromptInserter.Compose(material,1).StartsWith(ChatModes.Find("explain").Instruction)&&PromptInserter.Compose(material,2).StartsWith(ChatModes.Find("question").Instruction),"selection actions reuse the persistent mode instructions verbatim");
   // BR bridge reply contract
   var bridgeId="d1f39a2b-1c66-4de5-9d94-30db2b58a701";
   Check(new BridgeRequest{id=bridgeId,mode="polish",text="内容"}.Valid&&!new BridgeRequest{id=bridgeId,mode="polish",text="内容"}.IsReply,"stage request stays valid without an op");
@@ -309,7 +309,7 @@ internal static class SettingsTests {
    typeof(ChatWindow).GetField("customChoice",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,null);
    Com(window,"RefreshSelectionChoice",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.InvokeMethod);
    composed=(string)composeSelector.Invoke(window,null);
-   Check(composed.StartsWith("请将下面的文字翻译成中文"),"clearing the custom choice returns to the builtin translation");
+   Check(composed.StartsWith(ChatModes.Find("translate").Instruction),"clearing the custom choice returns to the builtin translation");
    typeof(ChatWindow).GetField("selectedText",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,null);
    Com(window,"RefreshSelectionChoice",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.InvokeMethod);
    Check(more.AccessibleName=="更多取词指令"&&((Label)Field(window,"selectionStatus")).Text.Length==0,"clearing the custom choice restores the default name and hint");

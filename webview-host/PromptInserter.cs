@@ -11,8 +11,11 @@ namespace DeepSeekFloat
     {
         internal static string Compose(string text, int action)
         {
-            string instruction=action==1 ? "请面向学生，用通俗中文解释下面的文字：先说含义，再解释难点，必要时举一个简短例子。" : action==2 ? "请帮我理解下面的文字，并指出其中值得进一步提问的地方。" : "请将下面的文字翻译成中文；如果已经是中文，请解释它的意思。保留关键术语和原意。";
-            return ComposeInstruction(instruction,text);
+            // Builtin selection actions reuse the persistent chat-mode
+            // instructions verbatim: one wording per intent, whichever entry
+            // point fires it, so the two surfaces never drift apart again.
+            var mode=ChatModes.Find(action==1?"explain":action==2?"question":"translate");
+            return ComposeInstruction(mode.Instruction,text);
         }
         // One envelope for builtin and custom instructions alike; the material
         // stays a quoted <选中文字> block and is never sent automatically.
