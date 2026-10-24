@@ -35,6 +35,7 @@ namespace DeepSeekFloat {
         internal static Color InputBorder{get{return mode==UiTheme.Light?Color.FromArgb(131,143,163):Color.FromArgb(90,99,112);}}
         internal static Color CloseHover{get{return mode==UiTheme.Light?Color.FromArgb(255,235,235):Color.FromArgb(70,45,45);}}
         internal static Color ClosePressed{get{return mode==UiTheme.Light?Color.FromArgb(255,216,216):Color.FromArgb(92,56,56);}}
+        internal static Color SwitchOff{get{return mode==UiTheme.Light?Color.FromArgb(194,202,216):Color.FromArgb(74,81,92);}}
         internal static Color Back{get{return mode==UiTheme.Light?Color.White:Color.FromArgb(31,34,39);}}
         internal static Color Card{get{return mode==UiTheme.Light?Color.White:Color.FromArgb(38,41,47);}}
         internal const int HoverDuration=120,PressDuration=60,ReleaseDuration=90,SwitchDuration=160;
@@ -97,14 +98,14 @@ namespace DeepSeekFloat {
         }
         protected override void OnPaint(PaintEventArgs e) {
             var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;g.Clear(BackColor);float scale=g.DpiX/96f;
-            var neutral=Segment?PanelTheme.Surface:PanelTheme.Card;
+            var neutral=Segment?PanelTheme.Back:PanelTheme.Card;
             var color=Primary?PanelTheme.Mix(PanelTheme.Accent,PanelTheme.AccentHover,hoverMotion.Value):PanelTheme.Mix(PanelTheme.Mix(neutral,PanelTheme.Hover,hoverMotion.Value),Segment?PanelTheme.Card:PanelTheme.Tint,choiceMotion.Value);
             color=PanelTheme.Mix(color,Primary?PanelTheme.AccentPressed:PanelTheme.Pressed,pressMotion.Value*0.7f);
             if(!Enabled)color=PanelTheme.Surface;
             float inset=scale/2,offset=pressMotion.Value*scale;
             using(var shape=PanelTheme.Rounded(new RectangleF(inset,inset,Width-scale,Height-scale),PanelTheme.ControlRadius*scale)) {
                 using(var brush=new SolidBrush(color))g.FillPath(brush,shape);
-                if((!Ghost&&!Segment)||Outline||InputFocused||(Segment&&chosen))using(var pen=new Pen(Primary||InputFocused?PanelTheme.Accent:InputFrame?PanelTheme.InputBorder:Segment?PanelTheme.Border:PanelTheme.Mix(PanelTheme.Border,PanelTheme.Accent,choiceMotion.Value),scale))g.DrawPath(pen,shape);
+                if((!Ghost&&!Segment)||Outline||InputFocused||Segment)using(var pen=new Pen(Primary||InputFocused?PanelTheme.Accent:InputFrame?PanelTheme.InputBorder:PanelTheme.Mix(PanelTheme.Border,PanelTheme.Accent,choiceMotion.Value),scale))g.DrawPath(pen,shape);
             }
             var textColor=!Enabled?PanelTheme.Muted:Primary?Color.White:PanelTheme.Mix(ForeColor,PanelTheme.AccentHover,choiceMotion.Value);
             // Reserve room for the chevron so text and arrow read as one centered group.
@@ -134,7 +135,7 @@ namespace DeepSeekFloat {
             public override void DoDefaultAction(){if(control.Enabled)control.PerformClick();}
         }
         internal PanelSwitch(string text) {
-            Text=text;AccessibleName=text;AccessibleRole=AccessibleRole.CheckButton;FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;BackColor=PanelTheme.Surface;Cursor=Cursors.Hand;
+            Text=text;AccessibleName=text;AccessibleRole=AccessibleRole.CheckButton;FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;BackColor=PanelTheme.Back;Cursor=Cursors.Hand;
             SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
             slide=new UiMotion(this);hoverMotion=new UiMotion(this);pressMotion=new UiMotion(this);PanelTheme.Feedback(this,hoverMotion,pressMotion);
         }
@@ -143,7 +144,7 @@ namespace DeepSeekFloat {
             var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;g.Clear(BackColor);float s=g.DpiX/96f,w=36*s,h=20*s;
             using(var shape=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.ControlRadius*s))using(var brush=new SolidBrush(PanelTheme.Mix(PanelTheme.Mix(BackColor,PanelTheme.Hover,hoverMotion.Value),PanelTheme.Pressed,pressMotion.Value*0.45f)))g.FillPath(brush,shape);
             var rect=new RectangleF(Width-w-2*s,(Height-h)/2,w,h);
-            using(var path=PanelTheme.Rounded(rect,10*s))using(var brush=new SolidBrush(PanelTheme.Mix(Color.FromArgb(194,202,216),PanelTheme.Accent,slide.Value)))g.FillPath(brush,path);
+            using(var path=PanelTheme.Rounded(rect,10*s))using(var brush=new SolidBrush(PanelTheme.Mix(PanelTheme.SwitchOff,PanelTheme.Accent,slide.Value)))g.FillPath(brush,path);
             using(var brush=new SolidBrush(Color.White))g.FillEllipse(brush,rect.X+2*s+16*s*slide.Value,rect.Y+2*s,16*s,16*s);
             TextRenderer.DrawText(g,Text,Font,new Rectangle(0,0,(int)(Width-w-12*s),Height),PanelTheme.Ink,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
             if(Focused&&ShowFocusCues)PanelTheme.FocusRing(g,Size,s,PanelTheme.ControlRadius-3);
@@ -160,7 +161,7 @@ namespace DeepSeekFloat {
         internal PanelChoices(params string[] names) {
             BackColor=PanelTheme.Back;DoubleBuffered=true;TabStop=false;choices=new PanelButton[names.Length];
             for(int i=0;i<names.Length;i++) {
-                int index=i;var button=new PanelButton(names[i]) {Segment=true,BackColor=PanelTheme.Surface};button.AccessibleRole=AccessibleRole.RadioButton;
+                int index=i;var button=new PanelButton(names[i]) {Segment=true,BackColor=PanelTheme.Back};button.AccessibleRole=AccessibleRole.RadioButton;
                 button.Click+=delegate {SelectedIndex=index;};
                 button.KeyDown+=delegate(object sender,KeyEventArgs e){if(e.KeyCode==Keys.Left||e.KeyCode==Keys.Right||e.KeyCode==Keys.Home||e.KeyCode==Keys.End){SelectedIndex=e.KeyCode==Keys.Home?0:e.KeyCode==Keys.End?choices.Length-1:(selected+(e.KeyCode==Keys.Right?1:choices.Length-1))%choices.Length;choices[selected].Focus();e.Handled=true;e.SuppressKeyPress=true;}};
                 choices[i]=button;Controls.Add(button);
@@ -175,10 +176,13 @@ namespace DeepSeekFloat {
         protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;using(var shape=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.ControlRadius*e.Graphics.DpiX/96f))using(var brush=new SolidBrush(PanelTheme.Surface))e.Graphics.FillPath(brush,shape);}
     }
     internal sealed class PanelCard : Panel {
-        internal PanelCard() { BackColor=PanelTheme.Card;DoubleBuffered=true; }
+        internal PanelCard() { BackColor=PanelTheme.Back;DoubleBuffered=true; }
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
-            using(var path=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.PanelRadius*e.Graphics.DpiX/96f))using(var brush=new SolidBrush(PanelTheme.Surface))e.Graphics.FillPath(brush,path);
+            using(var path=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.PanelRadius*e.Graphics.DpiX/96f)) {
+                using(var brush=new SolidBrush(PanelTheme.Card))e.Graphics.FillPath(brush,path);
+                using(var pen=new Pen(PanelTheme.Border))e.Graphics.DrawPath(pen,path);
+            }
         }
     }
     // Dynamic status text announces itself; ActAsButton additionally exposes

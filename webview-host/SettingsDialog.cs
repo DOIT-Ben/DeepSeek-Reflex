@@ -49,13 +49,17 @@ namespace DeepSeekFloat {
         private SmoothFrame smoothFrame;
         private bool arranging;
         private const int GeneralContentHeight=384,CommandsContentHeight=332;
+        // Header 52 + content + viewport slack 12 + footer band 80: the dialog
+        // is exactly as tall as the active page, so nothing scrolls by default.
+        private int DialogHeight(){return 144+(onCommandsPage?CommandsContentHeight:GeneralContentHeight);}
+        private void ApplyDialogHeight(){int target=S(DialogHeight());if(ClientSize.Height!=target){ClientSize=new Size(ClientSize.Width,target);Arrange();}}
         internal SettingsDialog(WindowSettings settings,Func<WindowSettings,string> apply,Action<string> quickAction=null,string openPage=null) {
             original=settings.Clone();toggle=new HotkeyBox(settings.ToggleKeys);capture=new HotkeyBox(settings.CaptureKeys);
             toggle.AccessibleName="唤出 / 收起快捷键";capture.AccessibleName="选中文字取词快捷键";
             using(var graphics=Graphics.FromHwnd(IntPtr.Zero))scale=graphics.DpiX/96f;
             Text="DeepSeek-Reflex 设置";Font=PanelTheme.CompactFont();BackColor=PanelTheme.Back;ForeColor=PanelTheme.Ink;DoubleBuffered=true;
             FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;MinimizeBox=false;ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;
-            AutoScaleMode=AutoScaleMode.None;ClientSize=new Size(S(460),S(480));Padding=Padding.Empty;
+            AutoScaleMode=AutoScaleMode.None;ClientSize=new Size(S(460),S(DialogHeight()));Padding=Padding.Empty;
             Controls.Add(surface);
             heading=LabelAt(surface,"小窗设置",20,14,292,28,PanelTheme.HeadingSize,true);
             surface.Controls.Add(close);close.Click+=delegate{AttemptClose();};
@@ -67,8 +71,8 @@ namespace DeepSeekFloat {
             KeyRow(card,"唤出 / 收起",toggle,4);KeyRow(card,"选中文字取词",capture,40);
             hint.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);hint.Text="点击按键框开始录入，Esc 取消，保存后生效。";Place(content,hint,0,100,420,18);hint.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             toggle.FeedbackChanged+=RecordingFeedback;capture.FeedbackChanged+=RecordingFeedback;
-            focus.Checked=settings.FocusOnOpen;var focusCard=new PanelCard();Place(content,focusCard,0,122,420,32);focusCard.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;Place(focusCard,focus,12,1,316,30);focus.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            dock.Checked=settings.EdgeDockEnabled;var dockCard=new PanelCard();Place(content,dockCard,0,158,420,32);dockCard.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;Place(dockCard,dock,12,1,316,30);dock.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            focus.Checked=settings.FocusOnOpen;Place(content,focus,0,122,420,30);focus.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            dock.Checked=settings.EdgeDockEnabled;Place(content,dock,0,158,420,30);dock.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             tips.SetToolTip(dock,"拖到屏幕左右边缘释放即收纳为标签，点击标签恢复。");
             LabelAt(content,"快捷键收起方式",0,194,420,16,PanelTheme.BodySize,true);
             hideMode.SelectedIndex=settings.HideToTrayOnToggle?1:0;Place(content,hideMode,0,212,420,30);hideMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
@@ -238,6 +242,7 @@ namespace DeepSeekFloat {
             UpdateFooterButtons();
             content.Size=new Size(S(420),S(GeneralContentHeight));
             body.AutoScrollMinSize=new Size(0,S(GeneralContentHeight));
+            ApplyDialogHeight();
             Arrange();
         }
         private void ShowCommandsPage(bool fresh) {
@@ -250,6 +255,7 @@ namespace DeepSeekFloat {
             UpdateFooterButtons();
             commandsPage.Size=new Size(S(420),S(CommandsContentHeight));
             body.AutoScrollMinSize=new Size(0,S(CommandsContentHeight));
+            ApplyDialogHeight();
             Arrange();
         }
         private void AttemptClose(){AttemptLeave(true);}

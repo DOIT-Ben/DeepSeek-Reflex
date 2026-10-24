@@ -505,13 +505,17 @@ namespace DeepSeekFloat
         // pinned floating window would cover them and their selection would
         // stick. Yield while a sibling topmost window owns the foreground and
         // return to the pin state as soon as a normal window leads again.
-        internal static bool TopmostForForeground(bool pinned,bool selfForeground,bool foreignTopmost){return pinned&&(selfForeground||!foreignTopmost);}
         private void OnForegroundChanged(IntPtr hook,uint eventId,IntPtr hwnd,int idObject,int idChild,uint thread,uint time) {
             if(idObject!=0||resourcesDisposed||quitting||!IsHandleCreated)return;
             BeginInvoke(new Action(delegate {
-                if(resourcesDisposed||quitting||!IsHandleCreated)return;
+                if(resourcesDisposed||quitting||!IsHandleCreated||!pinned)return;
                 var foreground=Native.GetForegroundWindow();
-                TopMost=TopmostForForeground(pinned,foreground==Handle,Native.IsTopmostWindow(foreground));
+                if(foreground==Handle)return;
+                // Screenshot overlays are topmost themselves. Slide just below
+                // the sibling inside the topmost band instead of switching the
+                // band: no WM_ACTIVATE churn while overlays flicker, and the
+                // normal-window branch re-asserts the top of the band.
+                Native.SetWindowPos(Handle,Native.IsTopmostWindow(foreground)?foreground:new IntPtr(-1),0,0,0,0,0x13);
             }));
         }
         internal void CloseOpenMenus(){var menu=openMenu;if(menu!=null&&menu.Visible)menu.Close();}
@@ -530,7 +534,7 @@ namespace DeepSeekFloat
             showWithoutActivation=!activate;
             Show();
             showWithoutActivation=false;
-            if(!activate){Native.SetWindowPos(Handle,IntPtr.Zero,0,0,0,0,0x53);if(pinned)TopMost=true;} // top of z-order, no activation; a pinned capture must clear a topmost source window
+            if(!activate)Native.SetWindowPos(Handle,IntPtr.Zero,0,0,0,0,0x53); // top of z-order, no activation
             if (WindowState == FormWindowState.Minimized) WindowState=restoreState;
             if(settingsOpen||guideOpen) {
                 var dialog=OwnedForms.FirstOrDefault(f=>f is SettingsDialog||f is GettingStartedDialog);

@@ -104,6 +104,9 @@ internal static class SettingsTests {
    var choices=(PanelChoices)Field(dialog,"windowMode");choices.SelectedIndex=0;var buttons=choices.Controls.OfType<PanelButton>().ToArray();buttons[0].Focus();PressKey(buttons[0],Keys.Right);
    Check(choices.SelectedIndex==1&&buttons[1].Focused&&buttons.Count(b=>b.TabStop)==1,"segmented choices support arrow navigation and one keyboard tab stop");
    PressKey(buttons[1],Keys.End);Check(choices.SelectedIndex==2,"segmented choices support End without moving the panel geometry");
+   Check(buttons[0].BackColor==PanelTheme.Back,"segmented choices sit on the page background without gray patches");
+   var dialogScale=(float)Field(dialog,"scale");
+   Check(dialog.ClientSize.Height==(int)Math.Round(528*dialogScale),"general page auto-fits the dialog height");
    var themeChoice=(PanelChoices)Field(dialog,"themeChoice");
    Check(themeChoice.SelectedIndex==0&&themeChoice.Controls.OfType<PanelButton>().Count()==3,"theme row defaults to following the system with three choices");
    float scale=(float)Field(dialog,"scale");var body=(Panel)Field(dialog,"body");var footer=(Panel)Field(dialog,"footer");
@@ -196,7 +199,6 @@ internal static class SettingsTests {
    using(var bitmap=new Bitmap(window.Width,window.Height)){window.DrawToBitmap(bitmap,new Rectangle(0,0,window.Width,window.Height));bitmap.Save(Path.Combine(directory,"dark-titlebar.png"));}
    PanelTheme.SetMode(UiTheme.Light);typeof(ChatWindow).GetMethod("ApplyTheme",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
    Check(chromePanel.BackColor==System.Drawing.Color.White&&PanelTheme.Mode==UiTheme.Light,"light theme restores the chrome");
-   Check(!ChatWindow.TopmostForForeground(true,false,true)&&ChatWindow.TopmostForForeground(true,false,false)&&ChatWindow.TopmostForForeground(true,true,true)&&!ChatWindow.TopmostForForeground(false,false,false),"pinned floating yields to sibling topmost overlays and returns to the pin state");
    typeof(ChatWindow).GetMethod("ShowChatModeMenu",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
    var liveMenu=(TrayMenu)Field(window,"openMenu");
    Check(liveMenu!=null&&liveMenu.Visible&&!liveMenu.IsDisposed,"the live mode menu registers for outside dismissal");
