@@ -1,5 +1,5 @@
 param(
-    [string]$OutputDirectory = (Join-Path ([IO.Path]::GetTempPath()) ('DeepSeekFloat-tests-'+[Guid]::NewGuid().ToString('N'))),
+    [string]$OutputDirectory = (Join-Path ([IO.Path]::GetTempPath()) ('DeepSeek-Reflex-tests-'+[Guid]::NewGuid().ToString('N'))),
     [string]$NodePath = 'node',
     [switch]$InteractionOnly
 )

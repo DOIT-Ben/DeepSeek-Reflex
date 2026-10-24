@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 /** Locate only the configured or standard installed Windows application. */
 export async function findExecutable({ platform = process.platform, env = process.env, inspect = stat } = {}) {
   if (platform !== 'win32') return { available: false, reason: 'windows-only' };
-  const executable = env.REFLEX_EXECUTABLE || (env.LOCALAPPDATA && path.win32.join(env.LOCALAPPDATA, 'Programs', 'DeepSeekFloat', 'DeepSeekFloat.exe'));
+  const executable = env.REFLEX_EXECUTABLE || (env.LOCALAPPDATA && path.win32.join(env.LOCALAPPDATA, 'Programs', 'DeepSeek-Reflex', 'DeepSeek-Reflex.exe'));
   if (!executable || !path.win32.isAbsolute(executable) || path.win32.basename(executable).toLowerCase() !== 'deepseekfloat.exe') {
     return { available: false, reason: 'not-installed' };
   }

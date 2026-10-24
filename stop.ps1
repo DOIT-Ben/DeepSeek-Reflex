@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
-$Exe = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Programs\DeepSeekFloat\DeepSeekFloat.exe'))
+$Exe = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek-Reflex\DeepSeek-Reflex.exe'))
 # Only stop this installation, never other processes with a similar name.
-Get-Process -Name 'DeepSeekFloat' -ErrorAction SilentlyContinue | Where-Object {
+Get-Process -Name 'DeepSeek-Reflex' -ErrorAction SilentlyContinue | Where-Object {
     $_.Path -and [IO.Path]::GetFullPath($_.Path) -eq $Exe
 } | ForEach-Object {
     Stop-Process -Id $_.Id -ErrorAction Stop

@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path ([IO.Path]::GetTempPath()) ('DeepSeek-Reflex-package-test-'+[Guid]::NewGuid().ToString('N')) }
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $OutputDirectory) { throw 'Package test output must be a new directory' }
-$Expected = @('DeepSeekFloat.exe','DeepSeek.exe','DeepSeekFloat.exe.config','Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','icon.ico','LICENSE','THIRD-PARTY-NOTICES.md','WebView2-LICENSE.txt','WebView2-NOTICE.txt','VERSION','README.md','README.en.md','QUICKSTART.txt','SHA256SUMS.txt')
+$Expected = @('DeepSeek-Reflex.exe','DeepSeek-Reflex.exe.config','Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','icon.ico','LICENSE','THIRD-PARTY-NOTICES.md','WebView2-LICENSE.txt','WebView2-NOTICE.txt','VERSION','README.md','README.en.md','QUICKSTART.txt','SHA256SUMS.txt')
 $Expected += @('docs/assets/logo.png','docs/assets/screenshots/compact.png','docs/assets/screenshots/reading.png','docs/assets/screenshots/selected-text.png','docs/assets/screenshots/settings.png','docs/assets/screenshots/getting-started.png')
 $Archive = [IO.Compression.ZipFile]::OpenRead([IO.Path]::GetFullPath($ZipPath))
 try {
@@ -32,7 +32,7 @@ foreach ($Line in $Lines) {
     $Hashed += $Name
 }
 $Version = (Get-Content -LiteralPath (Join-Path $Payload 'VERSION') -Raw).Trim()
-$Info = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $Payload 'DeepSeekFloat.exe'))
+$Info = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $Payload 'DeepSeek-Reflex.exe'))
 if ($Info.ProductVersion -ne $Version -or $Info.FileVersion -ne "$Version.0" -or $Info.ProductName -ne 'DeepSeek-Reflex') { throw 'ZIP executable version mismatch' }
 $LegacyInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $Payload 'DeepSeek.exe'))
 if ($LegacyInfo.ProductVersion -ne $Version -or $LegacyInfo.FileVersion -ne "$Version.0" -or $LegacyInfo.ProductName -ne 'DeepSeek-Reflex') { throw 'ZIP legacy launcher version mismatch' }

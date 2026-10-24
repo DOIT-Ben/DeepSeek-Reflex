@@ -17,7 +17,7 @@ namespace DeepSeekFloat
                 return;
             }
             bool created;
-            using (var mutex = new Mutex(true, @"Local\DeepSeekFloat.Host", out created))
+            using (var mutex = new Mutex(true, @"Local\DeepSeek-Reflex.Host", out created))
             {
                 if (!created)
                 {

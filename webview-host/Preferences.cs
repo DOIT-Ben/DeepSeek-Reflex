@@ -8,7 +8,17 @@ namespace DeepSeekFloat
     internal static class Preferences
     {
         internal static bool IsStorageFailure(Exception error){return error is IOException||error is UnauthorizedAccessException;}
-        internal static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "cloud.doitbenai.deepseekfloat");
+        internal static readonly string Root = EnsureRoot();
+        // One-time migration: the pre-rename data folder moves to the new name
+        // so settings, shortcuts and custom instructions survive the rebrand.
+        private static string EnsureRoot() {
+            var root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"cloud.doitbenai.deepseek-reflex");
+            try {
+                var legacy=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"cloud.doitbenai.deepseekfloat");
+                if(!Directory.Exists(root)&&Directory.Exists(legacy))Directory.Move(legacy,root);
+            } catch(Exception) { /* keep the new root even when the legacy move is blocked */ }
+            return root;
+        }
         internal static bool ReadBool(string name)
         {
             try { return File.ReadAllText(Path.Combine(Root,name)).Trim() == "true"; } catch (Exception error) { if(!IsStorageFailure(error))throw;return false; }

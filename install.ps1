@@ -2,13 +2,13 @@ param([switch]$NoLaunch)
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BuildDir = Join-Path $Root 'webview-host\dist'
-$ExeSrc = Join-Path $BuildDir 'DeepSeekFloat.exe'
+$ExeSrc = Join-Path $BuildDir 'DeepSeek-Reflex.exe'
 $IconSrc = Join-Path $Root 'webview-host\assets\icon.ico'
-$InstallDir = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Programs\DeepSeekFloat'))
-$ExeDst = Join-Path $InstallDir 'DeepSeekFloat.exe'
+$InstallDir = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek-Reflex'))
+$ExeDst = Join-Path $InstallDir 'DeepSeek-Reflex.exe'
 if (-not (Test-Path -LiteralPath $ExeSrc -PathType Leaf)) { throw "release exe not found: $ExeSrc" }
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-$ManagedFiles = @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','DeepSeekFloat.exe.config','WebView2-LICENSE.txt','WebView2-NOTICE.txt','LICENSE','THIRD-PARTY-NOTICES.md','VERSION','icon.ico','DeepSeek.exe','DeepSeekFloat.exe')
+$ManagedFiles = @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','DeepSeek-Reflex.exe.config','WebView2-LICENSE.txt','WebView2-NOTICE.txt','LICENSE','THIRD-PARTY-NOTICES.md','VERSION','icon.ico','DeepSeek-Reflex.exe')
 $StageDir = Join-Path $InstallDir ('.update-'+[Guid]::NewGuid().ToString('N'))
 $RollbackDir = Join-Path $StageDir 'rollback'
 New-Item -ItemType Directory -Path $RollbackDir -Force | Out-Null
@@ -26,8 +26,8 @@ foreach ($Name in $ManagedFiles) {
     }
 }
 # All managed files are verified before stopping this exact installed application.
-Get-Process -Name 'DeepSeekFloat','DeepSeek' -ErrorAction SilentlyContinue | Where-Object {
-    $_.Path -and [IO.Path]::GetFullPath($_.Path) -in @($ExeDst,(Join-Path $InstallDir 'DeepSeek.exe'))
+Get-Process -Name 'DeepSeek-Reflex','DeepSeekFloat','DeepSeek' -ErrorAction SilentlyContinue | Where-Object {
+    $_.Path -and [IO.Path]::GetFullPath($_.Path) -in @($ExeDst,(Join-Path $env:LOCALAPPDATA 'Programs\DeepSeekFloat\DeepSeekFloat.exe'),(Join-Path $env:LOCALAPPDATA 'Programs\DeepSeekFloat\DeepSeek.exe'))
 } | ForEach-Object {
     $HostProcess = $_
     Stop-Process -Id $HostProcess.Id -ErrorAction Stop
@@ -81,7 +81,7 @@ foreach ($directory in @($Desktop,$StartDir,$StartupDir)) {
     $oldLink=Join-Path $directory 'DeepSeek.lnk'
     if (-not (Test-Path -LiteralPath $oldLink -PathType Leaf)) { continue }
     $oldShortcut=$shell.CreateShortcut($oldLink)
-    if ($oldShortcut.TargetPath -notin @($ExeDst,(Join-Path $InstallDir 'DeepSeek.exe'))) { continue }
+    if ($oldShortcut.TargetPath -notin @($ExeDst,(Join-Path $env:LOCALAPPDATA 'Programs\DeepSeekFloat\DeepSeekFloat.exe'),(Join-Path $env:LOCALAPPDATA 'Programs\DeepSeekFloat\DeepSeek.exe'))) { continue }
     $backupName=if($directory -eq $Desktop){'desktop-DeepSeek.lnk'}elseif($directory -eq $StartDir){'start-DeepSeek.lnk'}else{'startup-DeepSeek.lnk'}
     Move-Item -LiteralPath $oldLink -Destination (Join-Path $RollbackDir $backupName)
     $RetiredLinks += $oldLink
@@ -101,8 +101,17 @@ public static class ReflexShellRefresh {
 foreach ($retiredPath in $RetiredLinks) {
     [ReflexShellRefresh]::SHChangeNotify(0x4,0x1005,$retiredPath,[IntPtr]::Zero)
 }
-foreach ($changedPath in @($ExeDst,(Join-Path $InstallDir 'DeepSeek.exe'),(Join-Path $InstallDir 'icon.ico'),$DesktopLnk,$StartLnk,$StartupLnk)) {
+foreach ($changedPath in @($ExeDst,(Join-Path $InstallDir 'icon.ico'),$DesktopLnk,$StartLnk,$StartupLnk)) {
     if(Test-Path -LiteralPath $changedPath){[ReflexShellRefresh]::SHChangeNotify(0x2000,0x2005,$changedPath,[IntPtr]::Zero)}
+}
+# Retire the pre-rename install directory; user data lives under APPDATA and
+# is migrated by the application, so only program files are removed here.
+$LegacyDir = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Programs\DeepSeekFloat'))
+if (Test-Path -LiteralPath $LegacyDir) {
+    Get-Process -Name 'DeepSeekFloat','DeepSeek' -ErrorAction SilentlyContinue | Where-Object {
+        $_.Path -and [IO.Path]::GetFullPath($_.Path).StartsWith($LegacyDir,[StringComparison]::OrdinalIgnoreCase)
+    } | Stop-Process -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $LegacyDir -Recurse -Force
 }
 if (-not $NoLaunch) { Start-Process -FilePath $ExeDst -WindowStyle Hidden }
 Write-Output "installed: $ExeDst"
