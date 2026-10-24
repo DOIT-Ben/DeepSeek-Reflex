@@ -99,13 +99,13 @@ namespace DeepSeekFloat {
         protected override void OnPaint(PaintEventArgs e) {
             var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;g.Clear(BackColor);float scale=g.DpiX/96f;
             var neutral=Segment?PanelTheme.Back:PanelTheme.Card;
-            var color=Primary?PanelTheme.Mix(PanelTheme.Accent,PanelTheme.AccentHover,hoverMotion.Value):PanelTheme.Mix(PanelTheme.Mix(neutral,PanelTheme.Hover,hoverMotion.Value),Segment?PanelTheme.Card:PanelTheme.Tint,choiceMotion.Value);
+            var color=Primary?PanelTheme.Mix(PanelTheme.Accent,PanelTheme.AccentHover,hoverMotion.Value):PanelTheme.Mix(PanelTheme.Mix(neutral,PanelTheme.Hover,hoverMotion.Value),PanelTheme.Tint,choiceMotion.Value);
             color=PanelTheme.Mix(color,Primary?PanelTheme.AccentPressed:PanelTheme.Pressed,pressMotion.Value*0.7f);
             if(!Enabled)color=PanelTheme.Surface;
             float inset=scale/2,offset=pressMotion.Value*scale;
             using(var shape=PanelTheme.Rounded(new RectangleF(inset,inset,Width-scale,Height-scale),PanelTheme.ControlRadius*scale)) {
                 using(var brush=new SolidBrush(color))g.FillPath(brush,shape);
-                if((!Ghost&&!Segment)||Outline||InputFocused||Segment)using(var pen=new Pen(Primary||InputFocused?PanelTheme.Accent:InputFrame?PanelTheme.InputBorder:PanelTheme.Mix(PanelTheme.Border,PanelTheme.Accent,choiceMotion.Value),scale))g.DrawPath(pen,shape);
+                if((!Ghost&&!Segment)||Outline||InputFocused||(Segment&&chosen))using(var pen=new Pen(Primary||InputFocused?PanelTheme.Accent:InputFrame?PanelTheme.InputBorder:PanelTheme.Mix(PanelTheme.Border,PanelTheme.Accent,choiceMotion.Value),scale))g.DrawPath(pen,shape);
             }
             var textColor=!Enabled?PanelTheme.Muted:Primary?Color.White:PanelTheme.Mix(ForeColor,PanelTheme.AccentHover,choiceMotion.Value);
             // Reserve room for the chevron so text and arrow read as one centered group.
@@ -161,7 +161,7 @@ namespace DeepSeekFloat {
         internal PanelChoices(params string[] names) {
             BackColor=PanelTheme.Back;DoubleBuffered=true;TabStop=false;choices=new PanelButton[names.Length];
             for(int i=0;i<names.Length;i++) {
-                int index=i;var button=new PanelButton(names[i]) {Segment=true,BackColor=PanelTheme.Back};button.AccessibleRole=AccessibleRole.RadioButton;
+                int index=i;var button=new PanelButton(names[i]) {Segment=true,BackColor=PanelTheme.Card};button.AccessibleRole=AccessibleRole.RadioButton;
                 button.Click+=delegate {SelectedIndex=index;};
                 button.KeyDown+=delegate(object sender,KeyEventArgs e){if(e.KeyCode==Keys.Left||e.KeyCode==Keys.Right||e.KeyCode==Keys.Home||e.KeyCode==Keys.End){SelectedIndex=e.KeyCode==Keys.Home?0:e.KeyCode==Keys.End?choices.Length-1:(selected+(e.KeyCode==Keys.Right?1:choices.Length-1))%choices.Length;choices[selected].Focus();e.Handled=true;e.SuppressKeyPress=true;}};
                 choices[i]=button;Controls.Add(button);
@@ -173,7 +173,13 @@ namespace DeepSeekFloat {
             int inset=(int)Math.Round(3*scale),available=Math.Max(0,Width-inset*2);
             for(int i=0;i<choices.Length;i++){int left=inset+available*i/choices.Length,right=inset+available*(i+1)/choices.Length;choices[i].SetBounds(left,inset,Math.Max(0,right-left),Math.Max(0,Height-inset*2));}
         }
-        protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;using(var shape=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.ControlRadius*e.Graphics.DpiX/96f))using(var brush=new SolidBrush(PanelTheme.Surface))e.Graphics.FillPath(brush,shape);}
+        protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
+            // One framed container split into segments; the chosen segment
+            // highlights itself instead of every option carrying a box.
+            using(var shape=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.ControlRadius*e.Graphics.DpiX/96f)){
+                using(var brush=new SolidBrush(PanelTheme.Card))e.Graphics.FillPath(brush,shape);
+                using(var pen=new Pen(PanelTheme.Border))e.Graphics.DrawPath(pen,shape);
+            }}
     }
     internal sealed class PanelCard : Panel {
         internal PanelCard() { BackColor=PanelTheme.Back;DoubleBuffered=true; }

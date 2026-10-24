@@ -67,8 +67,7 @@ namespace DeepSeekFloat {
             surface.Controls.Add(body);body.Controls.Add(content);body.Controls.Add(commandsPage);surface.Controls.Add(footer);
             content.Size=new Size(S(420),S(GeneralContentHeight));
             LabelAt(content,"快捷键",0,0,420,16,PanelTheme.BodySize,true);
-            var card=new PanelCard();Place(content,card,0,20,420,76);card.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            KeyRow(card,"唤出 / 收起",toggle,4);KeyRow(card,"选中文字取词",capture,40);
+            KeyRow(content,"唤出 / 收起",toggle,20);KeyRow(content,"选中文字取词",capture,60);
             hint.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);hint.Text="点击按键框开始录入，Esc 取消，保存后生效。";Place(content,hint,0,100,420,18);hint.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             toggle.FeedbackChanged+=RecordingFeedback;capture.FeedbackChanged+=RecordingFeedback;
             focus.Checked=settings.FocusOnOpen;Place(content,focus,0,122,420,30);focus.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
@@ -82,7 +81,7 @@ namespace DeepSeekFloat {
             Place(content,themeChoice,0,316,420,30);themeChoice.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             themeChoice.AccessibleName="界面主题";
             var actions=new Panel {Margin=Padding.Empty,Padding=Padding.Empty,BackColor=PanelTheme.Back};
-            Place(content,actions,0,350,420,PanelTheme.CompactControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            Place(content,actions,0,350,420,PanelTheme.ControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             var refresh=new PanelButton("刷新页面") {Ghost=true,Outline=true};var import=new PanelButton("粘贴导入") {Ghost=true,Outline=true};var help=new PanelButton("使用帮助") {Ghost=true,Outline=true};
             tips.SetToolTip(import,"导入剪贴板中的文字");
             var actionButtons=new[]{refresh,import,help};
@@ -343,16 +342,17 @@ namespace DeepSeekFloat {
         private Label LabelAt(Control parent,string text,int x,int y,int w,int h,float size,bool bold) {
             var label=new Label {Text=text,Font=PanelTheme.CompactFont(size,bold),ForeColor=PanelTheme.Ink,BackColor=PanelTheme.Back,TextAlign=ContentAlignment.MiddleLeft};Place(parent,label,x,y,w,h);if(parent==content||parent==commandsPage)label.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;return label;
         }
-        private void KeyRow(PanelCard card,string label,HotkeyBox box,int y) {
-            var text=LabelAt(card,label,12,y,116,PanelTheme.CompactInputHeight,PanelTheme.BodySize,false);text.BackColor=PanelTheme.Surface;
-            var keyFrame=new PanelButton("") {TabStop=false,InputFrame=true,BackColor=PanelTheme.Surface};card.Controls.Add(keyFrame);keyFrame.Cursor=Cursors.Hand;
+        private void KeyRow(Control parent,string label,HotkeyBox box,int y) {
+            // One plain row like every other setting: label on the page
+            // background, a single framed input on the right. No nested cards.
+            var text=LabelAt(parent,label,0,y,110,PanelTheme.CompactInputHeight,PanelTheme.BodySize,false);
+            var keyFrame=new PanelButton("") {TabStop=false,InputFrame=true,BackColor=PanelTheme.Card};parent.Controls.Add(keyFrame);keyFrame.Cursor=Cursors.Hand;
             box.Font=PanelTheme.CompactFont();keyFrame.Controls.Add(box);keyFrame.Click+=delegate{box.Focus();box.BeginCapture();};
             Action arrange=delegate {
-                int labelWidth=Math.Min(S(116),(int)(card.Width*0.35));text.Width=labelWidth;
-                keyFrame.SetBounds(labelWidth+S(20),S(y),Math.Max(1,card.Width-labelWidth-S(32)),S(PanelTheme.CompactInputHeight));
+                keyFrame.SetBounds(S(120),S(y),Math.Max(1,parent.Width-S(120)),S(PanelTheme.CompactInputHeight));
                 box.SetBounds(S(8),Math.Max(0,(keyFrame.Height-box.PreferredHeight)/2),Math.Max(1,keyFrame.Width-S(16)),box.PreferredHeight);
             };
-            card.Resize+=delegate{arrange();};arrange();
+            parent.Resize+=delegate{arrange();};arrange();
             box.Enter+=delegate{keyFrame.InputFocused=true;keyFrame.Invalidate();};box.Leave+=delegate{keyFrame.InputFocused=false;keyFrame.Invalidate();};
         }
         private void Drag(object sender,MouseEventArgs e){if(e.Button==MouseButtons.Left){Native.ReleaseCapture();Native.SendMessage(Handle,0xA1,new IntPtr(2),IntPtr.Zero);}}

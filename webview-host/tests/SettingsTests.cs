@@ -104,7 +104,7 @@ internal static class SettingsTests {
    var choices=(PanelChoices)Field(dialog,"windowMode");choices.SelectedIndex=0;var buttons=choices.Controls.OfType<PanelButton>().ToArray();buttons[0].Focus();PressKey(buttons[0],Keys.Right);
    Check(choices.SelectedIndex==1&&buttons[1].Focused&&buttons.Count(b=>b.TabStop)==1,"segmented choices support arrow navigation and one keyboard tab stop");
    PressKey(buttons[1],Keys.End);Check(choices.SelectedIndex==2,"segmented choices support End without moving the panel geometry");
-   Check(buttons[0].BackColor==PanelTheme.Back,"segmented choices sit on the page background without gray patches");
+   Check(buttons[0].BackColor==PanelTheme.Card,"segmented choices share the container surface without per-option boxes");
    var dialogScale=(float)Field(dialog,"scale");
    Check(dialog.ClientSize.Height==(int)Math.Round(528*dialogScale),"general page auto-fits the dialog height");
    var themeChoice=(PanelChoices)Field(dialog,"themeChoice");
