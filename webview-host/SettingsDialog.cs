@@ -348,11 +348,13 @@ namespace DeepSeekFloat {
             var text=LabelAt(parent,label,0,y,110,PanelTheme.CompactInputHeight,PanelTheme.BodySize,false);
             var keyFrame=new PanelButton("") {TabStop=false,InputFrame=true,BackColor=PanelTheme.Card};parent.Controls.Add(keyFrame);keyFrame.Cursor=Cursors.Hand;
             box.Font=PanelTheme.CompactFont();keyFrame.Controls.Add(box);keyFrame.Click+=delegate{box.Focus();box.BeginCapture();};
-            Action arrange=delegate {
-                keyFrame.SetBounds(S(120),S(y),Math.Max(1,parent.Width-S(120)),S(PanelTheme.CompactInputHeight));
-                box.SetBounds(S(8),Math.Max(0,(keyFrame.Height-box.PreferredHeight)/2),Math.Max(1,keyFrame.Width-S(16)),box.PreferredHeight);
-            };
-            parent.Resize+=delegate{arrange();};arrange();
+            // Native anchors survive every DPI change and layout pass; the old
+            // manual arrange depended on content.Resize firing at the right
+            // moment, and a missed firing left the input invisible.
+            keyFrame.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            box.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            keyFrame.SetBounds(S(120),S(y),Math.Max(1,parent.Width-S(120)),S(PanelTheme.CompactInputHeight));
+            box.SetBounds(S(8),Math.Max(0,(keyFrame.Height-box.PreferredHeight)/2),Math.Max(1,keyFrame.Width-S(16)),box.PreferredHeight);
             box.Enter+=delegate{keyFrame.InputFocused=true;keyFrame.Invalidate();};box.Leave+=delegate{keyFrame.InputFocused=false;keyFrame.Invalidate();};
         }
         private void Drag(object sender,MouseEventArgs e){if(e.Button==MouseButtons.Left){Native.ReleaseCapture();Native.SendMessage(Handle,0xA1,new IntPtr(2),IntPtr.Zero);}}
