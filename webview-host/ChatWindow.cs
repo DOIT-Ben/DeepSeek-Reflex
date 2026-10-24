@@ -289,6 +289,9 @@ namespace DeepSeekFloat
         internal void ApplyDpi(float value,Rectangle bounds) {
             if(value<=0)return;
             dpiScale=value;
+            // Pixel-unit font for the mode pill keeps its measured width equal
+            // to its painted width after any resolution/DPI change.
+            chatModeButton.Font=new Font(PanelTheme.FontFamily,Math.Max(9f,(float)Math.Round(12f*Math.Max(1f,value)*2f)/2f),GraphicsUnit.Pixel);
             if(pendingWakePlacement!=null)bounds=pendingWakePlacement.Bounds(value);
             var area=Screen.FromRectangle(bounds).WorkingArea;
             MinimumSize=new Size(Math.Min(S(360),area.Width),Math.Min(S(480),area.Height));

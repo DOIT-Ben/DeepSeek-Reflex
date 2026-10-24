@@ -8,7 +8,10 @@ namespace DeepSeekFloat {
         private readonly Font menuFont;
         internal bool NativeCornersRequested {get;private set;}
         internal TrayMenu(float dpiScale) {
-            scale=dpiScale;menuFont=PanelTheme.CompactFont();Font=menuFont;
+            scale=dpiScale;
+            // Pixel-unit font: GDI measure and paint stay identical at any
+            // monitor DPI, unlike point fonts whose pixel size tracks the DC.
+            menuFont=new Font(PanelTheme.FontFamily,Math.Max(9f,(float)Math.Round(12f*Math.Max(1f,dpiScale)*2f)/2f),GraphicsUnit.Pixel);Font=menuFont;
             ShowImageMargin=false;ShowCheckMargin=false;BackColor=Color.White;ForeColor=PanelTheme.Ink;
             AutoSize=false;AutoClose=true;Renderer=new TrayRenderer(scale);Padding=new Padding(S(4));DropShadowEnabled=true;
         }
@@ -72,7 +75,10 @@ namespace DeepSeekFloat {
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e){
             var owner=e.Item.Owner as TrayMenu;
             int inset=owner!=null?owner.Side:(int)Math.Round(8*scale);
-            TextRenderer.DrawText(e.Graphics,e.Text,e.Item.Font,new Rectangle(inset,0,e.Item.Width-inset*2,e.Item.Height),e.Item.Enabled?PanelTheme.Ink:PanelTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPrefix|TextFormatFlags.EndEllipsis);
+            // Paint with the menu's own font: measuring and painting must use
+            // one font, or a DPI change makes the painted text wider than the
+            // width the menu was sized with.
+            TextRenderer.DrawText(e.Graphics,e.Text,owner!=null?owner.Font:e.Item.Font,new Rectangle(inset,0,e.Item.Width-inset*2,e.Item.Height),e.Item.Enabled?PanelTheme.Ink:PanelTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPrefix|TextFormatFlags.EndEllipsis);
         }
         protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e){using(var pen=new Pen(PanelTheme.Border,scale))e.Graphics.DrawLine(pen,4*scale,e.Item.Height/2,e.Item.Width-4*scale,e.Item.Height/2);}
     }
