@@ -106,7 +106,7 @@ internal static class SettingsTests {
    PressKey(buttons[1],Keys.End);Check(choices.SelectedIndex==2,"segmented choices support End without moving the panel geometry");
    Check(buttons[0].BackColor==PanelTheme.Card,"segmented choices share the container surface without per-option boxes");
    var dialogScale=(float)Field(dialog,"scale");
-   Check(dialog.ClientSize.Height==(int)Math.Round(528*dialogScale),"general page auto-fits the dialog height");
+   Check(dialog.ClientSize.Height==(int)Math.Round(578*dialogScale),"general page auto-fits the dialog height");
    var themeChoice=(PanelChoices)Field(dialog,"themeChoice");
    Check(themeChoice.SelectedIndex==0&&themeChoice.Controls.OfType<PanelButton>().Count()==3,"theme row defaults to following the system with three choices");
    float scale=(float)Field(dialog,"scale");var body=(Panel)Field(dialog,"body");var footer=(Panel)Field(dialog,"footer");

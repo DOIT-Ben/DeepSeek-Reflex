@@ -48,7 +48,7 @@ namespace DeepSeekFloat {
         private readonly WindowFrame frame=new WindowFrame();
         private SmoothFrame smoothFrame;
         private bool arranging;
-        private const int GeneralContentHeight=384,CommandsContentHeight=332;
+        private const int GeneralContentHeight=434,CommandsContentHeight=332;
         // Header 52 + content + viewport slack 12 + footer band 80: the dialog
         // is exactly as tall as the active page, so nothing scrolls by default.
         private int DialogHeight(){return 144+(onCommandsPage?CommandsContentHeight:GeneralContentHeight);}
@@ -67,21 +67,21 @@ namespace DeepSeekFloat {
             surface.Controls.Add(body);body.Controls.Add(content);body.Controls.Add(commandsPage);surface.Controls.Add(footer);
             content.Size=new Size(S(420),S(GeneralContentHeight));
             LabelAt(content,"快捷键",0,0,420,16,PanelTheme.BodySize,true);
-            KeyRow(content,"唤出 / 收起",toggle,20);KeyRow(content,"选中文字取词",capture,60);
-            hint.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);hint.Text="点击按键框开始录入，Esc 取消，保存后生效。";Place(content,hint,0,100,420,18);hint.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            KeyRow(content,"唤出 / 收起",toggle,20);KeyRow(content,"选中文字取词",capture,78);
+            hint.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);hint.Text="点击按键框开始录入，Esc 取消，保存后生效。";Place(content,hint,0,136,420,18);hint.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             toggle.FeedbackChanged+=RecordingFeedback;capture.FeedbackChanged+=RecordingFeedback;
-            focus.Checked=settings.FocusOnOpen;Place(content,focus,0,122,420,30);focus.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            dock.Checked=settings.EdgeDockEnabled;Place(content,dock,0,158,420,30);dock.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            focus.Checked=settings.FocusOnOpen;Place(content,focus,0,162,420,30);focus.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            dock.Checked=settings.EdgeDockEnabled;Place(content,dock,0,198,420,30);dock.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             tips.SetToolTip(dock,"拖到屏幕左右边缘释放即收纳为标签，点击标签恢复。");
-            LabelAt(content,"快捷键收起方式",0,194,420,16,PanelTheme.BodySize,true);
-            hideMode.SelectedIndex=settings.HideToTrayOnToggle?1:0;Place(content,hideMode,0,212,420,30);hideMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            LabelAt(content,"窗口尺寸",0,246,420,16,PanelTheme.BodySize,true);
-            windowMode.SelectedIndex=settings.Mode=="reading"?2:settings.Mode=="compact"?1:0;Place(content,windowMode,0,264,420,30);windowMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            themeChoice.SelectedIndex=settings.Theme=="dark"?2:settings.Theme=="light"?1:0;LabelAt(content,"主题",0,298,420,16,PanelTheme.BodySize,true);
-            Place(content,themeChoice,0,316,420,30);themeChoice.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            LabelAt(content,"快捷键收起方式",0,234,420,16,PanelTheme.BodySize,true);
+            hideMode.SelectedIndex=settings.HideToTrayOnToggle?1:0;Place(content,hideMode,0,252,420,30);hideMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            LabelAt(content,"窗口尺寸",0,288,420,16,PanelTheme.BodySize,true);
+            windowMode.SelectedIndex=settings.Mode=="reading"?2:settings.Mode=="compact"?1:0;Place(content,windowMode,0,306,420,30);windowMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            themeChoice.SelectedIndex=settings.Theme=="dark"?2:settings.Theme=="light"?1:0;LabelAt(content,"主题",0,342,420,16,PanelTheme.BodySize,true);
+            Place(content,themeChoice,0,360,420,30);themeChoice.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             themeChoice.AccessibleName="界面主题";
             var actions=new Panel {Margin=Padding.Empty,Padding=Padding.Empty,BackColor=PanelTheme.Back};
-            Place(content,actions,0,350,420,PanelTheme.ControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            Place(content,actions,0,396,420,PanelTheme.ControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             var refresh=new PanelButton("刷新页面") {Ghost=true,Outline=true};var import=new PanelButton("粘贴导入") {Ghost=true,Outline=true};var help=new PanelButton("使用帮助") {Ghost=true,Outline=true};
             tips.SetToolTip(import,"导入剪贴板中的文字");
             var actionButtons=new[]{refresh,import,help};
@@ -343,17 +343,15 @@ namespace DeepSeekFloat {
             var label=new Label {Text=text,Font=PanelTheme.CompactFont(size,bold),ForeColor=PanelTheme.Ink,BackColor=PanelTheme.Back,TextAlign=ContentAlignment.MiddleLeft};Place(parent,label,x,y,w,h);if(parent==content||parent==commandsPage)label.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;return label;
         }
         private void KeyRow(Control parent,string label,HotkeyBox box,int y) {
-            // One plain row like every other setting: label on the page
-            // background, a single framed input on the right. No nested cards.
-            var text=LabelAt(parent,label,0,y,110,PanelTheme.CompactInputHeight,PanelTheme.BodySize,false);
+            // Label above a full-width single input: the same proven pattern
+            // as every switch row. Side-by-side rows depended on layout hooks
+            // that could miss their moment on scaled displays and hid inputs.
+            LabelAt(parent,label,0,y,420,16,PanelTheme.BodySize,false);
             var keyFrame=new PanelButton("") {TabStop=false,InputFrame=true,BackColor=PanelTheme.Card};parent.Controls.Add(keyFrame);keyFrame.Cursor=Cursors.Hand;
             box.Font=PanelTheme.CompactFont();keyFrame.Controls.Add(box);keyFrame.Click+=delegate{box.Focus();box.BeginCapture();};
-            // Native anchors survive every DPI change and layout pass; the old
-            // manual arrange depended on content.Resize firing at the right
-            // moment, and a missed firing left the input invisible.
             keyFrame.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             box.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            keyFrame.SetBounds(S(120),S(y),Math.Max(1,parent.Width-S(120)),S(PanelTheme.CompactInputHeight));
+            keyFrame.SetBounds(S(0),S(y+18),S(420),S(34));
             box.SetBounds(S(8),Math.Max(0,(keyFrame.Height-box.PreferredHeight)/2),Math.Max(1,keyFrame.Width-S(16)),box.PreferredHeight);
             box.Enter+=delegate{keyFrame.InputFocused=true;keyFrame.Invalidate();};box.Leave+=delegate{keyFrame.InputFocused=false;keyFrame.Invalidate();};
         }
