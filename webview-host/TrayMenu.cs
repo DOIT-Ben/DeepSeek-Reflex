@@ -34,13 +34,15 @@ namespace DeepSeekFloat {
                 if(item is ToolStripSeparator)continue;
                 textWidth=Math.Max(textWidth,TextRenderer.MeasureText(item.Text,menuFont,new Size(int.MaxValue,int.MaxValue),TextFormatFlags.Left|TextFormatFlags.NoPadding).Width);
             }
-            Side=Math.Max(S(10),(int)Math.Round(textWidth*0.16f));
+            Side=Math.Max(S(8),(int)Math.Round(textWidth*0.16f));
             // The check gutter in the renderer needs a fixed slice on every
             // row so the text column stays aligned whether or not the row
             // shows a mark. Items span the full menu width edge to edge:
             // the hover strip is a full-bleed band, so no inset chrome may
-            // survive on either side.
-            int inner=Math.Max(S(128),Math.Min(S(300),textWidth+Side*2+S(20)));
+            // survive on either side. Width hugs the text with no floor
+            // beyond the clamp — a raised minimum just turns into blank
+            // margins next to four-character mode names.
+            int inner=Math.Max(S(56),Math.Min(S(300),textWidth+Side*2+S(20)));
             int height=S(8);
             foreach(ToolStripItem item in Items){item.Size=new Size(inner,item.Height);height+=item.Height;}
             Size=new Size(inner,height);
