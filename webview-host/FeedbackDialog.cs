@@ -40,7 +40,7 @@ namespace DeepSeekFloat {
             using(var graphics=Graphics.FromHwnd(IntPtr.Zero))scale=graphics.DpiX/96f;
             Text="DeepSeek-Reflex 反馈";Font=PanelTheme.CompactFont();BackColor=PanelTheme.Back;ForeColor=PanelTheme.Ink;DoubleBuffered=true;
             FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;MinimizeBox=false;ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;
-            AutoScaleMode=AutoScaleMode.None;ClientSize=new Size(S(420),S(372));Padding=Padding.Empty;
+            AutoScaleMode=AutoScaleMode.None;ClientSize=new Size(S(420),S(388));Padding=Padding.Empty;
             heading.Text="反馈";heading.Font=PanelTheme.CompactFont(PanelTheme.HeadingSize,true);
             intro.Text="说说遇到的问题、想要的功能，或者任何想法。";
             intro.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);intro.ForeColor=PanelTheme.Muted;
@@ -111,7 +111,9 @@ namespace DeepSeekFloat {
             contact.SetBounds(S(8),Math.Max(0,(contactFrame.Height-contact.Height)/2),Math.Max(1,contactFrame.Width-S(16)),contact.Height);
             contactHint.SetBounds(S(8),Math.Max(0,(contactFrame.Height-S(14))/2),Math.Max(1,contactFrame.Width-S(16)),S(14));
             privacy.SetBounds(S(20),S(286),width,S(14));
-            status.SetBounds(S(20),ClientSize.Height-S(60),width,S(14));
+            // Failure reasons can be long; two wrapped lines keep the whole
+            // message readable instead of clipping mid-sentence.
+            status.SetBounds(S(20),ClientSize.Height-S(82),width,S(32));
             send.SetBounds(ClientSize.Width-S(20)-S(96),ClientSize.Height-S(42),S(96),S(30));
             cancel.SetBounds(ClientSize.Width-S(20)-S(96)-S(6)-S(70),ClientSize.Height-S(42),S(70),S(30));
             thanksMark.SetBounds(S(20),S(120),width,S(44));
@@ -145,7 +147,7 @@ namespace DeepSeekFloat {
                 if(failure==null){self.ShowThanks();return;}
                 self.send.Enabled=true;self.send.Text="发送反馈";self.cancel.Enabled=true;
                 self.status.ForeColor=PanelTheme.Error;
-                self.status.Text="发送失败："+failure+"。也可到 GitHub 仓库提 Issue。";
+                self.status.Text="发送失败："+failure.TrimEnd('。','.')+"。也可到 GitHub 仓库提 Issue。";
             }catch(Exception){if(!self.IsDisposed){self.send.Enabled=true;self.send.Text="发送反馈";self.cancel.Enabled=true;self.status.ForeColor=PanelTheme.Error;self.status.Text="发送失败，请稍后重试。";}}
         }
         private void ShowThanks() {
@@ -158,6 +160,11 @@ namespace DeepSeekFloat {
         }
         internal static string HttpPost(string json) {
             try {
+                // The 4.0-targeted build negotiates legacy TLS by default and
+                // the endpoint only accepts TLS 1.2+, so opt in explicitly
+                // (3072 = SecurityProtocolType.Tls12, absent from the 4.0
+                // reference assembly).
+                try{System.Net.ServicePointManager.SecurityProtocol|=(System.Net.SecurityProtocolType)3072;}catch(Exception){}
                 var request=(System.Net.HttpWebRequest)System.Net.WebRequest.Create(EndpointUrl);
                 request.Method="POST";request.ContentType="application/json; charset=utf-8";
                 request.Timeout=8000;request.ReadWriteTimeout=8000;request.UserAgent="DeepSeek-Reflex";
