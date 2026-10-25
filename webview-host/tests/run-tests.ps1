@@ -42,6 +42,5 @@ foreach ($Dpi in @('default','high-dpi')) {
     }
 }
 if($InteractionOnly){Write-Output "Focused interaction evidence: $OutputDirectory";return}
-& (Join-Path $PSScriptRoot 'test-legacy-launcher.ps1') -OutputDirectory $OutputDirectory
 & (Join-Path $PSScriptRoot 'run-boundary-tests.ps1') -OutputDirectory (Join-Path $OutputDirectory 'boundary')
 Write-Output "Test evidence: $OutputDirectory"

@@ -96,6 +96,7 @@ namespace DeepSeekFloat
         private int focusVersion;
         private WindowSettings settings;
         private IntPtr foregroundHook;private Native.WinEventDelegate foregroundHandler;private TrayMenu openMenu;private bool pinned;
+        private MenuDismissFilter menuDismissFilter;
         private HotkeyBindings hotkeys;
         private int selectionVersion;
         private string selectedText, lastInserted;
@@ -157,6 +158,8 @@ namespace DeepSeekFloat
             } catch (IOException) { }
             pinned = Preferences.ReadBool("pin.json");TopMost = pinned;
             Deactivate+=delegate{CloseOpenMenus();};
+            menuDismissFilter=new MenuDismissFilter(this);
+            Application.AddMessageFilter(menuDismissFilter);
             foregroundHandler=OnForegroundChanged;
             foregroundHook=Native.SetWinEventHook(0x0003,0x0003,IntPtr.Zero,foregroundHandler,0,0,0); // EVENT_SYSTEM_FOREGROUND, out of context
             settings = WindowSettings.Load();
@@ -519,6 +522,29 @@ namespace DeepSeekFloat
             }));
         }
         internal void CloseOpenMenus(){var menu=openMenu;if(menu!=null&&menu.Visible)menu.Close();}
+        // The mode menu is a ContextMenuStrip, whose built-in outside-click
+        // dismissal never fires for presses landing in WebView2: the browser
+        // HWND routes its input past the toolstrip capture. A thread filter
+        // sees every button-down before dispatch, so any press outside the
+        // open menu closes it. Only the anchor pill's own click is swallowed,
+        // so that press toggles the menu closed instead of reopening it.
+        private sealed class MenuDismissFilter : IMessageFilter {
+            private readonly ChatWindow owner;
+            internal MenuDismissFilter(ChatWindow owner){this.owner=owner;}
+            public bool PreFilterMessage(ref Message m) {
+                if(m.Msg!=0x201&&m.Msg!=0x204&&m.Msg!=0x207&&m.Msg!=0xA1)return false; // L/M/R down, incl. non-client
+                return owner.CloseOpenMenuForClick();
+            }
+        }
+        internal bool CloseOpenMenuForClick() {
+            var menu=openMenu;
+            if(menu==null||!menu.Visible)return false;
+            var pt=Control.MousePosition;
+            if(menu.Bounds.Contains(pt))return false;
+            bool onPill=chatModeButton.RectangleToScreen(chatModeButton.ClientRectangle).Contains(pt);
+            CloseOpenMenus();
+            return onPill;
+        }
         private void ShowChatAt(WakeTarget target)
         {
             WakeChatAt(target,true);
@@ -1068,6 +1094,7 @@ namespace DeepSeekFloat
         {
             if(disposing && !resourcesDisposed) {
                 resourcesDisposed=true;
+                Application.RemoveMessageFilter(menuDismissFilter);
                 Microsoft.Win32.SystemEvents.DisplaySettingsChanged-=OnDisplaySettingsChanged;
                 Microsoft.Win32.SystemEvents.UserPreferenceChanged-=OnSystemPreferenceChanged;
                 if(foregroundHook!=IntPtr.Zero){Native.UnhookWinEvent(foregroundHook);foregroundHook=IntPtr.Zero;}

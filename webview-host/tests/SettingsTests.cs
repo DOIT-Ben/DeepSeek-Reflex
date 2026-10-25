@@ -204,6 +204,16 @@ internal static class SettingsTests {
    Check(liveMenu!=null&&liveMenu.Visible&&!liveMenu.IsDisposed,"the live mode menu registers for outside dismissal");
    window.CloseOpenMenus();Application.DoEvents();
    Check(liveMenu.IsDisposed||!liveMenu.Visible&&Field(window,"openMenu")==null,"deactivating the window dismisses the open mode menu");
+   typeof(ChatWindow).GetMethod("ShowChatModeMenu",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
+   var pill=(Control)Field(window,"chatModeButton");
+   Cursor.Position=window.PointToScreen(new Point(window.Width/2,Math.Max(0,window.Height-40)));
+   var awaySwallow=window.CloseOpenMenuForClick();Application.DoEvents();
+   Check(!awaySwallow&&Field(window,"openMenu")==null,"a click elsewhere inside the window dismisses the mode menu and lets the press through");
+   typeof(ChatWindow).GetMethod("ShowChatModeMenu",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
+   Cursor.Position=pill.PointToScreen(new Point(pill.Width/2,pill.Height/2));
+   var pillSwallow=window.CloseOpenMenuForClick();Application.DoEvents();
+   Check(pillSwallow&&Field(window,"openMenu")==null,"pressing the mode pill itself closes the menu without immediately reopening it");
+   Cursor.Position=window.PointToScreen(new Point(window.Width/2,window.Height/2));
    using(var probeForm=new Form{TopMost=true}){probeForm.Show();Application.DoEvents();
     Check(Native.IsTopmostWindow(probeForm.Handle)&&!Native.IsTopmostWindow(window.Handle),"topmost probe reads the real ex-style");}
    typeof(ChatWindow).GetField("quitting",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,true);window.Close();
