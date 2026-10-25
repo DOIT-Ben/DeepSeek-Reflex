@@ -97,6 +97,12 @@ namespace DeepSeekFloat
         private WindowSettings settings;
         private IntPtr foregroundHook;private Native.WinEventDelegate foregroundHandler;private TrayMenu openMenu;private bool pinned;
         private MenuDismissFilter menuDismissFilter;
+        // Low-level mouse hook active while a popup menu is open: WebView2
+        // swallows the click that would dismiss a ContextMenuStrip at the
+        // WM_MOUSEACTIVATE stage, so neither the toolstrip's own auto-close
+        // nor a thread message filter ever sees a button-down from the page.
+        // The LL hook observes the physical input before anyone can eat it.
+        private IntPtr menuMouseHook;private Native.MouseHook menuMouseHookProc;private int pillSuppressTick;
         private HotkeyBindings hotkeys;
         private int selectionVersion;
         private string selectedText, lastInserted;
@@ -425,19 +431,21 @@ namespace DeepSeekFloat
             if(commandsError!=null){menu.AddAction(commandsError,delegate{}).Enabled=false;menu.AddDivider();}
             foreach(var command in customCommands) {
                 var choice=command;
-                menu.AddAction((customChoice==choice?"✓ ":"")+choice.Name,delegate {
+                var row=menu.AddAction(choice.Name,delegate {
                     customChoice=choice;RefreshSelectionChoice();
                     selectionVersion++;if(selectedText!=null){var pending=FillSelection();}
                 });
+                if(customChoice==choice)row.Checked=true;
             }
             if(customCommands.Length==0&&commandsError==null) {
                 var empty=menu.AddAction("还没有自定义指令",delegate{});empty.Enabled=false;
             }
             menu.AddDivider();
             menu.AddAction("去设置添加",delegate { BeginInvoke(new Action(delegate{ShowSettingsPage("commands");})); });
-            openMenu=menu;
+            openMenu=menu;AttachMenuMouseHook();
             menu.Closed+=delegate {
                 if(openMenu==menu)openMenu=null;
+                DetachMenuMouseHook();
                 if(!resourcesDisposed&&!quitting&&IsHandleCreated){moreSelection.Focus();BeginInvoke(new Action(menu.Dispose));}
                 else menu.Dispose();
             };
@@ -697,21 +705,55 @@ namespace DeepSeekFloat
         }
         private void SetChatModeError(string message){chatModeError=message;chatModeButton.AccessibleDescription=message;tips.SetToolTip(chatModeButton,message);}
         private void ShowChatModeMenu() {
+            // A press on the pill closed the menu moments ago (LL hook path);
+            // skip one cycle so the same click cannot reopen it.
+            if(pillSuppressTick!=0&&Environment.TickCount-pillSuppressTick<350)return;
             var menu=CreateChatModeMenu();
+            AttachMenuMouseHook();
             // Left edges stay flush: the popup grows right/down from the anchor
             // point, so a DPI rescale on show cannot shove it sideways.
             menu.Show(chatModeButton,new Point(0,chatModeButton.Height));
+        }
+        private void AttachMenuMouseHook() {
+            if(menuMouseHook!=IntPtr.Zero)return;
+            menuMouseHookProc=MenuMouseHookProc;
+            menuMouseHook=Native.SetWindowsHookEx(14,menuMouseHookProc,Native.GetModuleHandle(null),0); // WH_MOUSE_LL
+        }
+        private void DetachMenuMouseHook() {
+            if(menuMouseHook==IntPtr.Zero)return;
+            Native.UnhookWindowsHookEx(menuMouseHook);menuMouseHook=IntPtr.Zero;menuMouseHookProc=null;
+        }
+        private IntPtr MenuMouseHookProc(int code,IntPtr wParam,IntPtr lParam) {
+            try{
+                if(code>=0) {
+                    int message=wParam.ToInt32();
+                    if(message==0x201||message==0x204||message==0x207||message==0x20B) { // L/M/R/X button down
+                        var info=(Native.MOUSEHOOKDATA)System.Runtime.InteropServices.Marshal.PtrToStructure(lParam,typeof(Native.MOUSEHOOKDATA));
+                        OnOutsideMenuPress(new Point(info.point.x,info.point.y));
+                    }
+                }
+            }catch(Exception){}
+            return Native.CallNextHookEx(menuMouseHook,code,wParam,lParam);
+        }
+        private void OnOutsideMenuPress(Point screenPoint) {
+            var menu=openMenu;
+            if(menu==null||!menu.Visible)return;
+            if(menu.Bounds.Contains(screenPoint))return;
+            if(chatModeButton.RectangleToScreen(chatModeButton.ClientRectangle).Contains(screenPoint))pillSuppressTick=Environment.TickCount;
+            try{BeginInvoke(new Action(CloseOpenMenus));}catch(InvalidOperationException){}
         }
         private TrayMenu CreateChatModeMenu() {
             var menu=new TrayMenu(dpiScale);
             if(chatModeError!=null){menu.AddAction(chatModeError,delegate{}).Enabled=false;menu.AddDivider();}
             foreach(var definition in ChatModes.All) {
                 var choice=definition;
-                menu.AddAction((choice.Id==settings.ChatMode?"✓ ":"")+choice.Name,async delegate{await SwitchChatMode(choice.Id);});
+                var row=menu.AddAction(choice.Name,async delegate{await SwitchChatMode(choice.Id);});
+                if(choice.Id==settings.ChatMode)row.Checked=true;
             }
-            openMenu=menu;
+            openMenu=menu;AttachMenuMouseHook();
             menu.Closed+=delegate{
                 if(openMenu==menu)openMenu=null;
+                DetachMenuMouseHook();
                 if(!resourcesDisposed&&!quitting&&IsHandleCreated){chatModeButton.Focus();BeginInvoke(new Action(menu.Dispose));}
                 else menu.Dispose();
             };
@@ -1094,6 +1136,7 @@ namespace DeepSeekFloat
         {
             if(disposing && !resourcesDisposed) {
                 resourcesDisposed=true;
+                DetachMenuMouseHook();
                 Application.RemoveMessageFilter(menuDismissFilter);
                 Microsoft.Win32.SystemEvents.DisplaySettingsChanged-=OnDisplaySettingsChanged;
                 Microsoft.Win32.SystemEvents.UserPreferenceChanged-=OnSystemPreferenceChanged;

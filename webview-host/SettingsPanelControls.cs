@@ -9,7 +9,7 @@ namespace DeepSeekFloat {
         internal const string FontFamily="Microsoft YaHei UI";
         internal const float CaptionSize=9f,BodySize=10.5f,TitleSize=12f,HeadingSize=14f;
         internal const float CompactFontStep=1.5f;
-        internal const int ControlRadius=8,PanelRadius=12,ControlHeight=32,InputHeight=40,MenuRowHeight=36;
+        internal const int ControlRadius=8,PanelRadius=12,ControlHeight=32,InputHeight=40,MenuRowHeight=30;
         internal const int CompactControlHeight=30,CompactInputHeight=34;
         // Palette members are properties on purpose: painters read them at
         // paint time, so a mode switch recolors everything that draws through

@@ -15,7 +15,7 @@ namespace DeepSeekFloat {
             ShowImageMargin=false;ShowCheckMargin=false;BackColor=PanelTheme.Back;ForeColor=PanelTheme.Ink;
             AutoSize=false;AutoClose=true;Renderer=new TrayRenderer(scale);Padding=new Padding(S(4));DropShadowEnabled=true;
         }
-        private int S(int value){return Math.Max(1,(int)Math.Round(value*scale));}
+        internal int S(int value){return Math.Max(1,(int)Math.Round(value*scale));}
         internal ToolStripMenuItem AddAction(string text,EventHandler action) {
             var item=new ToolStripMenuItem(text,null,action) {AutoSize=false,Size=new Size(S(200),S(PanelTheme.MenuRowHeight)),Margin=Padding.Empty,Padding=Padding.Empty};
             Items.Add(item);UpdateSize();return item;
@@ -35,7 +35,10 @@ namespace DeepSeekFloat {
                 textWidth=Math.Max(textWidth,TextRenderer.MeasureText(item.Text,menuFont,new Size(int.MaxValue,int.MaxValue),TextFormatFlags.Left|TextFormatFlags.NoPadding).Width);
             }
             Side=Math.Max(S(4),(int)Math.Round(textWidth*0.18f));
-            int inner=Math.Max(S(56),Math.Min(S(300),textWidth+Side*2));
+            // The check gutter in the renderer needs a fixed slice on every
+            // row so the text column stays aligned whether or not the row
+            // shows a mark.
+            int inner=Math.Max(S(56),Math.Min(S(300),textWidth+Side*2))+S(20);
             int height=S(16);
             foreach(ToolStripItem item in Items){item.Size=new Size(inner,item.Height);height+=item.Height;}
             Size=new Size(inner+S(8),height);
@@ -75,10 +78,15 @@ namespace DeepSeekFloat {
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e){
             var owner=e.Item.Owner as TrayMenu;
             int inset=owner!=null?owner.Side:(int)Math.Round(8*scale);
+            int gutter=owner!=null?owner.S(20):(int)Math.Round(20*scale);
             // Paint with the menu's own font: measuring and painting must use
             // one font, or a DPI change makes the painted text wider than the
-            // width the menu was sized with.
-            TextRenderer.DrawText(e.Graphics,e.Text,owner!=null?owner.Font:e.Item.Font,new Rectangle(inset,0,e.Item.Width-inset*2,e.Item.Height),e.Item.Enabled?PanelTheme.Ink:PanelTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPrefix|TextFormatFlags.EndEllipsis);
+            // width the menu was sized with. The check mark lives in a fixed
+            // gutter so every text column starts at the same x.
+            var font=owner!=null?owner.Font:e.Item.Font;
+            var markable=e.Item as ToolStripMenuItem;
+            if(markable!=null&&markable.Checked)TextRenderer.DrawText(e.Graphics,"✓",font,new Rectangle(inset,0,gutter,e.Item.Height),PanelTheme.Accent,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPadding);
+            TextRenderer.DrawText(e.Graphics,e.Text,font,new Rectangle(inset+gutter,0,Math.Max(1,e.Item.Width-inset*2-gutter),e.Item.Height),e.Item.Enabled?PanelTheme.Ink:PanelTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPrefix|TextFormatFlags.EndEllipsis);
         }
         protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e){using(var pen=new Pen(PanelTheme.Border,scale))e.Graphics.DrawLine(pen,4*scale,e.Item.Height/2,e.Item.Width-4*scale,e.Item.Height/2);}
     }

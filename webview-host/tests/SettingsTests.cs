@@ -178,7 +178,7 @@ internal static class SettingsTests {
    var menuScale=(float)Field(modeMenu,"scale");
    Func<int,int> ms=v=>Math.Max(1,(int)Math.Round(v*menuScale));
    var side=Math.Max(ms(4),(int)Math.Round(widest*0.18f));
-   var expected=Math.Max(ms(56),Math.Min(ms(300),widest+side*2))+ms(8);
+   var expected=Math.Max(ms(56),Math.Min(ms(300),widest+side*2))+ms(20)+ms(8);
    Check(modeMenu.Width==expected,"mode menu width hugs the widest item plus fixed chrome, no blank column");
    modeMenu.Show(modeSelector,new Point(0,modeSelector.Height));var menuHandle=modeMenu.Handle;var anchorScreen=modeSelector.PointToScreen(Point.Empty);
    Check(modeMenu.Left==anchorScreen.X&&modeMenu.Top==anchorScreen.Y+modeSelector.Height,"mode menu drops with its left edge flush to the anchor button");
@@ -213,6 +213,16 @@ internal static class SettingsTests {
    Cursor.Position=pill.PointToScreen(new Point(pill.Width/2,pill.Height/2));
    var pillSwallow=window.CloseOpenMenuForClick();Application.DoEvents();
    Check(pillSwallow&&Field(window,"openMenu")==null,"pressing the mode pill itself closes the menu without immediately reopening it");
+   Cursor.Position=window.PointToScreen(new Point(window.Width/2,window.Height/2));
+   typeof(ChatWindow).GetMethod("ShowChatModeMenu",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
+   var hookMenu=(TrayMenu)Field(window,"openMenu");
+   Check(hookMenu!=null&&hookMenu.Visible,"the mode menu arms the low-level mouse hook");
+   var click=new Native.INPUT[2];
+   click[0]=new Native.INPUT{type=0,data=new Native.INPUTUNION{mouse=new Native.MOUSEINPUT{flags=0x2}}}; // LEFTDOWN
+   click[1]=new Native.INPUT{type=0,data=new Native.INPUTUNION{mouse=new Native.MOUSEINPUT{flags=0x4}}}; // LEFTUP
+   Check(Native.SendInput((uint)click.Length,click,System.Runtime.InteropServices.Marshal.SizeOf(typeof(Native.INPUT)))==2,"synthetic physical click is delivered");
+   Pump(160);
+   Check(Field(window,"openMenu")==null||!((TrayMenu)Field(window,"openMenu")).Visible,"a physical click beside the menu dismisses it even where the page host eats the message");
    Cursor.Position=window.PointToScreen(new Point(window.Width/2,window.Height/2));
    using(var probeForm=new Form{TopMost=true}){probeForm.Show();Application.DoEvents();
     Check(Native.IsTopmostWindow(probeForm.Handle)&&!Native.IsTopmostWindow(window.Handle),"topmost probe reads the real ex-style");}
