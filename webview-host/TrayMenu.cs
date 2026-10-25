@@ -4,6 +4,7 @@ using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 namespace DeepSeekFloat {
     internal sealed class TrayMenu : ContextMenuStrip {
+        internal const TextFormatFlags TextFlags=TextFormatFlags.Left|TextFormatFlags.NoPadding|TextFormatFlags.NoPrefix;
         private readonly float scale;
         private readonly Font menuFont;
         internal bool NativeCornersRequested {get;private set;}
@@ -32,7 +33,7 @@ namespace DeepSeekFloat {
             int textWidth=0;
             foreach(ToolStripItem item in Items){
                 if(item is ToolStripSeparator)continue;
-                textWidth=Math.Max(textWidth,TextRenderer.MeasureText(item.Text,menuFont,new Size(int.MaxValue,int.MaxValue),TextFormatFlags.Left|TextFormatFlags.NoPadding).Width);
+                textWidth=Math.Max(textWidth,TextRenderer.MeasureText(item.Text,menuFont,new Size(int.MaxValue,int.MaxValue),TextFlags).Width);
             }
             Side=Math.Max(S(8),(int)Math.Round(textWidth*0.16f));
             // The check gutter in the renderer needs a fixed slice on every
@@ -92,7 +93,7 @@ namespace DeepSeekFloat {
             var font=owner!=null?owner.Font:e.Item.Font;
             var markable=e.Item as ToolStripMenuItem;
             if(markable!=null&&markable.Checked)TextRenderer.DrawText(e.Graphics,"✓",font,new Rectangle(inset,0,gutter,e.Item.Height),PanelTheme.Accent,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPadding);
-            TextRenderer.DrawText(e.Graphics,e.Text,font,new Rectangle(inset+gutter,0,Math.Max(1,e.Item.Width-inset*2-gutter),e.Item.Height),e.Item.Enabled?PanelTheme.Ink:PanelTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPrefix|TextFormatFlags.EndEllipsis);
+            TextRenderer.DrawText(e.Graphics,e.Text,font,new Rectangle(inset+gutter,0,Math.Max(1,e.Item.Width-inset*2-gutter),e.Item.Height),e.Item.Enabled?PanelTheme.Ink:PanelTheme.Muted,TrayMenu.TextFlags|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
         }
         protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e){using(var pen=new Pen(PanelTheme.Border,scale))e.Graphics.DrawLine(pen,0,e.Item.Height/2,e.Item.Width,e.Item.Height/2);}
     }

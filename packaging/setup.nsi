@@ -94,6 +94,7 @@ check_legacy_deepseek:
   FileOpen $0 "$LOCALAPPDATA\Programs\DeepSeekFloat\DeepSeek.exe" a
   IfErrors install_busy
   FileClose $0
+  Goto install_files
 install_busy:
   MessageBox MB_OK|MB_ICONSTOP "Please exit from the tray menu before upgrading / 请在托盘菜单中退出后重试。" /SD IDOK
   SetErrorLevel 1
@@ -107,9 +108,9 @@ install_files:
   CreateShortcut "$SMPROGRAMS\DeepSeek-Reflex\DeepSeek-Reflex.lnk" "$INSTDIR\DeepSeek-Reflex.exe"
   StrCpy $0 "$SMPROGRAMS\DeepSeek-Reflex\DeepSeek-Reflex.lnk"
   Call RegisterTaskbarShortcut
-  ; The pre-rename install directory only holds replaced program files;
-  ; user data lives under APPDATA and migrates on first launch.
-  RMDir /r "$LOCALAPPDATA\Programs\DeepSeekFloat"
+  ; Keep pre-rename program files. The chosen install directory may be the
+  ; old directory or one of its descendants, and it may contain user files.
+  ; Automatic legacy cleanup requires a separate, exact migration policy.
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "DisplayName" "DeepSeek-Reflex"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "DisplayVersion" "${APP_VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "Publisher" "DOIT-Ben and contributors"

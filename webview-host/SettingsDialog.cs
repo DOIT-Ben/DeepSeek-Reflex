@@ -52,7 +52,15 @@ namespace DeepSeekFloat {
         // Header 52 + content + viewport slack 12 + footer band 80: the dialog
         // is exactly as tall as the active page, so nothing scrolls by default.
         private int DialogHeight(){return 144+(onCommandsPage?CommandsContentHeight:GeneralContentHeight);}
-        private void ApplyDialogHeight(){int target=S(DialogHeight());if(ClientSize.Height!=target){ClientSize=new Size(ClientSize.Width,target);Arrange();}}
+        private void ApplyDialogHeight(){
+            // During construction no owner has been assigned yet. Asking for
+            // Screen.FromControl would create the HWND before ShowDialog can
+            // inherit its owner's native topmost band.
+            var area=(IsHandleCreated?Screen.FromControl(this):Screen.FromRectangle(Bounds)).WorkingArea;
+            var requested=new Rectangle(Location,new Size(Width,S(DialogHeight())));
+            var fitted=FitBounds(requested,area,scale);
+            if(Bounds!=fitted){Bounds=fitted;Arrange();}
+        }
         internal SettingsDialog(WindowSettings settings,Func<WindowSettings,string> apply,Action<string> quickAction=null,string openPage=null) {
             original=settings.Clone();toggle=new HotkeyBox(settings.ToggleKeys);capture=new HotkeyBox(settings.CaptureKeys);
             toggle.AccessibleName="唤出 / 收起快捷键";capture.AccessibleName="选中文字取词快捷键";

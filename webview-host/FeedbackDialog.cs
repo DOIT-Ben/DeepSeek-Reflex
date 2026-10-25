@@ -132,15 +132,16 @@ namespace DeepSeekFloat {
             var version=System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             return version!=null&&version.Major>0?"v"+version.ToString(3):"dev";
         }
-        private string BuildJson() {
+        private string BuildJson(string submittedContact) {
             var json="{\"app\":\"deepseek-reflex\",\"version\":"+PromptInserter.Json(VersionText())+",\"text\":"+PromptInserter.Json(body.Text.Trim());
             for(int i=0;i<chips.Length;i++)if(chips[i].Chosen)json+=",\"category\":"+PromptInserter.Json(Categories[i]);
-            if(contact.Text.Trim().Length>0)json+=",\"contact\":"+PromptInserter.Json(contact.Text.Trim());
+            if(submittedContact.Length>0)json+=",\"contact\":"+PromptInserter.Json(submittedContact);
             return json+"}";
         }
         private async void Send() {
             if(body.Text.Trim().Length==0||!send.Enabled)return;
-            var json=BuildJson();
+            var submittedContact=contact.Text.Trim();
+            var json=BuildJson(submittedContact);
             send.Enabled=false;send.Text="发送中…";
             status.ForeColor=PanelTheme.Muted;status.Text="正在发送…";issueLink.Visible=false;
             var self=this;
@@ -149,7 +150,7 @@ namespace DeepSeekFloat {
                 await System.Threading.Tasks.Task.Run(delegate{failure=poster!=null?poster(json):HttpPost(json);});
                 if(self.IsDisposed||!self.IsHandleCreated)return;
                 if(failure==null){
-                    if(self.contact.Text.Trim().Length>0){try{Preferences.Write("feedback-contact",self.contact.Text.Trim());}catch(Exception){}}
+                    try{Preferences.Write("feedback-contact",submittedContact);}catch(Exception){}
                     self.ShowThanks();return;
                 }
                 self.send.Enabled=true;self.send.Text="发送反馈";
