@@ -13,7 +13,7 @@ namespace DeepSeekFloat {
             // monitor DPI, unlike point fonts whose pixel size tracks the DC.
             menuFont=new Font(PanelTheme.FontFamily,Math.Max(9f,(float)Math.Round(12f*Math.Max(1f,dpiScale)*2f)/2f),GraphicsUnit.Pixel);Font=menuFont;
             ShowImageMargin=false;ShowCheckMargin=false;BackColor=PanelTheme.Back;ForeColor=PanelTheme.Ink;
-            AutoSize=false;AutoClose=true;Renderer=new TrayRenderer(scale);Padding=new Padding(S(4));DropShadowEnabled=true;
+            AutoSize=false;AutoClose=true;Renderer=new TrayRenderer(scale);Padding=new Padding(0,S(4),0,S(4));DropShadowEnabled=true;
         }
         internal int S(int value){return Math.Max(1,(int)Math.Round(value*scale));}
         internal ToolStripMenuItem AddAction(string text,EventHandler action) {
@@ -34,14 +34,16 @@ namespace DeepSeekFloat {
                 if(item is ToolStripSeparator)continue;
                 textWidth=Math.Max(textWidth,TextRenderer.MeasureText(item.Text,menuFont,new Size(int.MaxValue,int.MaxValue),TextFormatFlags.Left|TextFormatFlags.NoPadding).Width);
             }
-            Side=Math.Max(S(4),(int)Math.Round(textWidth*0.18f));
+            Side=Math.Max(S(10),(int)Math.Round(textWidth*0.16f));
             // The check gutter in the renderer needs a fixed slice on every
             // row so the text column stays aligned whether or not the row
-            // shows a mark.
-            int inner=Math.Max(S(56),Math.Min(S(300),textWidth+Side*2))+S(20);
-            int height=S(16);
+            // shows a mark. Items span the full menu width edge to edge:
+            // the hover strip is a full-bleed band, so no inset chrome may
+            // survive on either side.
+            int inner=Math.Max(S(128),Math.Min(S(300),textWidth+Side*2+S(20)));
+            int height=S(8);
             foreach(ToolStripItem item in Items){item.Size=new Size(inner,item.Height);height+=item.Height;}
-            Size=new Size(inner+S(8),height);
+            Size=new Size(inner,height);
         }
         protected override void OnSizeChanged(EventArgs e) {
             base.OnSizeChanged(e);if(scale<=0||Width<1||Height<1)return;
@@ -72,8 +74,10 @@ namespace DeepSeekFloat {
             using(var path=PanelTheme.Rounded(new RectangleF(scale/2,scale/2,e.ToolStrip.Width-scale,e.ToolStrip.Height-scale),PanelTheme.PanelRadius*scale-scale/2))using(var pen=new Pen(PanelTheme.Border,scale))e.Graphics.DrawPath(pen,path);
         }
         protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e) {
-            if(!e.Item.Selected||!e.Item.Enabled)return;e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
-            using(var path=PanelTheme.Rounded(new RectangleF(0,0,e.Item.Width-1,e.Item.Height-1),PanelTheme.ControlRadius*scale))using(var brush=new SolidBrush(PanelTheme.Hover))e.Graphics.FillPath(brush,path);
+            if(!e.Item.Selected||!e.Item.Enabled)return;
+            // Full-bleed band: the highlight spans the item rect with square
+            // corners, so the strip reads as one even band across the menu.
+            using(var brush=new SolidBrush(PanelTheme.Hover))e.Graphics.FillRectangle(brush,0,0,e.Item.Width,e.Item.Height);
         }
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e){
             var owner=e.Item.Owner as TrayMenu;
@@ -88,6 +92,6 @@ namespace DeepSeekFloat {
             if(markable!=null&&markable.Checked)TextRenderer.DrawText(e.Graphics,"✓",font,new Rectangle(inset,0,gutter,e.Item.Height),PanelTheme.Accent,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPadding);
             TextRenderer.DrawText(e.Graphics,e.Text,font,new Rectangle(inset+gutter,0,Math.Max(1,e.Item.Width-inset*2-gutter),e.Item.Height),e.Item.Enabled?PanelTheme.Ink:PanelTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPrefix|TextFormatFlags.EndEllipsis);
         }
-        protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e){using(var pen=new Pen(PanelTheme.Border,scale))e.Graphics.DrawLine(pen,4*scale,e.Item.Height/2,e.Item.Width-4*scale,e.Item.Height/2);}
+        protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e){using(var pen=new Pen(PanelTheme.Border,scale))e.Graphics.DrawLine(pen,0,e.Item.Height/2,e.Item.Width,e.Item.Height/2);}
     }
 }

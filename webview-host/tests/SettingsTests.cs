@@ -177,8 +177,8 @@ internal static class SettingsTests {
    foreach(var item in modeMenu.Items.Cast<ToolStripItem>())if(!string.IsNullOrEmpty(item.Text))widest=Math.Max(widest,TextRenderer.MeasureText(item.Text,itemFont,new Size(int.MaxValue,int.MaxValue),TextFormatFlags.Left|TextFormatFlags.NoPadding).Width);
    var menuScale=(float)Field(modeMenu,"scale");
    Func<int,int> ms=v=>Math.Max(1,(int)Math.Round(v*menuScale));
-   var side=Math.Max(ms(4),(int)Math.Round(widest*0.18f));
-   var expected=Math.Max(ms(56),Math.Min(ms(300),widest+side*2))+ms(20)+ms(8);
+   var side=Math.Max(ms(10),(int)Math.Round(widest*0.16f));
+   var expected=Math.Max(ms(128),Math.Min(ms(300),widest+side*2+ms(20)));
    Check(modeMenu.Width==expected,"mode menu width hugs the widest item plus fixed chrome, no blank column");
    modeMenu.Show(modeSelector,new Point(0,modeSelector.Height));var menuHandle=modeMenu.Handle;var anchorScreen=modeSelector.PointToScreen(Point.Empty);
    Check(modeMenu.Left==anchorScreen.X&&modeMenu.Top==anchorScreen.Y+modeSelector.Height,"mode menu drops with its left edge flush to the anchor button");
@@ -209,6 +209,11 @@ internal static class SettingsTests {
    Cursor.Position=window.PointToScreen(new Point(window.Width/2,Math.Max(0,window.Height-40)));
    var awaySwallow=window.CloseOpenMenuForClick();Application.DoEvents();
    Check(!awaySwallow&&Field(window,"openMenu")==null,"a click elsewhere inside the window dismisses the mode menu and lets the press through");
+   var pillState=typeof(ChatWindow).GetField("pillSuppressTick",BindingFlags.Instance|BindingFlags.NonPublic);
+   pillState.SetValue(window,Environment.TickCount);
+   typeof(ChatWindow).GetMethod("ShowChatModeMenu",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
+   Check(Field(window,"openMenu")==null,"a pill press observed by the hook suppresses immediate reopen");
+   pillState.SetValue(window,0);
    typeof(ChatWindow).GetMethod("ShowChatModeMenu",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
    Cursor.Position=pill.PointToScreen(new Point(pill.Width/2,pill.Height/2));
    var pillSwallow=window.CloseOpenMenuForClick();Application.DoEvents();
