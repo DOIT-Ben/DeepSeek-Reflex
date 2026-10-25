@@ -20,11 +20,10 @@ namespace DeepSeekFloat {
         private readonly PanelButton bodyFrame=new PanelButton("") {TabStop=false,InputFrame=true,BackColor=PanelTheme.Surface};
         private readonly PanelButton contactFrame=new PanelButton("") {TabStop=false,InputFrame=true,BackColor=PanelTheme.Surface};
         private readonly PanelButton send=new PanelButton("发送反馈") {Primary=true};
-        private readonly PanelButton cancel=new PanelButton("关闭") {Ghost=true,Outline=true};
         private readonly PanelButton[] chips;
         private readonly AnnouncingLabel status=new AnnouncingLabel();
+        private readonly LinkLabel issueLink=new LinkLabel {AutoSize=false,BackColor=PanelTheme.Back,LinkBehavior=LinkBehavior.HoverUnderline,Cursor=Cursors.Hand};
         private readonly Label counter=new Label {AutoSize=false,TextAlign=ContentAlignment.MiddleRight,BackColor=PanelTheme.Back};
-        private readonly Label intro=new Label {AutoSize=false,BackColor=PanelTheme.Back};
         private readonly Label heading=new Label {AutoSize=false,BackColor=PanelTheme.Back,TextAlign=ContentAlignment.MiddleLeft};
         private readonly Label privacy=new Label {AutoSize=false,BackColor=PanelTheme.Back};
         private readonly Label thanksMark=new Label {AutoSize=false,TextAlign=ContentAlignment.MiddleCenter,BackColor=PanelTheme.Back};
@@ -42,8 +41,6 @@ namespace DeepSeekFloat {
             FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;MinimizeBox=false;ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;
             AutoScaleMode=AutoScaleMode.None;ClientSize=new Size(S(420),S(388));Padding=Padding.Empty;
             heading.Text="反馈";heading.Font=PanelTheme.CompactFont(PanelTheme.HeadingSize,true);
-            intro.Text="说说遇到的问题、想要的功能，或者任何想法。";
-            intro.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);intro.ForeColor=PanelTheme.Muted;
             privacy.Text="只提交你输入的内容和应用版本，不含聊天内容和机器信息。";
             privacy.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);privacy.ForeColor=PanelTheme.Muted;
             body.Font=PanelTheme.CompactFont();body.MaxLength=MaxChars;body.AcceptsReturn=true;body.AccessibleName="反馈内容";
@@ -67,31 +64,38 @@ namespace DeepSeekFloat {
             }
             counter.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);counter.ForeColor=PanelTheme.Muted;
             status.ForeColor=PanelTheme.Muted;
+            issueLink.Text="到 GitHub 仓库提 Issue";
+            issueLink.Font=PanelTheme.CompactFont();issueLink.LinkColor=PanelTheme.Accent;issueLink.ActiveLinkColor=PanelTheme.AccentPressed;issueLink.Visible=false;
+            issueLink.Click+=delegate{try{System.Diagnostics.Process.Start("https://github.com/DOIT-Ben/DeepSeek-Reflex/issues");}catch(Exception){}};
             thanksMark.Text="✓";thanksMark.Font=PanelTheme.CompactFont(PanelTheme.HeadingSize,true);thanksMark.ForeColor=PanelTheme.Accent;thanksMark.Visible=false;
             thanksText.Text="已收到，感谢你的反馈！";thanksText.Font=PanelTheme.CompactFont(PanelTheme.TitleSize);thanksText.Visible=false;
             thanksTimer.Tick+=delegate{thanksTimer.Stop();DialogResult=DialogResult.OK;Close();};
             var surface=new Panel {Dock=DockStyle.Fill,BackColor=PanelTheme.Back};Controls.Add(surface);
-            surface.Controls.Add(heading);surface.Controls.Add(close);surface.Controls.Add(intro);
+            surface.Controls.Add(heading);surface.Controls.Add(close);
             foreach(var chip in chips)surface.Controls.Add(chip);
             surface.Controls.Add(bodyFrame);surface.Controls.Add(counter);surface.Controls.Add(contactFrame);
-            surface.Controls.Add(privacy);surface.Controls.Add(status);
-            surface.Controls.Add(cancel);surface.Controls.Add(send);
+            surface.Controls.Add(privacy);surface.Controls.Add(status);surface.Controls.Add(issueLink);
+            surface.Controls.Add(send);
             surface.Controls.Add(thanksMark);surface.Controls.Add(thanksText);
-            heading.MouseDown+=Drag;intro.MouseDown+=Drag;surface.MouseDown+=Drag;privacy.MouseDown+=Drag;
+            heading.MouseDown+=Drag;surface.MouseDown+=Drag;privacy.MouseDown+=Drag;
             close.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
-            cancel.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
             send.Enabled=false;
             body.TextChanged+=delegate{
                 send.Enabled=body.Text.Trim().Length>0;
                 counter.Text=body.Text.Length>=MaxChars*3/4?body.Text.Length+" / "+MaxChars:"";
                 bodyHint.Visible=body.Text.Length==0;
-                status.Text="";
+                status.Text="";issueLink.Visible=false;
             };
             contact.TextChanged+=delegate{contactHint.Visible=contact.Text.Length==0;};
             body.KeyDown+=delegate(object sender,KeyEventArgs e){if(e.Control&&e.KeyCode==Keys.Enter){e.SuppressKeyPress=true;Send();}};
+            contact.KeyDown+=delegate(object sender,KeyEventArgs e){if(e.KeyCode==Keys.Enter){e.SuppressKeyPress=true;Send();}};
             send.Click+=delegate{Send();};
-            CancelButton=cancel;
-            Shown+=delegate{Bounds=SettingsDialog.FitBounds(Bounds,Screen.FromControl(this).WorkingArea,scale);Resize+=delegate{Arrange();};Arrange();};
+            // The X chrome button and Escape both close; no extra close button.
+            KeyPreview=true;
+            KeyDown+=delegate(object sender,KeyEventArgs e){if(e.KeyCode==Keys.Escape){e.Handled=true;DialogResult=DialogResult.Cancel;Close();}};
+            var remembered=Preferences.ReadText("feedback-contact");
+            if(remembered.Length>0)contact.Text=remembered;
+            Shown+=delegate{Bounds=SettingsDialog.FitBounds(Bounds,Screen.FromControl(this).WorkingArea,scale);Resize+=delegate{Arrange();};Arrange();body.Focus();};
             Controls.Add(frameShape);smoothFrame=new SmoothFrame(this,scale,delegate{frameShape.UpdateShape(this,scale,smoothFrame.Ready);},false);
             Resize+=delegate{if(smoothFrame!=null)smoothFrame.SyncOwner();frameShape.UpdateShape(this,scale,smoothFrame!=null&&smoothFrame.Ready);};
             frameShape.UpdateShape(this,scale);
@@ -101,21 +105,21 @@ namespace DeepSeekFloat {
             int width=Math.Max(1,ClientSize.Width-S(40));
             heading.SetBounds(S(20),S(14),S(292),S(26));
             close.SetBounds(ClientSize.Width-S(52),S(14),S(32),S(28));
-            intro.SetBounds(S(20),S(48),width,S(16));
-            for(int i=0;i<chips.Length;i++)chips[i].SetBounds(S(20+i*94),S(72),S(88),S(28));
-            bodyFrame.SetBounds(S(20),S(108),width,S(118));
+            for(int i=0;i<chips.Length;i++)chips[i].SetBounds(S(20+i*94),S(56),S(88),S(28));
+            bodyFrame.SetBounds(S(20),S(92),width,S(118));
             body.SetBounds(S(8),S(6),Math.Max(1,bodyFrame.Width-S(16)),Math.Max(1,bodyFrame.Height-S(12)));
             bodyHint.SetBounds(S(8),S(8),Math.Max(1,bodyFrame.Width-S(16)),S(14));
-            counter.SetBounds(S(20),S(230),width,S(14));
-            contactFrame.SetBounds(S(20),S(250),width,S(28));
+            counter.SetBounds(S(20),S(214),width,S(14));
+            contactFrame.SetBounds(S(20),S(234),width,S(28));
             contact.SetBounds(S(8),Math.Max(0,(contactFrame.Height-contact.Height)/2),Math.Max(1,contactFrame.Width-S(16)),contact.Height);
             contactHint.SetBounds(S(8),Math.Max(0,(contactFrame.Height-S(14))/2),Math.Max(1,contactFrame.Width-S(16)),S(14));
-            privacy.SetBounds(S(20),S(286),width,S(14));
+            privacy.SetBounds(S(20),S(270),width,S(14));
             // Failure reasons can be long; two wrapped lines keep the whole
-            // message readable instead of clipping mid-sentence.
-            status.SetBounds(S(20),ClientSize.Height-S(82),width,S(32));
+            // message readable instead of clipping mid-sentence, and the
+            // issue link sits right beneath as the alternate channel.
+            status.SetBounds(S(20),S(292),width,S(32));
+            issueLink.SetBounds(S(20),S(326),width,S(16));
             send.SetBounds(ClientSize.Width-S(20)-S(96),ClientSize.Height-S(42),S(96),S(30));
-            cancel.SetBounds(ClientSize.Width-S(20)-S(96)-S(6)-S(70),ClientSize.Height-S(42),S(70),S(30));
             thanksMark.SetBounds(S(20),S(120),width,S(44));
             thanksText.SetBounds(S(20),S(172),width,S(24));
         }
@@ -137,22 +141,26 @@ namespace DeepSeekFloat {
         private async void Send() {
             if(body.Text.Trim().Length==0||!send.Enabled)return;
             var json=BuildJson();
-            send.Enabled=false;send.Text="发送中…";cancel.Enabled=false;
-            status.ForeColor=PanelTheme.Muted;status.Text="正在发送…";
+            send.Enabled=false;send.Text="发送中…";
+            status.ForeColor=PanelTheme.Muted;status.Text="正在发送…";issueLink.Visible=false;
             var self=this;
             try {
                 string failure=null;
                 await System.Threading.Tasks.Task.Run(delegate{failure=poster!=null?poster(json):HttpPost(json);});
                 if(self.IsDisposed||!self.IsHandleCreated)return;
-                if(failure==null){self.ShowThanks();return;}
-                self.send.Enabled=true;self.send.Text="发送反馈";self.cancel.Enabled=true;
+                if(failure==null){
+                    if(self.contact.Text.Trim().Length>0){try{Preferences.Write("feedback-contact",self.contact.Text.Trim());}catch(Exception){}}
+                    self.ShowThanks();return;
+                }
+                self.send.Enabled=true;self.send.Text="发送反馈";
                 self.status.ForeColor=PanelTheme.Error;
-                self.status.Text="发送失败："+failure.TrimEnd('。','.')+"。也可到 GitHub 仓库提 Issue。";
-            }catch(Exception){if(!self.IsDisposed){self.send.Enabled=true;self.send.Text="发送反馈";self.cancel.Enabled=true;self.status.ForeColor=PanelTheme.Error;self.status.Text="发送失败，请稍后重试。";}}
+                self.status.Text="发送失败："+failure.TrimEnd('。','.')+"。";
+                self.issueLink.Visible=true;
+            }catch(Exception){if(!self.IsDisposed){self.send.Enabled=true;self.send.Text="发送反馈";self.status.ForeColor=PanelTheme.Error;self.status.Text="发送失败，请稍后重试。";self.issueLink.Visible=true;}}
         }
         private void ShowThanks() {
-            heading.Visible=false;close.Visible=false;intro.Visible=false;counter.Visible=false;privacy.Visible=false;
-            status.Visible=false;cancel.Visible=false;send.Visible=false;
+            heading.Visible=false;close.Visible=false;counter.Visible=false;privacy.Visible=false;
+            status.Visible=false;issueLink.Visible=false;send.Visible=false;
             foreach(var chip in chips)chip.Visible=false;
             bodyFrame.Visible=false;contactFrame.Visible=false;
             thanksMark.Visible=true;thanksText.Visible=true;thanksText.AccessibleName=thanksText.Text;

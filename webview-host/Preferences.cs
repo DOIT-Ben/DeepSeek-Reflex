@@ -39,6 +39,11 @@ namespace DeepSeekFloat
             File.WriteAllText(temporary,value);
             if (File.Exists(path)) File.Replace(temporary,path,null); else File.Move(temporary,path);
         }
+        internal static string ReadText(string name)
+        {
+            try { return File.ReadAllText(Path.Combine(Root,name)).Trim(); }
+            catch (Exception error) { if(!IsStorageFailure(error))throw;return ""; }
+        }
         internal static Rectangle Bounds(float scale)
         {
             var area = Screen.PrimaryScreen.WorkingArea;

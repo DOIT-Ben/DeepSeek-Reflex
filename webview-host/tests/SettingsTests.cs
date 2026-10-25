@@ -427,6 +427,7 @@ internal static class SettingsTests {
    for(int i=0;i<80&&!((Label)Field(dialog,"thanksText")).Visible&&dialog.DialogResult==DialogResult.None;i++){Application.DoEvents();System.Threading.Thread.Sleep(10);}
    Check(captured!=null&&captured.Contains("希望支持深色模式")&&captured.Contains("\"category\":\"建议\"")&&captured.Contains("\"contact\":\"QQ 12345678\"")&&captured.Contains("\"version\"")&&captured.Contains("\"app\":\"deepseek-reflex\""),"feedback posts app, version, text, category and contact");
    Check(((Label)Field(dialog,"thanksText")).Visible&&send.Visible==false,"successful send shows the thank-you state");
+   Check(Preferences.ReadText("feedback-contact")=="QQ 12345678","a successful send remembers the contact for next time");
    using(var bitmap=new Bitmap(dialog.Width,dialog.Height)){dialog.DrawToBitmap(bitmap,new Rectangle(0,0,bitmap.Width,bitmap.Height));bitmap.Save(Path.Combine(directory,"feedback-thanks-preview.png"));}
    // The suite's earlier recording tests leave message filters that swallow
    // WM_TIMER under DoEvents, so drive the elapsed tick directly instead of
@@ -435,12 +436,20 @@ internal static class SettingsTests {
    Application.DoEvents();
    Check(dialog.DialogResult==DialogResult.OK&&!dialog.Visible,"thank-you state closes the dialog when the timer elapses");
   }
+  using(var again=new FeedbackDialog(json=>null)) {
+   Check(((TextBox)Field(again,"contact")).Text=="QQ 12345678","the contact prefills from the last successful send");
+  }
+  Preferences.Write("feedback-contact","");
   using(var dialog=new FeedbackDialog(json=>"网络不可用")) {
    dialog.Show();Application.DoEvents();
+   var issueLink=(LinkLabel)Field(dialog,"issueLink");
+   Check(!issueLink.Visible,"the issue link stays hidden before any failure");
    ((TextBox)Field(dialog,"body")).Text="测试反馈";
    Click(Children(dialog).OfType<Button>().Single(b=>b.Text=="发送反馈"));
    for(int i=0;i<60&&dialog.Visible&&!((Label)Field(dialog,"status")).Text.Contains("失败");i++){Application.DoEvents();System.Threading.Thread.Sleep(10);}
-   Check(dialog.Visible&&((Label)Field(dialog,"status")).Text.Contains("失败")&&((PanelButton)Field(dialog,"send")).Enabled,"failed feedback restores the form with an inline reason");
+   Check(dialog.Visible&&((Label)Field(dialog,"status")).Text.Contains("失败")&&issueLink.Visible&&((PanelButton)Field(dialog,"send")).Enabled,"failed feedback keeps the reason inline and offers the issue link");
+   Native.PostMessage(dialog.Handle,0x100,new IntPtr(27),IntPtr.Zero);Application.DoEvents(); // VK_ESCAPE via KeyPreview
+   Check(dialog.DialogResult==DialogResult.Cancel&&!dialog.Visible,"escape closes the feedback dialog");
   }
  }
  static void Click(Button button){typeof(Button).GetMethod("OnClick",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(button,new object[]{EventArgs.Empty});}
