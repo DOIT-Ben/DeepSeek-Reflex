@@ -34,8 +34,6 @@ foreach ($Line in $Lines) {
 $Version = (Get-Content -LiteralPath (Join-Path $Payload 'VERSION') -Raw).Trim()
 $Info = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $Payload 'DeepSeek-Reflex.exe'))
 if ($Info.ProductVersion -ne $Version -or $Info.FileVersion -ne "$Version.0" -or $Info.ProductName -ne 'DeepSeek-Reflex') { throw 'ZIP executable version mismatch' }
-$LegacyInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $Payload 'DeepSeek.exe'))
-if ($LegacyInfo.ProductVersion -ne $Version -or $LegacyInfo.FileVersion -ne "$Version.0" -or $LegacyInfo.ProductName -ne 'DeepSeek-Reflex') { throw 'ZIP legacy launcher version mismatch' }
 foreach ($Name in @('README.md','README.en.md')) {
     $Readme = Get-Content -LiteralPath (Join-Path $Payload $Name) -Raw
     if ($Readme -match 'C:\\Users\\HB|E:\\Codex-worksapce|AppData\\Roaming\\[^%]') { throw "Local machine information found in public $Name" }

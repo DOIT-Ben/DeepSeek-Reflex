@@ -18,7 +18,7 @@ Unicode true
 !define MUI_UNICON "${PAYLOAD_DIR}\icon.ico"
 Name "DeepSeek-Reflex ${APP_VERSION}"
 OutFile "${OUTPUT_FILE}"
-InstallDir "$LOCALAPPDATA\Programs\DeepSeekFloat"
+InstallDir "$LOCALAPPDATA\Programs\DeepSeek-Reflex"
 RequestExecutionLevel user
 SetCompressor /SOLID zlib
 CRCCheck on
@@ -36,7 +36,7 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 DOIT-Ben and contributors"
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
-!define MUI_FINISHPAGE_RUN "$INSTDIR\DeepSeekFloat.exe"
+!define MUI_FINISHPAGE_RUN "$INSTDIR\DeepSeek-Reflex.exe"
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
@@ -74,57 +74,68 @@ FunctionEnd
 
 Section "DeepSeek-Reflex (必需 / required)"
   SectionIn RO
-  IfFileExists "$INSTDIR\DeepSeekFloat.exe" 0 check_legacy_busy
+  ; A still-running copy would hold the single-instance mutex, so a launch
+  ; after setup would exit silently. Check the current install and the
+  ; pre-rename legacy copies alike.
+  IfFileExists "$INSTDIR\DeepSeek-Reflex.exe" 0 check_legacy_float
   ClearErrors
-  FileOpen $0 "$INSTDIR\DeepSeekFloat.exe" a
+  FileOpen $0 "$INSTDIR\DeepSeek-Reflex.exe" a
   IfErrors install_busy
   FileClose $0
-  Goto check_legacy_busy
+check_legacy_float:
+  IfFileExists "$LOCALAPPDATA\Programs\DeepSeekFloat\DeepSeekFloat.exe" 0 check_legacy_deepseek
+  ClearErrors
+  FileOpen $0 "$LOCALAPPDATA\Programs\DeepSeekFloat\DeepSeekFloat.exe" a
+  IfErrors install_busy
+  FileClose $0
+check_legacy_deepseek:
+  IfFileExists "$LOCALAPPDATA\Programs\DeepSeekFloat\DeepSeek.exe" 0 install_files
+  ClearErrors
+  FileOpen $0 "$LOCALAPPDATA\Programs\DeepSeekFloat\DeepSeek.exe" a
+  IfErrors install_busy
+  FileClose $0
 install_busy:
   MessageBox MB_OK|MB_ICONSTOP "Please exit from the tray menu before upgrading / 请在托盘菜单中退出后重试。" /SD IDOK
   SetErrorLevel 1
   Abort
-check_legacy_busy:
-  IfFileExists "$INSTDIR\DeepSeek.exe" 0 install_files
-  ClearErrors
-  FileOpen $0 "$INSTDIR\DeepSeek.exe" a
-  IfErrors install_busy
-  FileClose $0
 install_files:
   SetOutPath "$INSTDIR"
   SetOverwrite on
   File /r "${PAYLOAD_DIR}\*"
   WriteUninstaller "$INSTDIR\uninstall.exe"
   CreateDirectory "$SMPROGRAMS\DeepSeek-Reflex"
-  CreateShortcut "$SMPROGRAMS\DeepSeek-Reflex\DeepSeek-Reflex.lnk" "$INSTDIR\DeepSeekFloat.exe"
+  CreateShortcut "$SMPROGRAMS\DeepSeek-Reflex\DeepSeek-Reflex.lnk" "$INSTDIR\DeepSeek-Reflex.exe"
   StrCpy $0 "$SMPROGRAMS\DeepSeek-Reflex\DeepSeek-Reflex.lnk"
   Call RegisterTaskbarShortcut
+  ; The pre-rename install directory only holds replaced program files;
+  ; user data lives under APPDATA and migrates on first launch.
+  RMDir /r "$LOCALAPPDATA\Programs\DeepSeekFloat"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "DisplayName" "DeepSeek-Reflex"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "DisplayVersion" "${APP_VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "Publisher" "DOIT-Ben and contributors"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "UninstallString" '$\"$INSTDIR\uninstall.exe$\"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "QuietUninstallString" '$\"$INSTDIR\uninstall.exe$\" /S'
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "DisplayIcon" "$INSTDIR\DeepSeekFloat.exe"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "DisplayIcon" "$INSTDIR\DeepSeek-Reflex.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "URLInfoAbout" "https://github.com/DOIT-Ben/DeepSeek-Reflex"
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek-Reflex" "NoRepair" 1
 SectionEnd
 
 Section /o "桌面快捷方式 / Desktop shortcut"
-  CreateShortcut "$DESKTOP\DeepSeek-Reflex.lnk" "$INSTDIR\DeepSeekFloat.exe"
+  CreateShortcut "$DESKTOP\DeepSeek-Reflex.lnk" "$INSTDIR\DeepSeek-Reflex.exe"
   StrCpy $0 "$DESKTOP\DeepSeek-Reflex.lnk"
   Call RegisterTaskbarShortcut
 SectionEnd
 
 Section /o "登录后驻留托盘 / Start on sign-in"
-  CreateShortcut "$SMSTARTUP\DeepSeek-Reflex.lnk" "$INSTDIR\DeepSeekFloat.exe" "--background"
+  CreateShortcut "$SMSTARTUP\DeepSeek-Reflex.lnk" "$INSTDIR\DeepSeek-Reflex.exe" "--background"
   StrCpy $0 "$SMSTARTUP\DeepSeek-Reflex.lnk"
   Call RegisterTaskbarShortcut
 SectionEnd
 
 Function RegisterTaskbarShortcut
-  ExecWait '"$INSTDIR\DeepSeekFloat.exe" "--register-shortcut=$0"' $1
+  ExecWait '"$INSTDIR\DeepSeek-Reflex.exe" "--register-shortcut=$0"' $1
   StrCmp $1 0 registered
   MessageBox MB_OK|MB_ICONSTOP "Shortcut registration failed / 快捷方式注册失败，请重试安装。" /SD IDOK
   SetErrorLevel 1
@@ -135,9 +146,9 @@ FunctionEnd
 Function un.onInit
   SetShellVarContext current
   SetRegView 64
-  IfFileExists "$INSTDIR\DeepSeekFloat.exe" 0 uninstall_ready
+  IfFileExists "$INSTDIR\DeepSeek-Reflex.exe" 0 uninstall_ready
   ClearErrors
-  FileOpen $0 "$INSTDIR\DeepSeekFloat.exe" a
+  FileOpen $0 "$INSTDIR\DeepSeek-Reflex.exe" a
   IfErrors uninstall_busy
   FileClose $0
   Return
