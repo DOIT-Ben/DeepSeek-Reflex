@@ -66,6 +66,10 @@ namespace DeepSeekFloat
         private WebView2 browser = new WebView2();
         private bool recreateBrowser,browserExited;
         private readonly Panel chrome = new ResizeChrome();
+        private readonly Label hostChip = new Label { AutoEllipsis=true, TextAlign=ContentAlignment.MiddleLeft, Visible=false };
+        private string offsiteHost;
+        private Uri lastOffsiteUri;
+        private int lastOffsiteTick;
         private readonly WindowFrame frame = new WindowFrame();
         private SmoothFrame smoothFrame;
         private readonly Label status = new AnnouncingLabel { ActAsButton=true };
@@ -211,6 +215,11 @@ namespace DeepSeekFloat
             chatModeButton.AccessibleName="选择持续生效的对话模式";
             chatModeButton.Click+=delegate{ShowChatModeMenu();};
             chrome.Controls.Add(chatModeButton);
+            hostChip.Font=PanelTheme.TextFont(PanelTheme.CaptionSize);
+            hostChip.ForeColor=PanelTheme.Muted;
+            hostChip.BackColor=PanelTheme.Back;
+            hostChip.AccessibleName="当前页面域名";
+            chrome.Controls.Add(hostChip);
             RefreshChatMode();
             selectionBar.BackColor=PanelTheme.Back;
             selectionBar.Font=PanelTheme.TextFont();
@@ -349,6 +358,11 @@ namespace DeepSeekFloat
             // Center on the whole title bar rather than the left/right button
             // clusters, so the pill reads as the window's title.
             chatModeButton.SetBounds(Math.Max(S(112),(ClientSize.Width-selectorWidth)/2),0,selectorWidth,S(28));
+            int chipLeft=chatModeButton.Right+S(8), chipRight=more.Left-S(4);
+            bool showHost=!string.IsNullOrEmpty(offsiteHost) && chipRight-chipLeft>=S(64);
+            hostChip.Visible=showHost;
+            hostChip.SetBounds(showHost?chipLeft:0,0,showHost?chipRight-chipLeft:0,showHost?S(28):0);
+            if(tips!=null) tips.SetToolTip(chrome,showHost||string.IsNullOrEmpty(offsiteHost)?null:"当前页面："+offsiteHost);
             if(selectionBar.Visible) {
                 // Two fixed rows per the dock/capture contract: choices, more
                 // commands and dismiss on top; status, fill and copy below.
@@ -839,7 +853,7 @@ namespace DeepSeekFloat
         // a runtime switch re-assigns them from the palette and repaints.
         internal void ApplyTheme() {
             BackColor=PanelTheme.Back;
-            if(chrome!=null){chrome.BackColor=PanelTheme.Back;foreach(Control child in chrome.Controls){child.BackColor=PanelTheme.Back;if(child is PanelButton||child is ChromeButton)child.ForeColor=PanelTheme.Ink;}}
+            if(chrome!=null){chrome.BackColor=PanelTheme.Back;foreach(Control child in chrome.Controls){child.BackColor=PanelTheme.Back;if(child is PanelButton||child is ChromeButton)child.ForeColor=PanelTheme.Ink;if(child==hostChip)child.ForeColor=PanelTheme.Muted;}}
             if(selectionBar!=null){
                 selectionBar.BackColor=PanelTheme.Back;
                 foreach(Control child in selectionBar.Controls){
@@ -975,7 +989,14 @@ namespace DeepSeekFloat
                 core.NavigationStarting += delegate(object sender,CoreWebView2NavigationStartingEventArgs e) {
                     lastInserted=null;
                     Uri uri;
-                    if (!Uri.TryCreate(e.Uri,UriKind.Absolute,out uri) || (uri.Scheme!="https" && uri.Scheme!="about")) e.Cancel=true;
+                    bool parsed=Uri.TryCreate(e.Uri,UriKind.Absolute,out uri);
+                    if (!parsed || !NavigationPolicy.AllowMainFrame(uri)) {
+                        e.Cancel=true;
+                        if (parsed && string.Equals(uri.Scheme,"https",StringComparison.OrdinalIgnoreCase) && IsHandleCreated && !resourcesDisposed && !quitting) {
+                            var target=uri;
+                            BeginInvoke(new Action(delegate { OpenOffsite(target); }));
+                        }
+                    }
                 };
                 core.NavigationCompleted += async delegate(object sender,CoreWebView2NavigationCompletedEventArgs e) {
                     health.navigationSucceeded=e.IsSuccess;
@@ -987,11 +1008,13 @@ namespace DeepSeekFloat
                     Uri uri;
                     if (Uri.TryCreate(core.Source,UriKind.Absolute,out uri)) {
                         health.sourceHost=uri.Host;
+                        SetOffsiteHost(uri);
                         if (e.IsSuccess && uri.Scheme=="https" && uri.Host=="chat.deepseek.com") {
                             try{Preferences.Write("webview-last-page.txt",uri.GetLeftPart(UriPartial.Path));}
                             catch(Exception error){if(!Preferences.IsStorageFailure(error))throw;}
                         }
                     }
+                    else SetOffsiteHost(null);
                     status.Visible=!e.IsSuccess;
                     if (!e.IsSuccess) { status.Text="页面暂时无法打开，点此重试"; status.BringToFront(); chrome.BringToFront(); frame.BringToFront(); }
                     if (pageDiagnostics && e.IsSuccess) await CollectPageFacts();
@@ -1014,6 +1037,36 @@ namespace DeepSeekFloat
             finally { initializing=false; }
         }
         private void ShowBrowserError(string text){if(resourcesDisposed||quitting)return;status.Text=text;status.Show();status.BringToFront();chrome.BringToFront();frame.BringToFront();}
+        private void SetOffsiteHost(Uri uri) {
+            string next=uri!=null && NavigationPolicy.ShowHostChip(uri) ? NavigationPolicy.DisplayHost(uri) : null;
+            if(next==offsiteHost) return;
+            offsiteHost=next;
+            hostChip.Text=next??"";
+            if(tips!=null) tips.SetToolTip(hostChip,string.IsNullOrEmpty(next)?"":"当前页面："+next);
+            if(!resourcesDisposed && !quitting && IsHandleCreated) LayoutContent();
+        }
+        private async void OpenOffsite(Uri uri) {
+            if(resourcesDisposed||quitting||environment==null||uri==null) return;
+            int now=Environment.TickCount;
+            if(lastOffsiteUri!=null && string.Equals(lastOffsiteUri.AbsoluteUri,uri.AbsoluteUri,StringComparison.Ordinal) && unchecked(now-lastOffsiteTick)<1500) return;
+            lastOffsiteUri=uri; lastOffsiteTick=now;
+            PopupWindow popup=null;
+            try {
+                popup=new PopupWindow(uri,dpiScale) {Icon=Icon};
+                popup.Show(this);
+                if(!await popup.InitializeAsync(environment)) return;
+                if(popup.IsDisposed||popup.Browser.IsDisposed||resourcesDisposed||quitting||popup.Browser.CoreWebView2==null) return;
+                var child=popup.Browser.CoreWebView2;
+                child.Settings.AreHostObjectsAllowed=false;
+                child.Settings.IsWebMessageEnabled=false;
+                child.Settings.AreDevToolsEnabled=false;
+                child.WindowCloseRequested += delegate { if(!popup.IsDisposed) popup.Close(); };
+                child.Navigate(uri.AbsoluteUri);
+            } catch(Exception) {
+                if(popup!=null && !popup.IsDisposed) popup.ShowError("此窗口未能打开，请关闭后重试。");
+                else if(!resourcesDisposed && !quitting) ShowBrowserError("链接窗口未能打开，请重试。");
+            }
+        }
         internal void HandleProcessFailure(CoreWebView2ProcessFailedKind kind) {
             var action=BrowserRecovery.For(kind);
             if(action==RecoveryAction.Ignore)return;
@@ -1037,6 +1090,7 @@ namespace DeepSeekFloat
                 if(popup.IsDisposed||child.IsDisposed||resourcesDisposed||quitting){e.Handled=true;return;}
                 child.CoreWebView2.Settings.AreHostObjectsAllowed=false;
                 child.CoreWebView2.Settings.IsWebMessageEnabled=false;
+                child.CoreWebView2.Settings.AreDevToolsEnabled=false;
                 child.CoreWebView2.WindowCloseRequested += delegate { if(!popup.IsDisposed)popup.Close(); };
                 e.NewWindow=child.CoreWebView2;
                 e.Handled=true;

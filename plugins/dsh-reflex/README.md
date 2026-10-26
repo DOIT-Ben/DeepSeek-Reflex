@@ -25,7 +25,7 @@
 
 支持 DSH `0.1.5-rc.2` 及其后兼容版本。已在本机原有 `0.1.5-rc.2` 程序的隔离数据目录中安装，并验证真实页面入口、六种模式、小窗唤起、手动预览回填与草稿冲突保护；另有 `0.2.1-alpha.1` checkout 现有构建产物的宿主挂载证据。声明版本范围不是所有版本均已验收。系统剪贴板权限和官网登录后的完整往返仍待实测。
 
-先正常安装 [DeepSeek-Reflex](https://github.com/DOIT-Ben/DeepSeek-Reflex/releases/latest)，按官网流程登录。默认定位 `%LOCALAPPDATA%\Programs\DeepSeekFloat\DeepSeekFloat.exe`；ZIP 用户可在 **启动 DSH 的环境**中设置 `REFLEX_EXECUTABLE` 为真实 `DeepSeekFloat.exe` 的绝对路径。插件不会安装或替换小窗。
+先正常安装 [DeepSeek-Reflex](https://github.com/DOIT-Ben/DeepSeek-Reflex/releases/latest)，按官网流程登录。默认定位 `%LOCALAPPDATA%\Programs\DeepSeek-Reflex\DeepSeek-Reflex.exe`；ZIP 用户可在 **启动 DSH 的环境**中设置 `REFLEX_EXECUTABLE` 为真实 `DeepSeek-Reflex.exe` 的绝对路径。升级前的 `DeepSeekFloat.exe` 仍可作为该变量的值。插件不会安装或替换小窗。
 
 在终端执行以下命令，`web` 必须替换为实际运行 HTTP 页面的 profile 名称：
 

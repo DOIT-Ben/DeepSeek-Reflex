@@ -106,7 +106,7 @@ Choose a file from [Releases](https://github.com/DOIT-Ben/DeepSeek-Reflex/releas
 | File | How to use it |
 | --- | --- |
 | `DeepSeek-Reflex-1.0.17-Setup-x64.exe` | Run the installer. It installs for the current user without administrator privileges, with optional desktop and startup shortcuts. Uninstall through Windows Apps. |
-| `DeepSeek-Reflex-1.0.17-Windows-x64.zip` | Extract the entire folder and run `DeepSeekFloat.exe`. Keep all dependency DLLs beside the executable. |
+| `DeepSeek-Reflex-1.0.17-Windows-x64.zip` | Extract the entire folder and run `DeepSeek-Reflex.exe`. Keep all dependency DLLs beside the executable. |
 | `SHA256SUMS.txt` | Verify the downloaded files against their SHA-256 checksums. GitHub also provides source archives. |
 
 Requires **Windows 10/11 x64, .NET Framework 4.8, and WebView2 Evergreen Runtime**. V1 has been verified on Windows 11; Windows 10 has not been validated across devices. The installer checks prerequisites and points to [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) or [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48) if needed. It does not silently download other software. A native ARM64 build is not available.
@@ -119,7 +119,7 @@ Get-FileHash .\DeepSeek-Reflex-1.0.17-Setup-x64.exe -Algorithm SHA256
 
 Before upgrading, choose **Exit** from the tray menu. Uninstalling preserves settings and website sign-in data. The ZIP uses the same user data directory as the installed application; moving the extracted folder does not move those data.
 
-The older `DeepSeek.exe` entry point remains supported. It is a blue-fish launcher that opens `DeepSeekFloat.exe` in the same folder, keeping the existing single instance, shortcuts, and sign-in profile. You can run `DeepSeekFloat.exe` directly.
+The current package starts with `DeepSeek-Reflex.exe`. An older install may still contain `DeepSeekFloat.exe` or `DeepSeek.exe` in its own folder; leave those files in place. Sign-in data from `cloud.doitbenai.deepseekfloat` is migrated once on the first launch of this version.
 
 ## Getting started
 
@@ -155,7 +155,7 @@ Moving the pointer alone does not move the chat. Settings/help panels stay on th
 - Connects directly to `https://chat.deepseek.com`, without proxying the website, replacing its chat API, or sending conversations to a project server.
 - Reads selected text only when you invoke capture or clipboard import. Captured text is not written to application logs; sending the website draft is your decision.
 - Includes no project-operated telemetry or analytics service. The embedded website and Microsoft runtime remain subject to their providers' policies.
-- Stores user data in `%APPDATA%\cloud.doitbenai.deepseekfloat` and installs by default in `%LOCALAPPDATA%\Programs\DeepSeekFloat`. Older internal directory and executable names are retained for upgrade continuity.
+- Stores user data in `%APPDATA%\cloud.doitbenai.deepseek-reflex` and installs by default in `%LOCALAPPDATA%\Programs\DeepSeek-Reflex`. A previous `cloud.doitbenai.deepseekfloat` directory is migrated once on startup. The process name is `DeepSeek-Reflex`.
 
 ## Build from source
 

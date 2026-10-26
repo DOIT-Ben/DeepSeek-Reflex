@@ -29,26 +29,25 @@ namespace DeepSeekFloat
         private static bool ModifierDown() { return (Native.GetAsyncKeyState(0x11)<0 || Native.GetAsyncKeyState(0x10)<0 || Native.GetAsyncKeyState(0x12)<0); }
         private static SelectionResult ReadAutomation()
         {
+            // A thrown walk is inconclusive. Do not fall through to Ctrl+C.
             try {
                 return ReadElement(AutomationElement.FocusedElement);
-            } catch(Exception) { return null; }
+            } catch(Exception) { return SelectionResult.Fail("无法确认输入框是否可安全取词。请手动复制后，从设置导入。"); }
         }
         internal static SelectionResult ReadElement(AutomationElement element)
         {
-            try {
-                if(element==null) return null;
-                for(int i=0;i<5 && element!=null;i++) {
-                    if(element.Current.IsPassword) return SelectionResult.Fail("密码输入框不支持取词。");
-                    object pattern;
-                    if(element.TryGetCurrentPattern(TextPattern.Pattern,out pattern)) {
-                        var ranges=((TextPattern)pattern).GetSelection();
-                        string text="";
-                        foreach(var range in ranges) { text+=range.GetText(Limit+1); if(text.Length>Limit) break; }
-                        return Validate(text,"UI Automation");
-                    }
-                    element=TreeWalker.ControlViewWalker.GetParent(element);
+            if(element==null) return null;
+            for(int i=0;i<5 && element!=null;i++) {
+                if(element.Current.IsPassword) return SelectionResult.Fail("密码输入框不支持取词。");
+                object pattern;
+                if(element.TryGetCurrentPattern(TextPattern.Pattern,out pattern)) {
+                    var ranges=((TextPattern)pattern).GetSelection();
+                    string text="";
+                    foreach(var range in ranges) { text+=range.GetText(Limit+1); if(text.Length>Limit) break; }
+                    return Validate(text,"UI Automation");
                 }
-            } catch(Exception) { }
+                element=TreeWalker.ControlViewWalker.GetParent(element);
+            }
             return null;
         }
         internal static async Task<SelectionResult> CaptureAsync(IntPtr source)
@@ -104,7 +103,8 @@ namespace DeepSeekFloat
             if(formats.Length>32) throw new InvalidOperationException();
             foreach(string format in formats) {
                 object value=source.GetData(format,false);
-                if(value==null) continue;
+                // A format we cannot materialize must not be dropped and then overwritten by Ctrl+C.
+                if(value==null) throw new InvalidOperationException();
                 var stream=value as MemoryStream;
                 if(stream!=null) { if(stream.Length>16*1024*1024) throw new InvalidOperationException(); value=new MemoryStream(stream.ToArray()); }
                 else if(value is byte[]) { var bytes=(byte[])value; if(bytes.Length>16*1024*1024) throw new InvalidOperationException(); value=bytes.Clone(); }

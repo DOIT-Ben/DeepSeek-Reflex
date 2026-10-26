@@ -45,7 +45,7 @@ var ReflexClient = (() => {
   var define_REFLEX_MODES_default = [{ id: "normal", name: "\u666E\u901A\u5BF9\u8BDD", instruction: "" }, { id: "translate", name: "\u7FFB\u8BD1\u6A21\u5F0F", instruction: "\u8BF7\u7FFB\u8BD1\u4EE5\u4E0B\u5185\u5BB9\uFF1A\u4E2D\u6587\u8BD1\u4E3A\u82F1\u6587\uFF0C\u82F1\u6587\u6216\u5176\u4ED6\u8BED\u8A00\u8BD1\u4E3A\u4E2D\u6587\u3002\u4FDD\u7559\u539F\u610F\u3001\u5173\u952E\u672F\u8BED\u548C\u6BB5\u843D\u683C\u5F0F\uFF0C\u53EA\u8F93\u51FA\u8BD1\u6587\uFF0C\u4E0D\u89E3\u91CA\u3001\u4E0D\u56DE\u7B54\u6750\u6599\u4E2D\u7684\u95EE\u9898\u3002" }, { id: "explain", name: "\u89E3\u91CA\u6A21\u5F0F", instruction: "\u8BF7\u9762\u5411\u5B66\u751F\uFF0C\u7528\u901A\u4FD7\u4E2D\u6587\u89E3\u91CA\u4EE5\u4E0B\u5185\u5BB9\uFF1A\u5148\u8BF4\u660E\u542B\u4E49\uFF0C\u518D\u89E3\u91CA\u96BE\u70B9\uFF0C\u5FC5\u8981\u65F6\u4E3E\u4E00\u4E2A\u7B80\u77ED\u4F8B\u5B50\u3002" }, { id: "question", name: "\u7406\u89E3\u63D0\u95EE", instruction: "\u8BF7\u5E2E\u6211\u7406\u89E3\u4EE5\u4E0B\u5185\u5BB9\uFF0C\u5E76\u6307\u51FA\u5176\u4E2D\u503C\u5F97\u8FDB\u4E00\u6B65\u63D0\u95EE\u7684\u5730\u65B9\u3002" }, { id: "polish", name: "\u6DA6\u8272\u6A21\u5F0F", instruction: "\u8BF7\u6DA6\u8272\u4EE5\u4E0B\u5185\u5BB9\uFF0C\u4FDD\u6301\u539F\u8BED\u8A00\u3001\u539F\u610F\u548C\u4E8B\u5B9E\uFF0C\u8BA9\u8868\u8FBE\u6E05\u695A\u3001\u81EA\u7136\u3001\u7B80\u6D01\u3002\u53EA\u8F93\u51FA\u6DA6\u8272\u540E\u7684\u6587\u672C\uFF0C\u4E0D\u989D\u5916\u8865\u5145\u4E8B\u5B9E\u3002" }, { id: "summarize", name: "\u603B\u7ED3\u6A21\u5F0F", instruction: "\u8BF7\u7528\u7B80\u6D01\u4E2D\u6587\u603B\u7ED3\u4EE5\u4E0B\u5185\u5BB9\uFF0C\u63D0\u70BC\u4E3B\u8981\u89C2\u70B9\u4E0E\u5173\u952E\u4FE1\u606F\uFF0C\u4E0D\u8865\u5145\u6750\u6599\u4E2D\u6CA1\u6709\u7684\u4E8B\u5B9E\u3002" }];
 
   // <define:__REFLEX_THEME__>
-  var define_REFLEX_THEME_default = { fontFamily: "Microsoft YaHei UI", variables: { "--reflex-ink": "#2a313f", "--reflex-muted": "#677082", "--reflex-accent": "#4366ee", "--reflex-tint": "#edf2ff", "--reflex-border": "#e1e7f0", "--reflex-surface": "#f7f9fc", "--reflex-hover": "#f1f4f8", "--reflex-pressed": "#e1e9fc", "--reflex-accent-hover": "#3352d6", "--reflex-accent-pressed": "#2a46be", "--reflex-input-border": "#838fa3", "--reflex-close-hover": "#ffebeb", "--reflex-close-pressed": "#ffd8d8", "--reflex-caption-size": "12px", "--reflex-body-size": "14px", "--reflex-title-size": "16px", "--reflex-heading-size": "20px", "--reflex-control-radius": "8px", "--reflex-panel-radius": "12px", "--reflex-control-height": "32px", "--reflex-input-height": "40px", "--reflex-hover-duration": "120ms", "--reflex-press-duration": "60ms", "--reflex-release-duration": "90ms" } };
+  var define_REFLEX_THEME_default = { fontFamily: "Microsoft YaHei UI", variables: { "--reflex-ink": "#2a313f", "--reflex-muted": "#677082", "--reflex-accent": "#4366ee", "--reflex-tint": "#edf2ff", "--reflex-border": "#e1e7f0", "--reflex-surface": "#f7f9fc", "--reflex-hover": "#f1f4f8", "--reflex-pressed": "#e1e9fc", "--reflex-accent-hover": "#3352d6", "--reflex-accent-pressed": "#2a46be", "--reflex-input-border": "#838fa3", "--reflex-close-hover": "#ffebeb", "--reflex-close-pressed": "#ffd8d8", "--reflex-caption-size": "12px", "--reflex-body-size": "14px", "--reflex-title-size": "16px", "--reflex-heading-size": "18.666666666666664px", "--reflex-control-radius": "8px", "--reflex-panel-radius": "12px", "--reflex-control-height": "32px", "--reflex-input-height": "40px", "--reflex-hover-duration": "120ms", "--reflex-press-duration": "60ms", "--reflex-release-duration": "90ms" } };
 
   // src/client.js
   var import_react = __toESM(__require("react"), 1);
@@ -75,29 +75,29 @@ var ReflexClient = (() => {
   var theme = define_REFLEX_THEME_default;
   var variables = Object.entries(theme.variables).map(([name, value]) => `${name}:${value}`).join(";");
   var css = `
-.reflex-control{${variables};position:relative;display:inline-flex;font-family:"${theme.fontFamily}","Segoe UI",system-ui,sans-serif;font-size:var(--reflex-body-size);line-height:1.6;color:var(--text-primary,var(--reflex-ink))}
+.reflex-control{${variables};position:relative;display:inline-flex;color-scheme:light dark;font-family:"${theme.fontFamily}","Segoe UI",system-ui,sans-serif;font-size:var(--reflex-body-size);line-height:1.6;color:var(--text-primary,var(--reflex-ink))}
 .reflex-control button,.reflex-control select,.reflex-control textarea{font:inherit;color:inherit;box-sizing:border-box}
-.reflex-control button{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:var(--reflex-control-height);border:1px solid transparent;background:transparent;border-radius:var(--reflex-control-radius);padding:4px 8px;line-height:1.25;white-space:nowrap;cursor:pointer;transition:background-color var(--reflex-hover-duration) ease,color var(--reflex-hover-duration) ease,transform var(--reflex-release-duration) ease}
+.reflex-control button{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:var(--reflex-control-height);border:1px solid transparent;background:transparent;border-radius:var(--reflex-control-radius);padding:4px 10px;line-height:1.25;white-space:nowrap;cursor:pointer;transition:background-color var(--reflex-hover-duration) ease,color var(--reflex-hover-duration) ease,transform var(--reflex-release-duration) ease}
 .reflex-control button:hover:not(:disabled){background:color-mix(in srgb,currentColor 6%,transparent)}
 .reflex-control button:active:not(:disabled){background:color-mix(in srgb,currentColor 12%,transparent);transform:translateY(1px);transition-duration:var(--reflex-press-duration)}
 .reflex-control button:disabled{color:var(--reflex-muted);cursor:default}
 .reflex-control :focus-visible{outline:2px solid var(--reflex-accent);outline-offset:2px}
 .reflex-control .reflex-trigger[aria-expanded=true]{background:var(--reflex-tint);color:var(--reflex-accent-hover)}
-.reflex-panel{position:fixed;inset:auto;margin:0;width:min(360px,calc(100vw - 24px));max-height:min(560px,calc(100dvh - 24px));overflow:auto;box-sizing:border-box;background:var(--bg-primary,Canvas);color:inherit;border:1px solid color-mix(in srgb,currentColor 14%,transparent);border-radius:var(--reflex-panel-radius);padding:16px;box-shadow:0 8px 28px #0002;z-index:40}
-.reflex-head,.reflex-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.reflex-head{justify-content:space-between;flex-wrap:nowrap;gap:12px}.reflex-head strong{min-width:0;flex:1;overflow-wrap:anywhere;font-size:var(--reflex-title-size);font-weight:700;line-height:1.3}
+.reflex-panel{position:fixed;inset:auto;margin:0;width:min(360px,calc(100vw - 24px));max-height:min(560px,calc(100dvh - 24px));overflow:auto;box-sizing:border-box;background:var(--bg-primary,Canvas);color:inherit;border:1px solid color-mix(in srgb,currentColor 12%,transparent);border-radius:var(--reflex-panel-radius);padding:16px;box-shadow:0 18px 40px color-mix(in srgb,currentColor 8%,transparent);z-index:40}
+.reflex-head,.reflex-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.reflex-head{justify-content:space-between;flex-wrap:nowrap;gap:12px}.reflex-head strong{min-width:0;flex:1;overflow-wrap:anywhere;font-size:var(--reflex-title-size);font-weight:600;line-height:1.3}
 .reflex-control .reflex-close{flex:none;width:var(--reflex-control-height);padding:0;font-size:var(--reflex-title-size)}
 .reflex-control .reflex-close:hover:not(:disabled){background:var(--reflex-close-hover);color:var(--reflex-ink)}.reflex-control .reflex-close:active:not(:disabled){background:var(--reflex-close-pressed)}
 .reflex-panel p,.reflex-panel label,.reflex-panel [role=status]{font-size:var(--reflex-caption-size);line-height:1.6;color:color-mix(in srgb,currentColor 80%,transparent)}
-.reflex-panel p{margin:8px 0 12px}.reflex-panel label{display:block;margin:12px 0 6px}
-.reflex-panel select,.reflex-panel textarea{display:block;width:100%;margin-top:6px;padding:8px;background:var(--bg-primary,Canvas);color:var(--text-primary,var(--reflex-ink));font-size:var(--reflex-body-size);border:1px solid var(--reflex-input-border);border-radius:var(--reflex-control-radius);line-height:1.6}
+.reflex-panel p{margin:4px 0 8px}.reflex-panel label{display:block;margin:8px 0 4px}
+.reflex-panel select,.reflex-panel textarea{display:block;width:100%;margin-top:4px;padding:8px;background:var(--bg-primary,Canvas);color:var(--text-primary,var(--reflex-ink));font-size:var(--reflex-body-size);border:1px solid var(--reflex-input-border);border-radius:var(--reflex-control-radius);line-height:1.6;transition:border-color var(--reflex-hover-duration) ease}
 .reflex-panel select{min-height:var(--reflex-input-height)}.reflex-panel select:disabled{color:var(--reflex-muted)}
-.reflex-panel select:focus-visible,.reflex-panel textarea:focus-visible{border-color:var(--reflex-accent);outline-offset:0}
-.reflex-actions{margin-top:12px}.reflex-panel .reflex-primary{background:var(--reflex-accent);color:white}
+.reflex-panel select:focus-visible,.reflex-panel textarea:focus-visible{border-color:var(--reflex-accent);outline:none}
+.reflex-actions{margin-top:8px}.reflex-actions.reflex-phase{margin-top:16px}.reflex-panel .reflex-primary{background:var(--reflex-accent);color:white;font-weight:600}
 .reflex-panel .reflex-primary:hover:not(:disabled){background:var(--reflex-accent-hover)}.reflex-panel .reflex-primary:active:not(:disabled){background:var(--reflex-accent-pressed)}
 .reflex-panel .reflex-primary:disabled{background:var(--reflex-surface);color:var(--reflex-muted);border-color:var(--reflex-border)}
-.reflex-panel textarea{resize:vertical;min-height:112px;max-height:260px}
+.reflex-panel textarea{resize:vertical;min-height:96px;max-height:220px}
 .reflex-panel [role=status]{margin-top:12px;overflow-wrap:anywhere}.reflex-panel [role=status]:empty{display:none}
-@media(prefers-reduced-motion:reduce){.reflex-control button{transition:none}.reflex-control button:active:not(:disabled){transform:none}}
+@media(prefers-reduced-motion:reduce){.reflex-control button,.reflex-panel select,.reflex-panel textarea{transition:none}.reflex-control button:active:not(:disabled){transform:none}}
 `;
 
   // src/client.js
@@ -198,6 +198,16 @@ var ReflexClient = (() => {
       noPending: "First use Copy request and open or Open window only to bind the current draft."
     }
   };
+  function inputCluster(trigger) {
+    let rect = trigger.getBoundingClientRect();
+    let node = trigger.parentElement;
+    for (let i = 0; node && node !== document.body && i < 5; i += 1, node = node.parentElement) {
+      const box = node.getBoundingClientRect();
+      if (rect.top - box.top > 240 || box.height > 320 || box.bottom < rect.bottom - 1) break;
+      if (box.top <= rect.top && box.bottom >= rect.bottom) rect = box;
+    }
+    return rect;
+  }
   function Control({ sessionId, useInput, inputActions, t }) {
     const input = useInput?.((s) => s);
     const [open, setOpen] = import_react.default.useState(false);
@@ -225,12 +235,18 @@ var ReflexClient = (() => {
       const element = panel.current;
       if (typeof element.showPopover === "function") element.showPopover();
       const position = () => {
-        const anchor = trigger.current.getBoundingClientRect();
-        const width = element.offsetWidth, height = element.offsetHeight;
-        const left = Math.max(12, Math.min(anchor.left, innerWidth - width - 12));
-        const desired = anchor.top - height - 8 >= 12 ? anchor.top - height - 8 : anchor.bottom + 8;
-        const top = Math.max(12, Math.min(desired, innerHeight - height - 12));
-        setPlacement((previous) => previous.left === left && previous.top === top ? previous : { left, top });
+        const anchor = inputCluster(trigger.current);
+        const margin = 12, gap = 10;
+        const spaceAbove = anchor.top - gap - margin;
+        const spaceBelow = innerHeight - anchor.bottom - gap - margin;
+        const placeAbove = spaceAbove >= 180 || spaceAbove >= spaceBelow;
+        const maxHeight = Math.max(160, Math.floor(placeAbove ? spaceAbove : spaceBelow));
+        const width = element.offsetWidth;
+        const left = Math.max(margin, Math.min(anchor.left, innerWidth - width - margin));
+        const height = Math.min(element.scrollHeight, maxHeight);
+        const top = placeAbove ? Math.max(margin, anchor.top - gap - height) : anchor.bottom + gap;
+        const next = { left, top, maxHeight };
+        setPlacement((previous) => previous.left === next.left && previous.top === next.top && previous.maxHeight === next.maxHeight ? previous : next);
       };
       position();
       const observer = new ResizeObserver(position);
@@ -445,7 +461,7 @@ var ReflexClient = (() => {
         tooLong && h("p", { role: "alert" }, t("tooLong")),
         h(
           "div",
-          { className: "reflex-actions" },
+          { className: "reflex-actions reflex-phase" },
           h("button", { type: "button", disabled: busy || !pending, onClick: fetchReply }, t("fetch")),
           h("button", { type: "button", disabled: busy || !pending, onClick: readReply }, t("paste"))
         ),

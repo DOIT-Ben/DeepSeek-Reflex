@@ -15,7 +15,9 @@ function metric(name, factor = 1, unit = 'px') {
 }
 const colors = ['Ink','Muted','Accent','Tint','Border','Surface','Hover','Pressed','AccentHover','AccentPressed','InputBorder','CloseHover','ClosePressed'];
 const variables = colors.map(name => {
-  const match = themeSource.match(new RegExp('\\b' + name + '=Color\\.FromArgb\\((\\d+),(\\d+),(\\d+)\\)'));
+  // Light values are the shared tokens. Properties keep a dark alternate after the colon.
+  const match = themeSource.match(new RegExp('static Color ' + name + '\\{get\\{return mode==UiTheme\\.Light\\?Color\\.FromArgb\\((\\d+),(\\d+),(\\d+)\\)'))
+    || themeSource.match(new RegExp('\\b' + name + '=Color\\.FromArgb\\((\\d+),(\\d+),(\\d+)\\)'));
   if (!match || match.slice(1).some(value => Number(value) > 255)) throw new Error('Missing shared UI color: ' + name);
   return ['--reflex-' + names(name), '#' + match.slice(1).map(value => Number(value).toString(16).padStart(2, '0')).join('')];
 });

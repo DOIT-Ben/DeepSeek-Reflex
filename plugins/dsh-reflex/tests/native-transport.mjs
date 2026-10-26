@@ -20,7 +20,7 @@ server.listen(0, '127.0.0.1'); await once(server, 'listening');
 try {
   const origin = 'http://127.0.0.1:' + server.address().port;
   const body = { id: crypto.randomUUID(), mode: 'polish', text: 'transport fixture material' };
-  const response = await fetch(origin + '/reflex-window/stage', { method: 'POST', headers: { origin, 'x-reflex-request': '1', 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+  const response = await fetch(origin + '/reflex-window/stage', { method: 'POST', headers: { origin, 'x-reflex-request': '1', 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
   assert.equal(response.status, 200); assert.deepEqual(await response.json(), { id: body.id, status: 'filled' });
   console.log('PASS real HTTP stdin pipe transport');
 } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

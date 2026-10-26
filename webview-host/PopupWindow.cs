@@ -26,6 +26,9 @@ namespace DeepSeekFloat {
             Browser.CoreWebView2InitializationCompleted+=delegate {
                 if(IsDisposed||Browser.IsDisposed||Browser.CoreWebView2==null)return;
                 var core=Browser.CoreWebView2;
+                core.Settings.AreHostObjectsAllowed=false;
+                core.Settings.IsWebMessageEnabled=false;
+                core.Settings.AreDevToolsEnabled=false;
                 core.NavigationStarting+=delegate(object sender,Microsoft.Web.WebView2.Core.CoreWebView2NavigationStartingEventArgs args){
                     Uri target;if(!Uri.TryCreate(args.Uri,UriKind.Absolute,out target)||target.Scheme!="https"){args.Cancel=true;return;}origin.Text=target.Host;
                 };

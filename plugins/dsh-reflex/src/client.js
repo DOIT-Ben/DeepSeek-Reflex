@@ -21,7 +21,7 @@ const dictionaries = {
     fetchBusy: '小窗正在处理上一条请求，请稍后再读取。',
     fetchUnknown: '未能确认是否读取成功。请重试，或手动复制官网回复。',
     ready: '请求已复制。将小窗切到普通对话，再粘贴并检查发送。', opened: '已请求打开小窗。回复不会自动写入当前会话。',
-    failed: '无法打开小窗。请先安装 Reflex，或在 DSH 启动环境中设置 REFLEX_EXECUTABLE 指向 DeepSeekFloat.exe。',
+    failed: '无法打开小窗。请先安装 Reflex，或在 DSH 启动环境中设置 REFLEX_EXECUTABLE 指向 DeepSeek-Reflex.exe。',
     local: '此试用版需要 Windows 本机的 DSH HTTP 页面（localhost）。远程页面和 file:// 桌面入口暂不支持。',
     clipboard: '剪贴板操作未完成。请检查浏览器权限；回复也可手动粘贴到预览框。',
     emptyClipboard: '剪贴板里没有文字。先复制官网回复，再读取。',
@@ -50,7 +50,7 @@ const dictionaries = {
     fetchBusy: 'The window is still handling the previous request. Try reading again shortly.',
     fetchUnknown: 'Read status could not be confirmed. Retry, or copy the website reply manually.',
     ready: 'Request copied. Set the window to regular chat, then paste, review and send.', opened: 'Window requested. Replies do not enter this session automatically.',
-    failed: 'Could not open Reflex. Install it or set REFLEX_EXECUTABLE to DeepSeekFloat.exe in the DSH launch environment.',
+    failed: 'Could not open Reflex. Install it or set REFLEX_EXECUTABLE to DeepSeek-Reflex.exe in the DSH launch environment.',
     local: 'This preview requires a local Windows DSH HTTP page (localhost). Remote pages and file:// desktop entries are not supported yet.',
     clipboard: 'Clipboard operation did not complete. Check browser permissions, or paste the reply into the preview manually.',
     emptyClipboard: 'No text on the clipboard. Copy the website reply first, then read it.',
@@ -66,6 +66,17 @@ const dictionaries = {
 };
 
 import { css } from './styles.js';
+
+function inputCluster(trigger) {
+  let rect = trigger.getBoundingClientRect();
+  let node = trigger.parentElement;
+  for (let i = 0; node && node !== document.body && i < 5; i += 1, node = node.parentElement) {
+    const box = node.getBoundingClientRect();
+    if (rect.top - box.top > 240 || box.height > 320 || box.bottom < rect.bottom - 1) break;
+    if (box.top <= rect.top && box.bottom >= rect.bottom) rect = box;
+  }
+  return rect;
+}
 
 function Control({ sessionId, useInput, inputActions, t }) {
   const input = useInput?.(s => s);
@@ -90,12 +101,18 @@ function Control({ sessionId, useInput, inputActions, t }) {
     // A top-layer popover escapes transformed/clipped composer ancestors without creating another app root.
     if (typeof element.showPopover === 'function') element.showPopover();
     const position = () => {
-      const anchor = trigger.current.getBoundingClientRect();
-      const width = element.offsetWidth, height = element.offsetHeight;
-      const left = Math.max(12, Math.min(anchor.left, innerWidth - width - 12));
-      const desired = anchor.top - height - 8 >= 12 ? anchor.top - height - 8 : anchor.bottom + 8;
-      const top = Math.max(12, Math.min(desired, innerHeight - height - 12));
-      setPlacement(previous => previous.left === left && previous.top === top ? previous : { left, top });
+      const anchor = inputCluster(trigger.current);
+      const margin = 12, gap = 10;
+      const spaceAbove = anchor.top - gap - margin;
+      const spaceBelow = innerHeight - anchor.bottom - gap - margin;
+      const placeAbove = spaceAbove >= 180 || spaceAbove >= spaceBelow;
+      const maxHeight = Math.max(160, Math.floor(placeAbove ? spaceAbove : spaceBelow));
+      const width = element.offsetWidth;
+      const left = Math.max(margin, Math.min(anchor.left, innerWidth - width - margin));
+      const height = Math.min(element.scrollHeight, maxHeight);
+      const top = placeAbove ? Math.max(margin, anchor.top - gap - height) : anchor.bottom + gap;
+      const next = { left, top, maxHeight };
+      setPlacement(previous => previous.left === next.left && previous.top === next.top && previous.maxHeight === next.maxHeight ? previous : next);
     };
     position();
     const observer = new ResizeObserver(position); observer.observe(element);
@@ -219,7 +236,7 @@ function Control({ sessionId, useInput, inputActions, t }) {
       !supported && h('p', { role: 'alert' }, t('unsupported')),
       references && h('p', { role: 'alert' }, t('references')),
       tooLong && h('p', { role: 'alert' }, t('tooLong')),
-      h('div', { className: 'reflex-actions' },
+      h('div', { className: 'reflex-actions reflex-phase' },
         h('button', { type: 'button', disabled: busy || !pending, onClick: fetchReply }, t('fetch')),
         h('button', { type: 'button', disabled: busy || !pending, onClick: readReply }, t('paste'))),
       h('label', null, t('preview'), h('textarea', { value: preview, maxLength: MAX_TEXT, onChange: event => setPreview(event.target.value) })),

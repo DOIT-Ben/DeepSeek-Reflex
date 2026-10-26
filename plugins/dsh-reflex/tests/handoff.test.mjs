@@ -9,7 +9,7 @@ const request = () => ({ id: '31030090-7730-49e0-916e-b9d109ad5709', mode: 'poli
 function http(value) {
   const req = Readable.from([Buffer.from(typeof value === 'string' ? value : JSON.stringify(value))]);
   req.url = '/reflex-window/stage'; req.method = 'POST'; req.socket = { remoteAddress: '127.0.0.1' };
-  req.headers = { origin: 'http://127.0.0.1:3081', host: '127.0.0.1:3081', 'x-reflex-request': '1', 'content-type': 'application/json' }; return req;
+  req.headers = { origin: 'http://127.0.0.1:3081', host: '127.0.0.1:3081', 'x-reflex-request': '1', 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' }; return req;
 }
 function childFactory(response, onStart = () => {}) {
   return (...args) => {
@@ -71,7 +71,7 @@ test('HTTP reply route is body-free, single-flight and forwards a fresh request 
   const invoke = (route, method = 'POST', headers = {}, body = null) => {
     const req = body === null ? Readable.from([]) : Readable.from([Buffer.from(body)]);
     req.url = route; req.method = method; req.socket = { remoteAddress: '127.0.0.1' };
-    req.headers = { origin: 'http://127.0.0.1:3081', host: '127.0.0.1:3081', 'x-reflex-request': '1', ...headers };
+    req.headers = { origin: 'http://127.0.0.1:3081', host: '127.0.0.1:3081', 'x-reflex-request': '1', 'sec-fetch-site': 'same-origin', ...headers };
     return new Promise(resolve => { void handler(req, { writeHead: status => { req.result = status; }, end: out => resolve({ status: req.result, body: out ? JSON.parse(out) : null }) }); });
   };
   const first = await invoke('/reflex-window/reply');

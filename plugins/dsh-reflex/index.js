@@ -14,7 +14,8 @@ export function acceptsRequest(req) {
   const address = (req.socket?.remoteAddress || '').toLowerCase();
   if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(address)) return false;
   const site = req.headers['sec-fetch-site'];
-  if (site && site !== 'same-origin') return false;
+  // Browsers always send this on fetch. A missing value is not same-origin.
+  if (site !== 'same-origin') return false;
   if (req.headers['x-reflex-request'] !== '1' || !req.headers.origin) return false;
   try {
     const origin = new URL(req.headers.origin);

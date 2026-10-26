@@ -122,6 +122,9 @@ namespace DeepSeekFloat {
    Check(BrowserRecovery.For(CoreWebView2ProcessFailedKind.GpuProcessExited)==RecoveryAction.Ignore,"GPU auto recovery has no blocking overlay");
    Check(BrowserRecovery.For(CoreWebView2ProcessFailedKind.UtilityProcessExited)==RecoveryAction.Ignore,"utility auto recovery has no blocking overlay");
    Check(Preferences.IsStorageFailure(new UnauthorizedAccessException())&&Preferences.IsStorageFailure(new IOException())&&!Preferences.IsStorageFailure(new InvalidOperationException()),"storage exception classification");
+   Check(NavigationPolicy.AllowMainFrame(new Uri("about:blank"))&&NavigationPolicy.AllowMainFrame(new Uri("https://chat.deepseek.com/"))&&NavigationPolicy.AllowMainFrame(new Uri("https://chat.deepseek.com/a/b?q=1"))&&NavigationPolicy.AllowMainFrame(new Uri("https://platform.deepseek.com/")),"pinned chat and DeepSeek hosts stay in the main frame");
+   Check(!NavigationPolicy.AllowMainFrame(new Uri("https://example.com/"))&&!NavigationPolicy.AllowMainFrame(new Uri("https://chat.deepseek.com.evil.com/"))&&!NavigationPolicy.AllowMainFrame(new Uri("http://chat.deepseek.com/"))&&!NavigationPolicy.AllowMainFrame(new Uri("about:srcdoc")),"foreign, lookalike, plain http and other about urls leave the main frame");
+   Check(NavigationPolicy.ShowHostChip(new Uri("https://platform.deepseek.com/"))&&!NavigationPolicy.ShowHostChip(new Uri("https://chat.deepseek.com/a"))&&NavigationPolicy.DisplayHost(new Uri("https://platform.deepseek.com/"))=="platform.deepseek.com","host chip appears only off the pinned chat host");
    var settings=WindowSettings.Defaults();settings.Save();Check(WindowSettings.Load().ToggleKeys==settings.ToggleKeys,"isolated preferences round trip");
    Check(HotkeyBindings.Validate(settings.ToggleKeys,settings.ToggleKeys)!=null,"shortcut collision validation");
    Check(settings.ChatMode=="normal","new settings default to ordinary conversation");

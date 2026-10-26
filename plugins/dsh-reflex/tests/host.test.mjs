@@ -27,12 +27,18 @@ test('launch error is propagated; unsupported OS and missing file have explicit 
   assert.equal((await findExecutable({ platform: 'win32', env: { REFLEX_EXECUTABLE: 'relative.exe' } })).available, false);
   assert.equal((await findExecutable({ platform: 'win32', env: { REFLEX_EXECUTABLE: 'C:\\Test\\DeepSeekFloat.exe' }, inspect: async () => ({ isFile: () => false }) })).available, false);
   const located = await findExecutable({ platform: 'win32', env: { LOCALAPPDATA: 'C:\\Users\\test\\AppData\\Local' }, inspect: async () => ({ isFile: () => true }) });
-  assert.ok(located.executable.endsWith('Programs\\DeepSeekFloat\\DeepSeekFloat.exe'));
+  assert.ok(located.executable.endsWith('Programs\\DeepSeek-Reflex\\DeepSeek-Reflex.exe'));
+  const renamed = await findExecutable({ platform: 'win32', env: { REFLEX_EXECUTABLE: 'C:\\Apps\\DeepSeek-Reflex.exe' }, inspect: async () => ({ isFile: () => true }) });
+  assert.equal(renamed.available, true);
+  const legacy = await findExecutable({ platform: 'win32', env: { REFLEX_EXECUTABLE: 'C:\\Apps\\DeepSeekFloat.exe' }, inspect: async () => ({ isFile: () => true }) });
+  assert.equal(legacy.available, true);
+  const other = await findExecutable({ platform: 'win32', env: { REFLEX_EXECUTABLE: 'C:\\Windows\\System32\\cmd.exe' }, inspect: async () => ({ isFile: () => true }) });
+  assert.equal(other.available, false);
 });
 
-test('reject cross-origin, remote, missing origin, missing custom header and forged local origin', () => {
+test('reject cross-origin, remote, missing origin, missing custom header, missing fetch metadata and forged local origin', () => {
   assert.equal(acceptsRequest(request()), true);
-  for (const alter of [r => { r.socket.remoteAddress = '192.168.1.2'; }, r => { delete r.headers.origin; }, r => { delete r.headers['x-reflex-request']; }, r => { r.headers.origin = 'http://evil.test'; }, r => { r.headers['sec-fetch-site'] = 'cross-site'; }, r => { r.headers.host = 'evil.test'; r.headers.origin = 'http://evil.test'; }]) {
+  for (const alter of [r => { r.socket.remoteAddress = '192.168.1.2'; }, r => { delete r.headers.origin; }, r => { delete r.headers['x-reflex-request']; }, r => { delete r.headers['sec-fetch-site']; }, r => { r.headers.origin = 'http://evil.test'; }, r => { r.headers['sec-fetch-site'] = 'cross-site'; }, r => { r.headers.host = 'evil.test'; r.headers.origin = 'http://evil.test'; }]) {
     const req = request(); alter(req); assert.equal(acceptsRequest(req), false);
   }
 });

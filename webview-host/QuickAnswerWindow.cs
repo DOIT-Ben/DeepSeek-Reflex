@@ -118,20 +118,12 @@ namespace DeepSeekFloat
                 if(result=="draft") { message.Text="下方已有草稿，请处理后继续";return; }
                 if(result!="filled") { message.Text="填入未完成，请重试";return; }
                 ownDraft=prompt;
-                await Task.Delay(200);
+                // Filling a draft never sends. The user clicks send on the page below.
+                submitted=true;
+                message.Text="请求已填入，请在下方点击发送";
+                retry.Text="在下方继续";
                 if(disposed)return;
                 Activate();Native.SetForegroundWindow(Handle);view.Focus();
-                // Only target this independent official website window, never another application's input.
-                Uri current;
-                if(Native.GetForegroundWindow()!=Handle || !Uri.TryCreate(view.CoreWebView2.Source,UriKind.Absolute,out current) || current.Scheme!="https" || current.Host!="chat.deepseek.com") {
-                    message.Text="请求已填入，请点击下方发送";return;
-                }
-                if(Native.GetAsyncKeyState(0x11)<0 || Native.GetAsyncKeyState(0x10)<0 || Native.GetAsyncKeyState(0x12)<0) { message.Text="请松开按键，在下方点击发送";return; }
-                var input=new[]{Native.Key(0x0D,false),Native.Key(0x0D,true)};
-                uint sent=Native.SendInput(2,input,System.Runtime.InteropServices.Marshal.SizeOf(typeof(Native.INPUT)));
-                submitted=true;
-                message.Text=sent==2 ? "查看下方回答，可继续追问" : "请点击下方发送";
-                retry.Text="在下方继续";retry.Enabled=false;
             }catch(Exception) { if(!disposed)message.Text="问答未完成，可在下方继续"; }
             finally { busy=false;if(!disposed)retry.Enabled=!submitted; }
         }
