@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
@@ -25,7 +26,7 @@ namespace DeepSeekFloat {
     var sid=WindowsIdentity.GetCurrent().User;
     var rules=ReflexBridge.Security().GetAccessRules(true,false,typeof(SecurityIdentifier)).Cast<PipeAccessRule>().ToArray();
     Check(rules.Length==2&&rules.Any(r=>r.IdentityReference.Equals(sid)&&r.AccessControlType==AccessControlType.Allow)&&rules.Any(r=>r.IdentityReference.Equals(new SecurityIdentifier(WellKnownSidType.NetworkSid,null))&&r.AccessControlType==AccessControlType.Deny),"pipe ACL permits only current SID and denies network identity");
-    var bridge=new ReflexBridge((request,cancel)=>{Interlocked.Increment(ref calls);return Task.FromResult("filled");});
+    var bridge=new ReflexBridge((request,cancel)=>{Interlocked.Increment(ref calls);return Task.FromResult(new BridgeResult("filled"));});
     using(bridge){
      Thread.Sleep(200);var first=Request();var result=Helper(first);Check(result.id==first.id&&result.status=="filled"&&calls==1,"real fixed WinExe helper sends stdin across same-EXE authenticated pipe");
      using(var partial=new NamedPipeClientStream(".",ReflexBridge.PipeName,PipeDirection.InOut,PipeOptions.Asynchronous)){
@@ -42,6 +43,17 @@ namespace DeepSeekFloat {
       var output=child.StandardOutput.ReadToEndAsync();var error=child.StandardError.ReadToEndAsync();if(!child.WaitForExit(18000)){child.Kill();throw new Exception("HTTP transport timeout");}
       Check(child.ExitCode==0&&output.Result.Contains("PASS real HTTP stdin pipe transport"),"real HTTP host uses helper and rejects unauthenticated Node pipe client: "+(child.ExitCode==0?"":error.Result));
      }
+    }
+    var reported=new List<Exception>();var reportedLock=new object();var stageCalls=0;
+    var flaky=new ReflexBridge((request,cancel)=>{
+     if(Interlocked.Increment(ref stageCalls)==1)return Task.FromException<BridgeResult>(new InvalidOperationException("fixture"));
+     Interlocked.Increment(ref calls);return Task.FromResult(new BridgeResult("filled"));
+    },error=>{lock(reportedLock)reported.Add(error);});
+    using(flaky){
+     Thread.Sleep(200);
+     Check(Helper(Request()).status=="outcome-unknown","unexpected stage failure answers boundedly");
+     Check(Helper(Request()).status=="filled","serve loop survives an unexpected stage failure");
+     Thread.Sleep(100);lock(reportedLock)Check(reported.Count==1&&reported[0] is InvalidOperationException,"unexpected failure is reported once to the host");
     }
     Check(Helper(Request()).status=="outcome-unknown","disposed or legacy missing server fails boundedly without mutating a window");
     Console.WriteLine("TOTAL "+passed+" real transport checks");return 0;

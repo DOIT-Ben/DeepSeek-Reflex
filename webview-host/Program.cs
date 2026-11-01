@@ -31,19 +31,27 @@ namespace DeepSeekFloat
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
                 Application.ThreadException += delegate(object sender, ThreadExceptionEventArgs e) { ShowError(e.Exception); };
+                // Background threads bypass ThreadException; record their fatal
+                // errors too instead of exiting without a trace.
+                AppDomain.CurrentDomain.UnhandledException += delegate(object sender, UnhandledExceptionEventArgs e) { LogError(e.ExceptionObject as Exception); };
                 try { Application.Run(new ChatWindow(args)); }
                 catch (Exception e) { ShowError(e); }
             }
         }
-        private static void ShowError(Exception error)
+        internal static void LogError(Exception error,string source=null)
         {
+            if(error==null)return;
             try
             {
                 Directory.CreateDirectory(Preferences.Root);
                 // Record code locations only, never exception messages or website/account data.
-                File.AppendAllText(Path.Combine(Preferences.Root,"host-errors.log"),DateTime.UtcNow.ToString("o")+" "+error.GetType().FullName+"\n"+error.StackTrace+"\n");
+                File.AppendAllText(Path.Combine(Preferences.Root,"host-errors.log"),DateTime.UtcNow.ToString("o")+" "+(source!=null?source+" ":"")+error.GetType().FullName+"\n"+error.StackTrace+"\n");
             }
             catch (IOException) { }
+        }
+        private static void ShowError(Exception error)
+        {
+            LogError(error);
             MessageBox.Show("小窗遇到问题，请重新打开。\n" + error.GetType().Name, "DeepSeek-Reflex", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
     }

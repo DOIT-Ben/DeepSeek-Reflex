@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
@@ -47,6 +48,8 @@ namespace DeepSeekFloat {
         internal const int MaxBytes=90000;
         private readonly CancellationTokenSource stopping=new CancellationTokenSource();
         private readonly Func<BridgeRequest,CancellationToken,Task<BridgeResult>> stage;
+        private readonly Action<Exception> report;
+        private readonly HashSet<Type> reportedFailures=new HashSet<Type>();
         private readonly object sync=new object();
         private NamedPipeServerStream current;
         private bool disposed;
@@ -81,7 +84,7 @@ namespace DeepSeekFloat {
         internal static async Task Write(Stream stream,byte[] body,CancellationToken cancel) {
             var header=BitConverter.GetBytes(body.Length);await stream.WriteAsync(header,0,4,cancel).ConfigureAwait(false);await stream.WriteAsync(body,0,body.Length,cancel).ConfigureAwait(false);await stream.FlushAsync(cancel).ConfigureAwait(false);
         }
-        internal ReflexBridge(Func<BridgeRequest,CancellationToken,Task<BridgeResult>> callback){stage=callback;Task.Run((Func<Task>)Serve);}
+        internal ReflexBridge(Func<BridgeRequest,CancellationToken,Task<BridgeResult>> callback,Action<Exception> unexpected=null){stage=callback;report=unexpected;Task.Run((Func<Task>)Serve);}
         private async Task Serve() {
             while(!stopping.IsCancellationRequested) {
                 try {
@@ -102,10 +105,17 @@ namespace DeepSeekFloat {
                         using(var write=CancellationTokenSource.CreateLinkedTokenSource(stopping.Token))using(write.Token.Register(delegate{pipe.Dispose();})){write.CancelAfter(1000);await Write(pipe,Json(new BridgeReply(requestId,result.Status,result.Text)),write.Token).ConfigureAwait(false);}
                     }
                 }catch(Exception error){
-                    if(!(error is IOException||error is InvalidDataException||error is OperationCanceledException||error is ObjectDisposedException||error is SerializationException||error is UnauthorizedAccessException||error is ArgumentException))return;
+                    // Expected protocol churn keeps the loop quiet; anything
+                    // else is surfaced once per type, then the loop keeps
+                    // serving instead of dying silently.
+                    if(!(error is IOException||error is InvalidDataException||error is OperationCanceledException||error is ObjectDisposedException||error is SerializationException||error is UnauthorizedAccessException||error is ArgumentException))ReportUnexpected(error);
                 }finally{lock(sync){current=null;}}
                 if(!stopping.IsCancellationRequested)await Task.Delay(50).ConfigureAwait(false);
             }
+        }
+        private void ReportUnexpected(Exception error) {
+            if(report==null||!reportedFailures.Add(error.GetType()))return;
+            report(error);
         }
         public void Dispose(){lock(sync){if(disposed)return;disposed=true;stopping.Cancel();if(current!=null)current.Dispose();}}
         // The fixed helper reads stdin before connecting; material never becomes argv.

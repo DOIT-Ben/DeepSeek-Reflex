@@ -641,7 +641,7 @@ namespace DeepSeekFloat
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
-            if(bridge==null)bridge=new ReflexBridge(HandleBridge);
+            if(bridge==null)bridge=new ReflexBridge(HandleBridge,error=>Program.LogError(error,"bridge"));
             EnableNativeSizing(Handle);
             WindowFrame.ConfigureNativeBorder(Handle);
             frame.UpdateShape(this,dpiScale);
