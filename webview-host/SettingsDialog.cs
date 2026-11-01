@@ -84,6 +84,7 @@ namespace DeepSeekFloat {
                 capture.ResetTo((int)(Keys.Control|Keys.D|Keys.Shift));
                 hint.ForeColor=PanelTheme.Muted;hint.Text="已恢复默认快捷键，保存后生效。";
             };
+            restoreDefault.BringToFront();
             toggle.FeedbackChanged+=RecordingFeedback;capture.FeedbackChanged+=RecordingFeedback;
             focus.Checked=settings.FocusOnOpen;Place(content,focus,0,150,420,30);focus.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             dock.Checked=settings.EdgeDockEnabled;Place(content,dock,0,184,420,30);dock.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
@@ -336,7 +337,8 @@ namespace DeepSeekFloat {
                 body.AutoScrollMinSize=new Size(0,S(onCommandsPage?CommandsContentHeight:GeneralContentHeight));
                 content.SetBounds(0,body.AutoScrollPosition.Y,Math.Max(1,body.ClientSize.Width),S(GeneralContentHeight));
                 // Native anchor rounding can leave the last column one pixel outside
-                // a scrollbar-reduced viewport. Keep each full-width row inside it.
+                // a scrollbar-reduced viewport. Keep each row inside it; the hint
+                // spans under the restore-default button, which sits above it.
                 foreach(Control row in content.Controls)row.Width=Math.Max(1,content.ClientSize.Width-row.Left);
             }finally{arranging=false;}
         }

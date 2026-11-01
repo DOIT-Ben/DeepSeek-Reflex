@@ -101,6 +101,11 @@ internal static class SettingsTests {
    PressKey(toggle,(Keys)K(Keys.F22));Check(save.Enabled&&hint.Text.Contains("保存后生效")&&toggle.Text==HotkeyBindings.Format(K(Keys.F22)),"valid replacement clears duplicate feedback and remains pending until save");
    capture.Focus();Native.PostMessage(capture.Handle,0x100,new IntPtr((int)Keys.Tab),IntPtr.Zero);Pump(35);
    Check(!capture.Focused&&!capture.Recording&&capture.Combination==original.CaptureKeys,"Tab leaves shortcut recording and preserves the unedited binding");
+   var restore=(PanelButton)Field(dialog,"restoreDefault");var contentPanel=(Panel)Field(dialog,"content");
+   var restoreCenter=new Point(restore.Left+restore.Width/2,restore.Top+restore.Height/2);
+   Check(contentPanel.GetChildAtPoint(restoreCenter)==restore,"restore-default button sits above the full-width hint at its center");
+   restore.PerformClick();
+   Check(!toggle.Recording&&toggle.Combination==(int)(Keys.Control|Keys.Space)&&capture.Combination==(int)(Keys.Control|Keys.D|Keys.Shift)&&hint.Text.Contains("已恢复默认"),"restore-default resets both bindings pending save");
    var choices=(PanelChoices)Field(dialog,"windowMode");choices.SelectedIndex=0;var buttons=choices.Controls.OfType<PanelButton>().ToArray();buttons[0].Focus();PressKey(buttons[0],Keys.Right);
    Check(choices.SelectedIndex==1&&buttons[1].Focused&&buttons.Count(b=>b.TabStop)==1,"segmented choices support arrow navigation and one keyboard tab stop");
    PressKey(buttons[1],Keys.End);Check(choices.SelectedIndex==2,"segmented choices support End without moving the panel geometry");
