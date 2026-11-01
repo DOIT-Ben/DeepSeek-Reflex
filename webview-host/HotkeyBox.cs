@@ -28,6 +28,10 @@ namespace DeepSeekFloat {
             Combination=previous;Recording=false;Text=HotkeyBindings.Format(Combination);ForeColor=PanelTheme.Ink;
             Report("已取消录入，原组合键已保留。",false);
         }
+        internal void ResetTo(int value) {
+            Combination=value;Recording=false;Text=HotkeyBindings.Format(value);ForeColor=PanelTheme.Ink;
+            Report("已恢复默认 "+Text+"，保存后生效。",false);
+        }
         private void Record(Keys keys) {
             var key=keys&Keys.KeyCode;
             if(key==Keys.Tab)return;

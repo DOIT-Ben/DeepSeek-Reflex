@@ -85,7 +85,7 @@ namespace DeepSeekFloat {
   static void Settings(){
    foreach(float scale in new[]{1f,1.5f,2f}){
     var area=new Rectangle(-1536,-80,1200,600);
-    var fit=SettingsDialog.FitBounds(new Rectangle(-1700,-140,(int)(460*scale),(int)(578*scale)),area,scale);
+    var fit=SettingsDialog.FitBounds(new Rectangle(-1700,-140,(int)(460*scale),(int)(564*scale)),area,scale);
     Check(area.Contains(fit),"negative-coordinate short work area fits at "+scale);
    }
    using(var dialog=new SettingsDialog(WindowSettings.Defaults(),delegate{return null;})){
@@ -94,7 +94,7 @@ namespace DeepSeekFloat {
     var area=Screen.FromControl(dialog).WorkingArea;
     float scale=Math.Max(2f,area.Height/500f);
     // Only this test window is scaled. No Windows display preference is changed.
-    dialog.ApplyDpi(scale,new Rectangle(area.Left+20,area.Top+20,(int)(460*scale),(int)(578*scale)));Pump(30);
+    dialog.ApplyDpi(scale,new Rectangle(area.Left+20,area.Top+20,(int)(460*scale),(int)(564*scale)));Pump(30);
     Check(area.Contains(dialog.Bounds),"initial constrained settings fit the actual work area");
     var focus=Field<PanelSwitch>(dialog,"focus");focus.Checked=!focus.Checked;bool edited=focus.Checked;
     Rectangle stable=Rectangle.Empty;

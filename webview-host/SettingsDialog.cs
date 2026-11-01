@@ -9,7 +9,7 @@ namespace DeepSeekFloat {
         private readonly PanelSwitch focus=new PanelSwitch("唤出后直接在输入框打字");
         private readonly PanelSwitch dock=new PanelSwitch("拖到屏幕边缘时收纳为标签");
         private readonly PanelChoices hideMode=new PanelChoices("最小化到任务栏","收进托盘");
-        private readonly PanelChoices windowMode=new PanelChoices("当前尺寸","小窗模式","阅读模式");
+        private readonly PanelChoices windowMode=new PanelChoices("自定义尺寸","小窗模式","阅读模式");
         private readonly PanelChoices themeChoice=new PanelChoices("跟随系统","浅色","深色");
         private readonly Label error=new Label {AutoSize=false,ForeColor=PanelTheme.Error};
         private readonly Label hint=new Label {AutoSize=false,ForeColor=PanelTheme.Muted};
@@ -26,6 +26,7 @@ namespace DeepSeekFloat {
         private readonly PanelButton keepEditing=new PanelButton("继续编辑");
         private readonly PanelButton discardEditing=new PanelButton("放弃并返回") {Ghost=true,Outline=true};
         private readonly PanelButton addCommand=new PanelButton("新增指令") {Ghost=true,Outline=true};
+        private readonly PanelButton restoreDefault=new PanelButton("恢复默认") {Ghost=true};
         private readonly PanelButton saveEntry=new PanelButton("保存条目") {Ghost=true,Outline=true};
         private readonly TextBox commandName=new TextBox {BorderStyle=BorderStyle.None};
         private readonly TextBox commandBody=new TextBox {BorderStyle=BorderStyle.None,Multiline=true};
@@ -48,7 +49,7 @@ namespace DeepSeekFloat {
         private readonly WindowFrame frame=new WindowFrame();
         private SmoothFrame smoothFrame;
         private bool arranging;
-        private const int GeneralContentHeight=434,CommandsContentHeight=332;
+        private const int GeneralContentHeight=420,CommandsContentHeight=332;
         // Header 52 + content + viewport slack 12 + footer band 80: the dialog
         // is exactly as tall as the active page, so nothing scrolls by default.
         private int DialogHeight(){return 144+(onCommandsPage?CommandsContentHeight:GeneralContentHeight);}
@@ -75,21 +76,27 @@ namespace DeepSeekFloat {
             surface.Controls.Add(body);body.Controls.Add(content);body.Controls.Add(commandsPage);surface.Controls.Add(footer);
             content.Size=new Size(S(420),S(GeneralContentHeight));
             LabelAt(content,"快捷键",0,0,420,16,PanelTheme.BodySize,true);
-            KeyRow(content,"唤出 / 收起",toggle,20);KeyRow(content,"选中文字取词",capture,78);
-            hint.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);hint.Text="点击按键框开始录入，Esc 取消，保存后生效。";Place(content,hint,0,136,420,18);hint.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            KeyRow(content,"唤出 / 收起",toggle,18);KeyRow(content,"选中文字取词",capture,72);
+            hint.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);hint.Text="点击按键框录入，Esc 取消。";Place(content,hint,0,126,336,20);hint.Anchor=AnchorStyles.Top|AnchorStyles.Left;
+            restoreDefault.Font=PanelTheme.CompactFont(PanelTheme.CaptionSize);restoreDefault.AccessibleName="恢复默认快捷键";tips.SetToolTip(restoreDefault,"回到 Ctrl+Space 与 Ctrl+Shift+D");Place(content,restoreDefault,346,124,74,24);restoreDefault.Anchor=AnchorStyles.Top|AnchorStyles.Right;
+            restoreDefault.Click+=delegate{
+                toggle.ResetTo((int)(Keys.Control|Keys.Space));
+                capture.ResetTo((int)(Keys.Control|Keys.D|Keys.Shift));
+                hint.ForeColor=PanelTheme.Muted;hint.Text="已恢复默认快捷键，保存后生效。";
+            };
             toggle.FeedbackChanged+=RecordingFeedback;capture.FeedbackChanged+=RecordingFeedback;
-            focus.Checked=settings.FocusOnOpen;Place(content,focus,0,162,420,30);focus.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            dock.Checked=settings.EdgeDockEnabled;Place(content,dock,0,198,420,30);dock.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            focus.Checked=settings.FocusOnOpen;Place(content,focus,0,150,420,30);focus.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            dock.Checked=settings.EdgeDockEnabled;Place(content,dock,0,184,420,30);dock.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             tips.SetToolTip(dock,"拖到屏幕左右边缘释放即收纳为标签，点击标签恢复。");
-            LabelAt(content,"快捷键收起方式",0,234,420,16,PanelTheme.BodySize,true);
-            hideMode.SelectedIndex=settings.HideToTrayOnToggle?1:0;Place(content,hideMode,0,252,420,30);hideMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            LabelAt(content,"窗口尺寸",0,288,420,16,PanelTheme.BodySize,true);
-            windowMode.SelectedIndex=settings.Mode=="reading"?2:settings.Mode=="compact"?1:0;Place(content,windowMode,0,306,420,30);windowMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            themeChoice.SelectedIndex=settings.Theme=="dark"?2:settings.Theme=="light"?1:0;LabelAt(content,"主题",0,342,420,16,PanelTheme.BodySize,true);
-            Place(content,themeChoice,0,360,420,30);themeChoice.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            LabelAt(content,"快捷键收起方式",0,220,420,16,PanelTheme.BodySize,true);
+            hideMode.SelectedIndex=settings.HideToTrayOnToggle?1:0;Place(content,hideMode,0,238,420,30);hideMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            LabelAt(content,"窗口尺寸",0,274,420,16,PanelTheme.BodySize,true);
+            windowMode.SelectedIndex=settings.Mode=="reading"?2:settings.Mode=="compact"?1:0;Place(content,windowMode,0,292,420,30);windowMode.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            themeChoice.SelectedIndex=settings.Theme=="dark"?2:settings.Theme=="light"?1:0;LabelAt(content,"主题",0,328,420,16,PanelTheme.BodySize,true);
+            Place(content,themeChoice,0,346,420,30);themeChoice.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             themeChoice.AccessibleName="界面主题";
             var actions=new Panel {Margin=Padding.Empty,Padding=Padding.Empty,BackColor=PanelTheme.Back};
-            Place(content,actions,0,396,420,PanelTheme.ControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            Place(content,actions,0,382,420,PanelTheme.ControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             var refresh=new PanelButton("刷新页面") {Ghost=true};var import=new PanelButton("粘贴导入") {Ghost=true};var help=new PanelButton("使用帮助") {Ghost=true};
             tips.SetToolTip(import,"导入剪贴板中的文字");
             var actionButtons=new[]{refresh,import,help};
