@@ -20,7 +20,6 @@ namespace DeepSeekFloat {
         private readonly Panel viewport=new Panel {Name="guide-body",AutoScroll=true,BackColor=PanelTheme.Back};
         private readonly Panel content=new Panel {BackColor=PanelTheme.Back};
         private Panel surface;
-        private PanelButton skip;
         private ChromeButton close;
         private Label brand,help;
         private readonly WindowFrame frame=new WindowFrame();
@@ -45,7 +44,6 @@ namespace DeepSeekFloat {
             key=LabelAt(card,"",16,10,320,28,PanelTheme.TitleSize,true);key.ForeColor=PanelTheme.Accent;key.BackColor=PanelTheme.Surface;
             hint=LabelAt(card,"",16,42,320,34,PanelTheme.CaptionSize,false);hint.ForeColor=PanelTheme.Muted;hint.BackColor=PanelTheme.Surface;
             help=LabelAt(surface,"以后可以在设置 → 使用帮助中重新查看。",24,326,352,22,PanelTheme.CaptionSize,false);help.ForeColor=PanelTheme.Muted;
-            skip=new PanelButton("跳过");Place(surface,skip,24,396,76,PanelTheme.CompactControlHeight);skip.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};
             previous=new PanelButton("上一步");Place(surface,previous,180,396,88,PanelTheme.CompactControlHeight);previous.Click+=delegate{SetStep(Step-1);};
             next=new PanelButton("下一步") {Primary=true};Place(surface,next,280,396,96,PanelTheme.CompactControlHeight);
             next.Click+=delegate{if(Step==3){DialogResult=DialogResult.OK;Close();}else SetStep(Step+1);};
@@ -61,7 +59,7 @@ namespace DeepSeekFloat {
                 settings.HideToTrayOnToggle?"当前收起方式：收进托盘。快捷键可在设置修改。":"当前收起方式：最小化到任务栏。可在设置修改。",
                 "取词失败时，可复制文字，再从设置粘贴导入。",
                 "拖动标题栏移动窗口；四边和四角都可以拉伸。"};
-            SetStep(0);AcceptButton=next;CancelButton=skip;
+            SetStep(0);AcceptButton=next;CancelButton=close;
             foreach(Control item in new Control[]{heading,body,card,help}){surface.Controls.Remove(item);item.Location=new Point(0,item.Top-S(96));item.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;content.Controls.Add(item);}
             viewport.Controls.Add(content);surface.Controls.Add(viewport);
             viewport.Layout+=delegate{content.Width=Math.Max(1,viewport.ClientSize.Width);foreach(Control item in content.Controls)item.Width=content.Width;};
@@ -82,7 +80,6 @@ namespace DeepSeekFloat {
             viewport.SetBounds(S(24),S(96),width,Math.Max(1,ClientSize.Height-S(164)));
             viewport.AutoScrollMinSize=new Size(0,S(ContentHeight));content.SetBounds(0,viewport.AutoScrollPosition.Y,Math.Max(1,viewport.ClientSize.Width),S(ContentHeight));
             foreach(Control item in content.Controls)item.Width=content.Width;
-            skip.SetBounds(S(24),ClientSize.Height-S(56),S(76),S(PanelTheme.CompactControlHeight));
             previous.SetBounds(ClientSize.Width-S(220),ClientSize.Height-S(56),S(88),S(PanelTheme.CompactControlHeight));next.SetBounds(ClientSize.Width-S(120),ClientSize.Height-S(56),S(96),S(PanelTheme.CompactControlHeight));
         }
         internal void ApplyDpi(float value,Rectangle bounds){if(value<=0)return;float ratio=value/scale;scale=value;surface.Scale(new SizeF(ratio,ratio));Bounds=SettingsDialog.FitBounds(bounds,Screen.FromRectangle(bounds).WorkingArea,scale);smoothFrame.UpdateScale(value);Arrange();frame.UpdateShape(this,scale,smoothFrame.Ready);}

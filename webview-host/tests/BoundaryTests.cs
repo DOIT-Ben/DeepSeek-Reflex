@@ -102,8 +102,8 @@ namespace DeepSeekFloat {
    }
    using(var guide=new GettingStartedDialog(WindowSettings.Defaults())){
     guide.Show();guide.ClientSize=new Size(400,330);Application.DoEvents();
-    var next=(PanelButton)Field(guide,"next");var skip=(PanelButton)Field(guide,"skip");
-    Check(next.Bottom<=guide.ClientSize.Height&&skip.Bottom<=guide.ClientSize.Height,"short guide keeps fixed footer reachable");
+    var next=(PanelButton)Field(guide,"next");var close=(ChromeButton)Field(guide,"close");
+    Check(next.Bottom<=guide.ClientSize.Height&&close.Bottom<=guide.ClientSize.Height,"short guide keeps fixed footer reachable");
     var viewport=(Panel)Field(guide,"viewport");Check(viewport.VerticalScroll.Visible,"short guide content scrolls");
     guide.ApplyDpi(1.5f,new Rectangle(40,40,600,650));Application.DoEvents();
     Check(((SmoothFrame)Field(guide,"smoothFrame")).Aligned,"guide DPI transition keeps corners aligned");guide.Close();

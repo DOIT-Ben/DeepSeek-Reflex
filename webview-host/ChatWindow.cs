@@ -82,7 +82,7 @@ namespace DeepSeekFloat
         private readonly NotifyIcon tray = new NotifyIcon();
         private readonly Icon windowIcon, trayIcon;
         private readonly Timer healthTimer = new Timer();
-        private readonly PanelButton chatModeButton = new PanelButton("普通对话") {Ghost=true,DropDown=true};
+        private readonly PanelButton chatModeButton = new PanelButton("普通对话") {Ghost=true,DropDown=true,StatusDot=true};
         private string chatModeError;
         private bool updatingChatMode,chatModeUpdatePending;
         private readonly Panel selectionBar = new Panel();
@@ -90,7 +90,6 @@ namespace DeepSeekFloat
         private readonly Label selectionStatus = new AnnouncingLabel();
         private readonly PanelButton moreSelection = new PanelButton("更多指令") {Ghost=true,Outline=true,DropDown=true};
         private readonly PanelButton insertSelection = new PanelButton("填入") {Chosen=true};
-        private readonly PanelButton copySelection = new PanelButton("复制请求") {Ghost=true};
         private readonly ChromeButton dismissSelection = new ChromeButton("close","收起取词栏");
         private PromptCommand[] customCommands=new PromptCommand[0];
         private PromptCommand customChoice;
@@ -241,21 +240,10 @@ namespace DeepSeekFloat
             selectionStatus.AutoEllipsis=true;
             selectionStatus.TextAlign=ContentAlignment.MiddleLeft;
             insertSelection.Click += async delegate { await FillSelection(); };
-            copySelection.Click += async delegate {
-                if(selectedText==null) return;
-                int version=selectionVersion;
-                try {
-                    string prompt=ComposeSelection();Clipboard.SetText(prompt);
-                    var core=browser.CoreWebView2;
-                    if(core!=null)try{await core.ExecuteScriptAsync(ChatModeInjector.ExpectOneShotScript(prompt));}catch(Exception){}
-                    if(!resourcesDisposed&&!quitting&&version==selectionVersion)selectionStatus.Text="请求已复制，可粘贴到对话框";
-                }
-                catch(System.Runtime.InteropServices.ExternalException) { selectionStatus.Text="剪贴板正忙，请重试"; }
-            };
             dismissSelection.Click += delegate { selectionVersion++; selectedText=null; selectionBar.Hide(); LayoutContent(); };
             tips.SetToolTip(selectionAction,"选择文字处理方式，填入后由你确认发送");
             tips.SetToolTip(dismissSelection,"收起取词栏");
-            selectionBar.Controls.AddRange(new Control[]{selectionAction,selectionStatus,moreSelection,insertSelection,copySelection,dismissSelection});
+            selectionBar.Controls.AddRange(new Control[]{selectionAction,selectionStatus,moreSelection,insertSelection,dismissSelection});
             Controls.AddRange(new Control[]{browser,status,selectionBar,chrome,frame});
             selectionBar.BringToFront();
             chrome.BringToFront();
@@ -348,9 +336,9 @@ namespace DeepSeekFloat
             int height = S(44), edge = S(4), width = S(32);
             // Leave the top resize strip owned by the form, not covered by child controls.
             chrome.SetBounds(0,S(WindowResize.Border),ClientSize.Width,height-S(WindowResize.Border));
-            var leftButtons = new[]{minimize,pin,mode};
+            var leftButtons = new[]{pin,mode};
             for(int i=0;i<leftButtons.Length;i++)leftButtons[i].SetBounds(S(8)+width*i,0,width,S(28));
-            var rightButtons = new[]{close,more};
+            var rightButtons = new[]{close,more,minimize};
             for(int i=0;i<rightButtons.Length;i++)rightButtons[i].SetBounds(ClientSize.Width-S(8)-width*(i+1),0,width,S(28));
             int available=Math.Max(0,ClientSize.Width-S(192));
             // Hug the mode text plus chevron instead of a fixed pill width.
@@ -371,9 +359,8 @@ namespace DeepSeekFloat
                 selectionAction.SetBounds(S(10),S(8),choicesWidth,S(32));
                 moreSelection.SetBounds(selectionBar.Width-S(126),S(8),S(84),S(32));
                 dismissSelection.SetBounds(selectionBar.Width-S(38),S(10),S(28),S(28));
-                selectionStatus.SetBounds(S(10),S(46),Math.Max(1,selectionBar.Width-S(176)),S(30));
-                insertSelection.SetBounds(selectionBar.Width-S(162),S(46),S(56),S(30));
-                copySelection.SetBounds(selectionBar.Width-S(100),S(46),S(92),S(30));
+                selectionStatus.SetBounds(S(10),S(46),Math.Max(1,selectionBar.Width-S(80)),S(30));
+                insertSelection.SetBounds(selectionBar.Width-S(66),S(46),S(56),S(30));
                 height+=selectionBar.Height;
             }
             browser.SetBounds(edge,height,Math.Max(0,ClientSize.Width-edge*2),Math.Max(0,ClientSize.Height-height-edge));
@@ -410,7 +397,7 @@ namespace DeepSeekFloat
             // Failed captures keep the user's foreground: the window appears
             // without activation so a mistyped hotkey does not interrupt reading.
             selectionBar.Show(); LayoutContent(); WakeChatAt(target,selectedText!=null); selectionBar.BringToFront(); chrome.BringToFront(); frame.BringToFront();
-            insertSelection.Enabled=copySelection.Enabled=selectedText!=null;
+            insertSelection.Enabled=selectedText!=null;
             selectionStatus.Text=result.Error ?? ("已取词 "+selectedText.Length+" 字，正在填入…");
             if(selectedText!=null) await FillSelection();
         }
@@ -454,6 +441,8 @@ namespace DeepSeekFloat
             if(customCommands.Length==0&&commandsError==null) {
                 var empty=menu.AddAction("还没有自定义指令",delegate{});empty.Enabled=false;
             }
+            var copyRow=menu.AddAction("复制请求",delegate { BeginInvoke(new Action(CopyRequestToClipboard)); });
+            copyRow.Enabled=selectedText!=null;
             menu.AddDivider();
             menu.AddAction("去设置添加",delegate { BeginInvoke(new Action(delegate{ShowSettingsPage("commands");})); });
             openMenu=menu;AttachMenuMouseHook();
@@ -464,6 +453,17 @@ namespace DeepSeekFloat
                 else menu.Dispose();
             };
             menu.Show(moreSelection,new Point(0,moreSelection.Height));
+        }
+        private async void CopyRequestToClipboard() {
+            if(selectedText==null||resourcesDisposed||quitting) return;
+            int version=selectionVersion;
+            try {
+                string prompt=ComposeSelection();Clipboard.SetText(prompt);
+                var core=browser.CoreWebView2;
+                if(core!=null)try{await core.ExecuteScriptAsync(ChatModeInjector.ExpectOneShotScript(prompt));}catch(Exception){}
+                if(!resourcesDisposed&&!quitting&&version==selectionVersion)selectionStatus.Text="请求已复制，可粘贴到对话框";
+            }
+            catch(System.Runtime.InteropServices.ExternalException) { selectionStatus.Text="剪贴板正忙，请重试"; }
         }
         private void ReloadCommands() {
             var catalog=PromptCatalog.Load();

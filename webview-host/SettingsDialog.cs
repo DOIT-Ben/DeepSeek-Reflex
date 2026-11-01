@@ -90,7 +90,7 @@ namespace DeepSeekFloat {
             themeChoice.AccessibleName="界面主题";
             var actions=new Panel {Margin=Padding.Empty,Padding=Padding.Empty,BackColor=PanelTheme.Back};
             Place(content,actions,0,396,420,PanelTheme.ControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            var refresh=new PanelButton("刷新页面") {Ghost=true,Outline=true};var import=new PanelButton("粘贴导入") {Ghost=true,Outline=true};var help=new PanelButton("使用帮助") {Ghost=true,Outline=true};
+            var refresh=new PanelButton("刷新页面") {Ghost=true};var import=new PanelButton("粘贴导入") {Ghost=true};var help=new PanelButton("使用帮助") {Ghost=true};
             tips.SetToolTip(import,"导入剪贴板中的文字");
             var actionButtons=new[]{refresh,import,help};
             foreach(var button in actionButtons){button.Margin=Padding.Empty;button.Enabled=quickAction!=null;actions.Controls.Add(button);}

@@ -86,6 +86,8 @@ namespace DeepSeekFloat {
         // Quiet ghost buttons stay borderless unless an outline is requested
         // for actions that otherwise read as plain text.
         internal bool Outline;
+        // A quiet accent dot marks the chosen pill without widening its text.
+        internal bool StatusDot;
         private bool chosen;
         internal bool InputFocused,InputFrame;
         private readonly UiMotion hoverMotion,pressMotion,choiceMotion;
@@ -117,6 +119,7 @@ namespace DeepSeekFloat {
                 float cy=Height/2f+1f*scale,r=2.5f*scale;
                 using(var pen=new Pen(textColor,1.5f*scale)){pen.StartCap=LineCap.Round;pen.EndCap=LineCap.Round;g.DrawLines(pen,new[]{new PointF(cx-r,cy-r*0.7f),new PointF(cx,cy+r*0.7f),new PointF(cx+r,cy-r*0.7f)});}
             }
+            if(StatusDot&&Chosen)using(var brush=new SolidBrush(PanelTheme.Accent))g.FillEllipse(brush,7f*scale,Height/2f-3f*scale,6f*scale,6f*scale);
             if(Focused&&ShowFocusCues)PanelTheme.FocusRing(g,Size,scale,PanelTheme.ControlRadius-3,Primary?Color.White:PanelTheme.Accent);
         }
         protected override void Dispose(bool disposing){if(disposing){hoverMotion.Dispose();pressMotion.Dispose();choiceMotion.Dispose();}base.Dispose(disposing);}

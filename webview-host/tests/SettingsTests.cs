@@ -140,12 +140,16 @@ internal static class SettingsTests {
    window.Show();Application.DoEvents();var bar=(Panel)Field(window,"selectionBar");bar.Show();var action=(PanelChoices)Field(window,"selectionAction");
    foreach(int width in new[]{window.MinimumSize.Width,window.Width,window.Width+140}) {
     window.Width=width;typeof(ChatWindow).GetMethod("LayoutContent",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
-    var fill=(PanelButton)Field(window,"insertSelection");var copy=(PanelButton)Field(window,"copySelection");var close=(ChromeButton)Field(window,"dismissSelection");
+    var fill=(PanelButton)Field(window,"insertSelection");var close=(ChromeButton)Field(window,"dismissSelection");
     var more=(PanelButton)Field(window,"moreSelection");var status=(Label)Field(window,"selectionStatus");
     Check(bar.ClientRectangle.Contains(action.Bounds)&&bar.ClientRectangle.Contains(close.Bounds)&&bar.ClientRectangle.Contains(status.Bounds)
      &&action.Right<=more.Left&&more.Right<=close.Left
-     &&status.Right<=fill.Left&&fill.Right<=copy.Left
-     &&action.Bottom<=status.Top&&copy.Bottom<=bar.ClientRectangle.Bottom,"selection controls fit the two-row bar without overlaps at width "+width);
+     &&status.Right<=fill.Left&&fill.Right<=bar.ClientRectangle.Right-8
+     &&action.Bottom<=status.Top&&fill.Bottom<=bar.ClientRectangle.Bottom,"selection controls fit the two-row bar without overlaps at width "+width);
+    typeof(ChatWindow).GetMethod("ShowMoreCommandsMenu",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
+    var commandsMenu=(TrayMenu)Field(window,"openMenu");
+    Check(commandsMenu.Items.Cast<ToolStripItem>().Any(i=>i.Text=="复制请求")&&!commandsMenu.Items.Cast<ToolStripItem>().First(i=>i.Text=="复制请求").Enabled,"copy request lives in the commands menu and stays disabled without captured text");
+    commandsMenu.Close();Application.DoEvents();
     var modes=(Panel)Field(window,"chrome");var selector=(PanelButton)Field(window,"chatModeButton");
     Check(selector.Visible&&selector.Parent==modes&&modes.ClientRectangle.Contains(selector.Bounds)&&((Control)Field(window,"mode")).Right<=selector.Left&&selector.Right<=((Control)Field(window,"more")).Left&&bar.Top==modes.Bottom,"persistent mode fits inside title chrome without an extra row at width "+width);
     Check(Math.Abs((selector.Left+selector.Width/2)-modes.Width/2)<=2,"mode pill is centered on the title bar at width "+width);
@@ -163,6 +167,7 @@ internal static class SettingsTests {
    var change=typeof(ChatWindow).GetMethod("SwitchChatMode",BindingFlags.Instance|BindingFlags.NonPublic);
    ((System.Threading.Tasks.Task)change.Invoke(window,new object[]{"translate"})).GetAwaiter().GetResult();
    Check(WindowSettings.Load().ChatMode=="translate"&&((PanelButton)Field(window,"chatModeButton")).Text.StartsWith("翻译模式"),"native mode selection updates display and persisted preference before browser loading");
+   Check(((PanelButton)Field(window,"chatModeButton")).Chosen,"non-normal mode marks the pill for the status dot");
    var activeModes=(Panel)Field(window,"chrome");using(var bitmap=new Bitmap(activeModes.Width,activeModes.Height)){activeModes.DrawToBitmap(bitmap,activeModes.ClientRectangle);bitmap.Save(Path.Combine(directory,"chat-mode-translate.png"));}
    string blocked=Path.Combine(Preferences.Root,"window-settings.json.new");Directory.CreateDirectory(blocked);
    try{((System.Threading.Tasks.Task)change.Invoke(window,new object[]{"explain"})).GetAwaiter().GetResult();Check(WindowSettings.Load().ChatMode=="translate"&&((WindowSettings)Field(window,"settings")).ChatMode=="translate"&&((Control)Field(window,"chatModeButton")).AccessibleDescription.Contains("未保存"),"denied mode save preserves mode and exposes its failure accessibly");}
@@ -478,7 +483,7 @@ internal static class SettingsTests {
     using(var bitmap=new Bitmap(panel.Width,panel.Height)){panel.DrawToBitmap(bitmap,new Rectangle(0,0,bitmap.Width,bitmap.Height));bitmap.Save(Path.Combine(args[0],"guide-preview.png"));}guide.Controls.Add(panel);
     next.PerformClick();Check(!guide.Visible&&guide.DialogResult==DialogResult.OK&&!smooth.Visible,"finishing introduction closes all owned corner surfaces");
    }
-   using(var guide=new GettingStartedDialog(guideSettings)){guide.Show();Application.DoEvents();Children(guide).OfType<Button>().Single(b=>b.Text=="跳过").PerformClick();Check(!guide.Visible&&guide.DialogResult==DialogResult.Cancel,"introduction can be skipped without traversing all steps");}
+   using(var guide=new GettingStartedDialog(guideSettings)){guide.Show();Application.DoEvents();Children(guide).OfType<ChromeButton>().Single(b=>b.Kind=="close").PerformClick();Check(!guide.Visible&&guide.DialogResult==DialogResult.Cancel,"introduction can be skipped without traversing all steps");}
    // Test the real deferred startup path using only our own windows, never a website.
    guideSettings.Save();
    using(var window=new ChatWindow(new[]{"--background"}))using(var dismiss=new Timer {Interval=20}) {
@@ -721,8 +726,9 @@ internal static class SettingsTests {
     var button=(ChromeButton)Field(window,"mode");Check(button.AccessibleName.Length>0&&button.Text==button.AccessibleName,"size button has accessible name");
     var settingsButton=(ChromeButton)Field(window,"more");Check(settingsButton.Kind=="settings"&&settingsButton.AccessibleName=="设置","titlebar settings icon replaces dropdown trigger");
     var label=(PanelButton)Field(window,"chatModeButton");var minimize=(ChromeButton)Field(window,"minimize");var pin=(ChromeButton)Field(window,"pin");var sizeButton=(ChromeButton)Field(window,"mode");
+    var closeButton=(ChromeButton)Field(window,"close");
     Check(window.Text=="DeepSeek-Reflex"&&label.Text=="普通对话"&&label.DropDown&&label.AccessibleName=="选择持续生效的对话模式","window identity is retained while its title area provides an accessible mode selector");
-    Check(minimize.Left<pin.Left&&pin.Left<sizeButton.Left&&sizeButton.Right<label.Left&&settingsButton.Left>label.Right,"left controls ordered minimize pin size and right settings");
+    Check(pin.Left<sizeButton.Left&&sizeButton.Right<label.Left&&label.Right<=minimize.Left&&minimize.Left<settingsButton.Left&&settingsButton.Left<closeButton.Left,"left controls hold pin and size while minimize, settings and close order on the right");
     Check(window.Region!=null&&!window.Region.IsVisible(1,1)&&window.Region.IsVisible(window.Width/2,1)&&window.Region.IsVisible(window.Width/2,window.Height-2),"real window region clips corners while retaining top and bottom edges");
     var outline=(WindowFrame)Field(window,"frame");Check(!outline.Region.IsVisible(window.Width/2,window.Height/2)&&outline.Region.IsVisible(window.Width/2,1),"outline covers border only and leaves website interaction open");
         Check(WindowFrame.DefaultZoom==0.9,"default browser scale reduced one step");
