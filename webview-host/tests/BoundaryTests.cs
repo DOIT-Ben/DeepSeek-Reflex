@@ -109,7 +109,7 @@ namespace DeepSeekFloat {
     guide.ApplyDpi(1.5f,new Rectangle(40,40,600,650));Application.DoEvents();
     Check(((SmoothFrame)Field(guide,"smoothFrame")).Aligned,"guide DPI transition keeps corners aligned");guide.Close();
    }
-   using(var popup=new PopupWindow(new Uri("https://example.com"),1)){
+   using(var popup=new PopupWindow(new Uri("https://example.com"))){
     popup.Show();Application.DoEvents();Check(popup.FormBorderStyle==FormBorderStyle.None&&((SmoothFrame)Field(popup,"smoothFrame")).Aligned,"popup shares native rounded frame");
     Check(((Label)Field(popup,"origin")).Text=="example.com","popup presents page domain");
     popup.ApplyDpi(1.5f,new Rectangle(40,40,660,900));Application.DoEvents();Check(((SmoothFrame)Field(popup,"smoothFrame")).Aligned,"popup DPI transition");
@@ -197,7 +197,7 @@ namespace DeepSeekFloat {
     Close(window);
    }
    var create=CoreWebView2Environment.CreateAsync(null,Path.Combine(root,"popup-cancel-profile"));Wait(create);
-   using(var popup=new PopupWindow(new Uri("https://example.com"),1)){
+   using(var popup=new PopupWindow(new Uri("https://example.com"))){
     popup.Show();var initialization=popup.InitializeAsync(create.Result);popup.Close();Wait(initialization);
     Check(!initialization.Result&&popup.IsDisposed,"close during real WebView initialization is a quiet cancellation");
    }

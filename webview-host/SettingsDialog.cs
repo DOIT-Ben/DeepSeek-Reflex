@@ -506,17 +506,10 @@ namespace DeepSeekFloat {
         }
         // ----- shared layout -----
         private void PositionAtOwner() {
-            var owner=Owner;
-            // A minimized owner's native Bounds are its off-screen icon slot.
-            var ownerBounds=owner==null?Bounds:owner.WindowState==FormWindowState.Minimized?owner.RestoreBounds:owner.Bounds;
-            var area=Screen.FromRectangle(ownerBounds).WorkingArea;
-            var requested=owner==null?Bounds:new Rectangle(ownerBounds.Left+(ownerBounds.Width-Width)/2,ownerBounds.Top+(ownerBounds.Height-Height)/2,Width,Height);
-            Bounds=FitBounds(requested,area,scale);
+            OwnedWindowPlacement.Center(this,scale);
         }
         internal static Rectangle FitBounds(Rectangle bounds,Rectangle area,float dpiScale) {
-            int margin=Math.Min((int)Math.Round(12*dpiScale),Math.Min(area.Width,area.Height)/4);
-            int width=Math.Min(bounds.Width,area.Width-margin*2),height=Math.Min(bounds.Height,area.Height-margin*2);
-            return new Rectangle(Math.Max(area.Left+margin,Math.Min(bounds.Left,area.Right-margin-width)),Math.Max(area.Top+margin,Math.Min(bounds.Top,area.Bottom-margin-height)),width,height);
+            return OwnedWindowPlacement.FitBounds(bounds,area,dpiScale);
         }
         // Test builds compile without the generated Version.g.cs, so 0.0.0 stays unsuffixed.
         internal static string VersionSuffix() {

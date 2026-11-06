@@ -67,6 +67,7 @@ namespace DeepSeekFloat {
             Controls.Add(frame);smoothFrame=new SmoothFrame(this,scale,delegate{frame.UpdateShape(this,scale,smoothFrame.Ready);},false);
             frame.UpdateShape(this,scale);Resize+=delegate{Arrange();smoothFrame.SyncOwner();frame.UpdateShape(this,scale,smoothFrame.Ready);};
             Shown+=delegate{Bounds=SettingsDialog.FitBounds(Bounds,Screen.FromControl(this).WorkingArea,scale);Arrange();next.Focus();};Arrange();
+            OwnedWindowPlacement.Attach(this,delegate{return scale;},ApplyDpi);
         }
         internal void SetStep(int value) {
             if(value<0||value>3)return;Step=value;heading.Text=headings[value];body.Text=bodies[value];key.Text=keys[value];hint.Text=hints[value];

@@ -1128,7 +1128,7 @@ namespace DeepSeekFloat
             lastOffsiteUri=uri; lastOffsiteTick=now;
             PopupWindow popup=null;
             try {
-                popup=new PopupWindow(uri,dpiScale) {Icon=Icon};
+                popup=new PopupWindow(uri) {Icon=Icon};
                 popup.Show(this);
                 if(!await popup.InitializeAsync(environment)) return;
                 if(popup.IsDisposed||popup.Browser.IsDisposed||resourcesDisposed||quitting||popup.Browser.CoreWebView2==null) return;
@@ -1159,7 +1159,7 @@ namespace DeepSeekFloat
             {
                 Uri uri;
                 if (!Uri.TryCreate(e.Uri,UriKind.Absolute,out uri) || uri.Scheme!="https") { e.Handled=true; return; }
-                popup=new PopupWindow(uri,dpiScale) {Icon=Icon};
+                popup=new PopupWindow(uri) {Icon=Icon};
                 var child=popup.Browser;
                 popup.Show(this);
                 if(!await popup.InitializeAsync(environment)){e.Handled=true;return;}

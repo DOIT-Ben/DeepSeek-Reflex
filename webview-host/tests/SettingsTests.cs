@@ -678,6 +678,36 @@ internal static class SettingsTests {
  static void TestAuditUi(string directory) {
   var failures=new List<string>();
   Action<string,Action> run=delegate(string name,Action action){try{action();Check(true,name);}catch(Exception error){failures.Add(name);Console.WriteLine("FAIL "+name+": "+error.GetType().Name+": "+error.Message);}};
+  run("feedback help and browser popups use owner-centered first placement",delegate{
+   foreach(var screen in Screen.AllScreens)using(var owner=new Form {StartPosition=FormStartPosition.Manual,Bounds=new Rectangle(screen.WorkingArea.Right-540,screen.WorkingArea.Bottom-420,480,360)}) {
+    owner.Show();Pump(30);
+    foreach(var kind in new[]{"feedback","help","browser"})foreach(bool moved in new[]{false,true}) {
+     if(moved)owner.Location=new Point(screen.WorkingArea.Left+100,screen.WorkingArea.Top+80);
+     else owner.Location=new Point(screen.WorkingArea.Right-540,screen.WorkingArea.Bottom-420);
+     Pump(20);
+     using(Form window=kind=="feedback"?(Form)new FeedbackDialog(json=>"isolated"):kind=="help"?new GettingStartedDialog(WindowSettings.Defaults()):(Form)new PopupWindow(new Uri("https://example.invalid/"))) {
+      Exception failure=null;bool checkedWindow=false;bool modal=kind!="browser";
+      window.Shown+=delegate{window.BeginInvoke(new Action(delegate{
+       try {
+        var area=Screen.FromControl(owner).WorkingArea;float dpi=(float)Field(window,"scale");
+        var expected=SettingsDialog.FitBounds(new Rectangle(owner.Left+(owner.Width-window.Width)/2,owner.Top+(owner.Height-window.Height)/2,window.Width,window.Height),area,dpi);
+        if(window.Bounds!=expected)throw new Exception(kind+" misplaced: "+window.Bounds+" expected="+expected);
+        int nominalWidth=kind=="feedback"?420:kind=="help"?400:440,nominalHeight=kind=="feedback"?408:kind=="help"?452:640;
+        var expectedSize=SettingsDialog.FitBounds(new Rectangle(window.Location,new Size((int)Math.Round(nominalWidth*dpi),(int)Math.Round(nominalHeight*dpi))),area,dpi).Size;
+        if(Math.Abs(window.Width-expectedSize.Width)>1||Math.Abs(window.Height-expectedSize.Height)>1)throw new Exception(kind+" changed its logical size across monitors: "+window.Size+" expected="+expectedSize);
+        if(!moved&&screen.Primary)SurfaceScreenshot(window,Path.Combine(directory,"owned-"+kind+"-preview.png"));
+        var frame=(SmoothFrame)Field(window,"smoothFrame");if(!frame.Ready||!frame.Aligned||Native.GetWindow(window.Handle,4)!=owner.Handle)throw new Exception(kind+" lost owned frame alignment");
+        if(kind=="feedback"&&!((TextBox)Field(window,"body")).Focused)throw new Exception("Feedback input lost initial focus");
+        if(kind=="help"&&!((Button)Field(window,"next")).Focused)throw new Exception("Help action lost initial focus");
+        checkedWindow=true;
+       }catch(Exception error){failure=error;}finally{if(modal)window.Close();}
+      }));};
+      if(modal)window.ShowDialog(owner);else{window.Show(owner);Pump(150);}
+      if(failure!=null)throw failure;if(!checkedWindow)throw new Exception("Popup placement check was not delivered");
+     }
+    }
+   }
+  });
   run("settings first open follows owner and restored sessions preserve manual placement",delegate{
    foreach(var screen in Screen.AllScreens)foreach(var page in new[]{"general","commands","modes"}) {
     var area=screen.WorkingArea;
@@ -856,7 +886,7 @@ internal static class SettingsTests {
      SurfaceScreenshot(window,prefix+"selection.png");
      Com(window,"Expand",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.InvokeMethod);SurfaceScreenshot(window,prefix+"selection-expanded.png");window.Close();
     }
-    using(var popup=new PopupWindow(new Uri("https://example.com"),1f)) {
+    using(var popup=new PopupWindow(new Uri("https://example.com"))) {
      popup.ShowError("离线预览：登录或链接内容由原网站提供。");SurfaceScreenshot(popup,prefix+"popup.png");popup.Close();
     }
     using(var dock=new EdgeDockTab(DockSide.Left,1f,SystemIcons.Application)){SurfaceScreenshot(dock,prefix+"dock.png");dock.Close();}

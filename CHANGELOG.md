@@ -2,6 +2,8 @@
 
 ## 1.0.19 — Unreleased (2026-11-06)
 
+- Share owner-centered first placement across settings, feedback, help and login/link windows; normalize creation DPI and prevent repeated popup scaling across monitors.
+
 - Drain bounded request bodies outside the quota lock before returning feedback rate-limit responses, avoiding early-close races for split uploads.
 
 - Center newly opened settings on their owner within its monitor work area, settle mixed-DPI placement, and preserve manually placed editing sessions when restored.

@@ -16,8 +16,11 @@ namespace DeepSeekFloat {
         private SmoothFrame smoothFrame;
         private float scale;
         private bool closing;
-        internal PopupWindow(Uri uri,float dpiScale) {
-            scale=dpiScale;Text="DeepSeek-Reflex · 登录或链接";Font=PanelTheme.TextFont();BackColor=PanelTheme.Back;AutoScaleMode=AutoScaleMode.None;
+        internal PopupWindow(Uri uri) {
+            // Match the initial creation surface, like the other dialogs.
+            // The owner may be on another monitor; its DPI transition follows.
+            using(var graphics=Graphics.FromHwnd(IntPtr.Zero))scale=graphics.DpiX/96f;
+            Text="DeepSeek-Reflex · 登录或链接";Font=PanelTheme.TextFont();BackColor=PanelTheme.Back;AutoScaleMode=AutoScaleMode.None;
             FormBorderStyle=FormBorderStyle.None;StartPosition=FormStartPosition.CenterParent;ShowInTaskbar=false;
             Size=new Size(S(440),S(640));MinimumSize=new Size(S(320),S(360));
             origin.Text=uri.Host;origin.AccessibleName="当前页面域名";
@@ -38,6 +41,7 @@ namespace DeepSeekFloat {
             smoothFrame=new SmoothFrame(this,scale,Arrange);
             Resize+=delegate{Arrange();};Shown+=delegate{Bounds=SettingsDialog.FitBounds(Bounds,Screen.FromControl(this).WorkingArea,scale);Arrange();};
             FormClosed+=delegate{Browser.Dispose();};Arrange();
+            OwnedWindowPlacement.Attach(this,delegate{return scale;},ApplyDpi);
         }
         internal void ShowError(string text){error.Text=text;error.Show();error.BringToFront();chrome.BringToFront();frame.BringToFront();}
         internal async Task<bool> InitializeAsync(CoreWebView2Environment environment) {

@@ -116,6 +116,7 @@ namespace DeepSeekFloat {
             Controls.Add(frameShape);smoothFrame=new SmoothFrame(this,scale,delegate{frameShape.UpdateShape(this,scale,smoothFrame.Ready);},false);
             Resize+=delegate{if(smoothFrame!=null)smoothFrame.SyncOwner();frameShape.UpdateShape(this,scale,smoothFrame!=null&&smoothFrame.Ready);};
             frameShape.UpdateShape(this,scale);
+            OwnedWindowPlacement.Attach(this,delegate{return scale;},ApplyDpi);
         }
         private int S(int value){return Math.Max(1,(int)Math.Round(value*scale));}
         private void Arrange() {
