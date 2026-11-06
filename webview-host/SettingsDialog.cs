@@ -215,7 +215,7 @@ namespace DeepSeekFloat {
             addCommand.Click+=delegate{
                 editing=null;var example=Examples[exampleIndex++%Examples.Length];
                 commandName.Text=example[0];commandBody.Text=example[1];
-                editorDirty=true;ClearFieldErrors();commandName.Focus();
+                editorDirty=true;ClearFieldErrors();FocusEditor(commandName);
             };
             saveEntry.Click+=delegate{SaveEntry();};
             commandName.TextChanged+=delegate{editorDirty=true;};
@@ -270,7 +270,7 @@ namespace DeepSeekFloat {
             foreach(var item in draft) {
                 var captured=item;
                 var label=RowLabel(captured.Name,width);commandList.Controls.Add(label);label.SetBounds(S(8),y+2,width-S(120),S(24));
-                RowAction(commandList,"编辑",width-S(108),y,delegate{editing=captured;commandName.Text=captured.Name;commandBody.Text=captured.Instruction;editorDirty=false;ClearFieldErrors();commandName.Focus();});
+                RowAction(commandList,"编辑",width-S(108),y,delegate{editing=captured;commandName.Text=captured.Name;commandBody.Text=captured.Instruction;editorDirty=false;ClearFieldErrors();FocusEditor(commandName);});
                 RowAction(commandList,"删除",width-S(54),y,delegate{draft.Remove(captured);commandsDirty=true;if(editing==captured){editing=null;ClearEditor();}RenderCommandList();});
                 y+=S(30);
             }
@@ -335,7 +335,7 @@ namespace DeepSeekFloat {
             addMode.Click+=delegate{
                 editingModeId=null;editingModeCustom=true;
                 modeName.ReadOnly=false;modeName.Text="我的模式";modeBody.Text="请把下面的内容改写成口语化的中文，保留原意和所有事实，语气自然。";
-                modeEditorDirty=true;ClearModeFieldErrors();UpdateModeEditorState();modeName.Focus();
+                modeEditorDirty=true;ClearModeFieldErrors();UpdateModeEditorState();FocusEditor(modeName);
             };
             saveModeEntry.Click+=delegate{SaveModeEntry();};
             resetMode.Click+=delegate{
@@ -388,18 +388,21 @@ namespace DeepSeekFloat {
             }
             modeList.ResumeLayout();
         }
+        // Loading an editor must not leave WinForms first-focus select-all active.
+        // Apply after Focus; explicit mouse selection and Ctrl+A remain native.
+        private static void FocusEditor(TextBox editor){editor.Focus();editor.Select(editor.TextLength,0);}
         private void EditBuiltinMode(string id) {
             editingModeId=id;editingModeCustom=false;
             var builtin=ChatModes.All.First(m=>m.Id==id);
             string instruction;
             modeName.ReadOnly=true;modeName.Text=builtin.Name;
             modeBody.Text=modeDraft.Overrides.TryGetValue(id,out instruction)?instruction:builtin.Instruction;
-            modeEditorDirty=false;ClearModeFieldErrors();UpdateModeEditorState();modeBody.Focus();
+            modeEditorDirty=false;ClearModeFieldErrors();UpdateModeEditorState();FocusEditor(modeBody);
         }
         private void EditCustomMode(CustomChatMode item) {
             editingModeId=item.Id;editingModeCustom=true;
             modeName.ReadOnly=false;modeName.Text=item.Name;modeBody.Text=item.Instruction;
-            modeEditorDirty=false;ClearModeFieldErrors();UpdateModeEditorState();modeName.Focus();
+            modeEditorDirty=false;ClearModeFieldErrors();UpdateModeEditorState();FocusEditor(modeName);
         }
         private void UpdateModeEditorState() {
             // A locked builtin name keeps the shared outline and reads muted.

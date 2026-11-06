@@ -625,6 +625,18 @@ internal static class SettingsTests {
  static void TestAuditUi(string directory) {
   var failures=new List<string>();
   Action<string,Action> run=delegate(string name,Action action){try{action();Check(true,name);}catch(Exception error){failures.Add(name);Console.WriteLine("FAIL "+name+": "+error.GetType().Name);}};
+  run("editing builtin prompts places the caret at the end without selecting text",delegate{
+   using(var dialog=new SettingsDialog(WindowSettings.Defaults(),next=>null,null,"modes")) {
+    dialog.Show();Pump(20);
+    foreach(var id in new[]{"summarize","translate","summarize"}) {
+     typeof(SettingsDialog).GetMethod("EditBuiltinMode",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(dialog,new object[]{id});Pump(20);
+     var editor=(TextBox)Field(dialog,"modeBody");
+     if(!editor.Focused||editor.SelectionLength!=0||editor.SelectionStart!=editor.TextLength)throw new Exception("Unexpected caret/selection");
+     editor.SelectedText="追加";if(!editor.Text.EndsWith("追加")||editor.TextLength<=2)throw new Exception("Typing replaced the prompt");
+     editor.SelectAll();if(editor.SelectionLength!=editor.TextLength)throw new Exception("Explicit selection was disabled");
+    }
+   }
+  });
   run("final command save includes the currently edited entry",delegate{
    File.Delete(Path.Combine(Preferences.Root,"commands.json"));
    using(var dialog=new SettingsDialog(WindowSettings.Defaults(),next=>null,null,"commands")){dialog.Show();Application.DoEvents();((TextBox)Field(dialog,"commandName")).Text="直接保存";((TextBox)Field(dialog,"commandBody")).Text="保留当前表单";Click((PanelButton)Field(dialog,"saveCommands"));if(!PromptCatalog.Load().Commands.Any(c=>c.Custom&&c.Name=="直接保存"))throw new Exception();}

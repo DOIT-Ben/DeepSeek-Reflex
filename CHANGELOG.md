@@ -2,6 +2,8 @@
 
 ## 1.0.19 — Unreleased (2026-11-06)
 
+- Place the caret at the end when loading a mode or command editor, avoiding first-focus select-all while preserving explicit text selection.
+
 - Add custom chat-mode instructions and up to ten custom modes, a shared effective catalog, and per-message mode directives; preserve material and one-shot draft protection when switching modes.
 - Keep the approved settings grouping and spacing while using white light surfaces and one 1-DIP input outline that becomes 2-DIP blue on focus; unify native windows and the DSH plugin recipe.
 - Keep settings as an owned single-instance editing session. The saved wake shortcut hides/restores the main/settings group without losing pages, drafts, selection or scroll; shortcut recording alone pauses all global keys.
