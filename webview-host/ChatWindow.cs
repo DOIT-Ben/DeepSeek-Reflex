@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -88,7 +89,7 @@ namespace DeepSeekFloat
         private readonly Panel selectionBar = new Panel();
         private readonly PanelChoices selectionAction = new PanelChoices("翻译","解释","提问");
         private readonly Label selectionStatus = new AnnouncingLabel();
-        private readonly PanelButton moreSelection = new PanelButton("更多指令") {Ghost=true,Outline=true,DropDown=true};
+        private readonly PanelButton moreSelection = new PanelButton("更多指令") {Ghost=true,DropDown=true};
         private readonly PanelButton insertSelection = new PanelButton("填入") {Chosen=true};
         private readonly ChromeButton dismissSelection = new ChromeButton("close","收起取词栏");
         private PromptCommand[] customCommands=new PromptCommand[0];
@@ -96,6 +97,9 @@ namespace DeepSeekFloat
         private string commandsError;
         private bool updatingChoice;
         private bool capturing, inserting, settingsOpen, pendingComposerFocus,layingOut,guideOpen,guideQueued;
+        private SettingsDialog activeSettings;
+        private bool settingsGroupHidden;
+        private readonly Dictionary<Control,bool> settingsControlStates=new Dictionary<Control,bool>();
         private int focusVersion;
         private WindowSettings settings;
         private IntPtr foregroundHook;private Native.WinEventDelegate foregroundHandler;private TrayMenu openMenu;private bool pinned;
@@ -141,8 +145,10 @@ namespace DeepSeekFloat
             Text = "DeepSeek-Reflex";
             AutoScaleMode = AutoScaleMode.None;
             using (var graphics = Graphics.FromHwnd(IntPtr.Zero)) dpiScale = graphics.DpiX / 96f;
-            // Resolve the theme before any control captures a color.
+            // Resolve the theme before any control captures a color, and load
+            // custom mode prompts before any menu or injector reads ChatModes.
             PanelTheme.SetMode(ResolveTheme(WindowSettings.Load().Theme));
+            ChatModes.Apply(ModeCatalog.Load());
             BackColor = PanelTheme.Back;
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.Manual;
@@ -188,8 +194,8 @@ namespace DeepSeekFloat
             chrome.DoubleClick += delegate { ToggleMaximize(); };
             pin.Click += delegate { SetPinned(!pinned); };
             mode.Click += delegate { SwitchMode(settings.Mode=="reading" ? "compact" : "reading"); };
-            minimize.Click += delegate { WindowState = FormWindowState.Minimized; };
-            close.Click += delegate { Hide(); WriteHealth(); };
+            minimize.Click += delegate { if(activeSettings!=null)HideSettingsGroup(false);else WindowState = FormWindowState.Minimized; };
+            close.Click += delegate { if(activeSettings!=null)HideSettingsGroup(true);else Hide(); WriteHealth(); };
             more.Click += delegate { ShowSettings(); };
             tips.SetToolTip(more,"设置 · 快捷键与窗口");
             tips.SetToolTip(minimize,"最小化 · 快捷键可恢复");
@@ -247,20 +253,20 @@ namespace DeepSeekFloat
             Controls.AddRange(new Control[]{browser,status,selectionBar,chrome,frame});
             selectionBar.BringToFront();
             chrome.BringToFront();
-            Resize += delegate { if(WindowState!=FormWindowState.Minimized)restoreState=WindowState;LayoutContent(); };
+            Resize += delegate { if(WindowState!=FormWindowState.Minimized)restoreState=WindowState;else if(activeSettings!=null&&!settingsGroupHidden){settingsGroupHidden=true;activeSettings.SuspendForToggle();}LayoutContent(); };
             ResizeBegin += delegate {wakeVersion++;pendingWakePlacement=null;if(smoothFrame!=null)smoothFrame.BeginInteractiveResize();};
             ResizeEnd += delegate {
                 if(smoothFrame!=null)smoothFrame.EndInteractiveResize();
                 SaveBounds();
                 if(settings.Mode!="custom") {
                     var next=settings.Clone();next.Mode="custom";
-                    try { next.Save();settings=next;RefreshMode(); } catch(Exception error) {if(!Preferences.IsStorageFailure(error))throw;}
+                    try { next.Save();settings=next;if(activeSettings!=null)activeSettings.OwnerResized();RefreshMode(); } catch(Exception error) {if(!Preferences.IsStorageFailure(error))throw;}
                 }
                 WriteHealth();
             };
             Shown += delegate { if(!background){if(!startupPositioned){startupPositioned=true;PositionForWake(startupTarget);}RequestComposerFocus();}QueueIntroduction(); };
             FormClosing += delegate(object sender,FormClosingEventArgs e) {
-                if (!quitting && e.CloseReason == CloseReason.UserClosing) { e.Cancel=true; Hide(); WriteHealth(); }
+                if (!quitting && e.CloseReason == CloseReason.UserClosing) { e.Cancel=true;if(activeSettings!=null)HideSettingsGroup(true);else Hide();WriteHealth(); }
                 else SaveBounds();
             };
             tray.Icon = trayIcon ?? Icon;
@@ -377,7 +383,7 @@ namespace DeepSeekFloat
             capturing=true;
             try {
                 var result=await SelectionCapture.CaptureAsync(source);
-                if(resourcesDisposed || quitting || IsDisposed) return;
+                if(resourcesDisposed || quitting || IsDisposed || settingsOpen || guideOpen) return;
                 await PresentSelectionAt(result,target);
             } catch(Exception) { failed=!resourcesDisposed; }
             finally { capturing=false; }
@@ -392,6 +398,7 @@ namespace DeepSeekFloat
         }
         private async Task PresentSelectionAt(SelectionResult result,WakeTarget target)
         {
+            if(resourcesDisposed||quitting||IsDisposed||settingsOpen||guideOpen)return;
             selectionVersion++;
             selectedText=result.Text;
             // Failed captures keep the user's foreground: the window appears
@@ -473,7 +480,7 @@ namespace DeepSeekFloat
         }
         private async Task FillSelection()
         {
-            if(selectedText==null || inserting || resourcesDisposed) return;
+            if(selectedText==null || inserting || resourcesDisposed || settingsOpen || guideOpen) return;
             inserting=true;
             int version=selectionVersion, length=selectedText.Length;
             string prompt=ComposeSelection();
@@ -518,6 +525,7 @@ namespace DeepSeekFloat
             try { Preferences.Write("pin.json",value ? "true" : "false"); }
             catch(Exception error) { if(!Preferences.IsStorageFailure(error))throw;tips.SetToolTip(pin,"置顶设置未能保存，请重试。");return; }
             pinned=value;TopMost = value;
+            if(activeSettings!=null)activeSettings.TopMost=value;
             if(smoothFrame!=null)smoothFrame.SyncOwner();
             RefreshPin();
             WriteHealth();
@@ -569,6 +577,7 @@ namespace DeepSeekFloat
         }
         private void ShowChatAt(WakeTarget target)
         {
+            if(activeSettings!=null){RestoreSettingsGroup();return;}
             WakeChatAt(target,true);
         }
         // A distinct name keeps ShowChatAt unambiguous for the reflection-based tests.
@@ -596,7 +605,8 @@ namespace DeepSeekFloat
         private void ToggleWindow()
         {
             var target=captureWakeTarget();
-            if(settingsOpen||guideOpen){ShowChat();return;}
+            if(activeSettings!=null){if(settingsGroupHidden||!Visible||WindowState==FormWindowState.Minimized)RestoreSettingsGroup();else HideSettingsGroup(settings.HideToTrayOnToggle);return;}
+            if(guideOpen){ShowChat();return;}
             if (Visible && WindowState != FormWindowState.Minimized&&!target.DiffersFrom(NormalWakeBounds())) {
                 wakeVersion++;pendingWakePlacement=null;
                 pendingComposerFocus=false;focusVersion++;
@@ -648,6 +658,7 @@ namespace DeepSeekFloat
             if(smoothFrame!=null)smoothFrame.SyncOwner();
             hotkeys=new HotkeyBindings(Handle,settings.ToggleKeys,settings.CaptureKeys);
             string shortcutError=hotkeys.Apply(settings.ToggleKeys,settings.CaptureKeys);
+            if(settingsOpen)shortcutError=hotkeys.SetAvailability(activeSettings!=null&&activeSettings.ShortcutEntryFocused?HotkeyAvailability.None:HotkeyAvailability.ToggleOnly)??shortcutError;
             tips.SetToolTip(more,shortcutError ?? "设置 · 快捷键与窗口");
             if(autoSelection==null)autoSelection=new AutoSelectionController(this);
             autoSelection.SetEnabled(Preferences.AutomaticSelectionEnabled());
@@ -714,8 +725,8 @@ namespace DeepSeekFloat
             chatModeError=null;
             chatModeButton.Text=current.Name;chatModeButton.Chosen=current.Id!="normal";
             if(IsHandleCreated)LayoutContent();
-            chatModeButton.AccessibleDescription=current.Name+(current.Id=="normal"?"，按原文发送":"，每次输入自动应用；检查后发送");
-            tips.SetToolTip(chatModeButton,current.Id=="normal"?"按原文发送，不添加提示词":current.Instruction+"\n每条消息都会在输入框中自动填入提示词，可检查后发送。取词请求单独处理一次。");
+            chatModeButton.AccessibleDescription=current.Name+(current.Id=="normal"?"，发送时附模式声明头":"，每次输入自动应用；检查后发送");
+            tips.SetToolTip(chatModeButton,current.Id=="normal"?"发送时在消息开头声明当前模式，使此前消息里的模式指令过期；不添加任务提示词。":current.Instruction+"\n每条消息都会在输入框中自动填入提示词，可检查后发送。取词请求单独处理一次。");
         }
         private void SetChatModeError(string message){chatModeError=message;chatModeButton.AccessibleDescription=message;tips.SetToolTip(chatModeButton,message);}
         private void ShowChatModeMenu() {
@@ -759,11 +770,13 @@ namespace DeepSeekFloat
         private TrayMenu CreateChatModeMenu() {
             var menu=new TrayMenu(dpiScale);
             if(chatModeError!=null){menu.AddAction(chatModeError,delegate{}).Enabled=false;menu.AddDivider();}
-            foreach(var definition in ChatModes.All) {
+            foreach(var definition in ChatModes.Effective) {
                 var choice=definition;
                 var row=menu.AddAction(choice.Name,async delegate{await SwitchChatMode(choice.Id);});
                 if(choice.Id==settings.ChatMode)row.Checked=true;
             }
+            menu.AddDivider();
+            menu.AddAction("自定义提示词…",delegate{ShowSettingsPage("modes");});
             openMenu=menu;AttachMenuMouseHook();
             menu.Closed+=delegate{
                 if(openMenu==menu)openMenu=null;
@@ -778,6 +791,21 @@ namespace DeepSeekFloat
             var next=settings.Clone();next.ChatMode=ChatModes.Find(value).Id;
             try{next.Save();}
             catch(Exception error){if(!Preferences.IsStorageFailure(error))throw;SetChatModeError("模式未保存，请重试");return;}
+            await ApplyChatMode(next);
+        }
+        // Settings saved a new modes.json: swap the catalog, fall back to
+        // "normal" when the active mode was just deleted, and re-inject.
+        private async Task ReloadChatModes() {
+            ChatModes.Apply(ModeCatalog.Load());
+            if(ChatModes.Find(settings.ChatMode).Id!=settings.ChatMode) {
+                var next=settings.Clone();next.ChatMode="normal";
+                try{next.Save();}
+                catch(Exception error){if(!Preferences.IsStorageFailure(error))throw;return;}
+                await ApplyChatMode(next);return;
+            }
+            RefreshChatMode();await UpdateChatMode();WriteHealth();
+        }
+        private async Task ApplyChatMode(WindowSettings next) {
             settings=next;RefreshChatMode();await UpdateChatMode();WriteHealth();
         }
         private async Task UpdateChatMode() {
@@ -817,6 +845,9 @@ namespace DeepSeekFloat
         }
         private string ApplySettings(WindowSettings next)
         {
+            // Mode management can change this while the general form stays
+            // open. Its older snapshot must not restore a deleted mode ID.
+            next.ChatMode=settings.ChatMode;
             string error=hotkeys.Apply(next.ToggleKeys,next.CaptureKeys);if(error!=null)return error;
             try { next.Save(); }
             catch(Exception failure) {
@@ -831,6 +862,7 @@ namespace DeepSeekFloat
             RefreshMode();WriteHealth();return null;
         }
         private void ShowFeedback() {
+            if(activeSettings!=null){RestoreSettingsGroup();return;}
             if(resourcesDisposed||quitting)return;
             if(edgeDock!=null&&edgeDock.Docked){edgeDock.Restore();ShowChatAt(captureWakeTarget());}
             using(var dialog=new FeedbackDialog()){dialog.Icon=Icon;dialog.ShowDialog(this);}
@@ -868,7 +900,19 @@ namespace DeepSeekFloat
             if(edgeDock!=null)edgeDock.ApplyTheme();
             if(smoothFrame!=null)smoothFrame.InvalidateTheme();
             browser.DefaultBackgroundColor=PanelTheme.Back;
+            ApplyWebProfileTheme(browser.CoreWebView2);
             Invalidate(true);
+        }
+        // The embedded page follows the app theme through the profile's
+        // preferred color scheme, so the host chrome and chat.deepseek.com
+        // never disagree. Popup windows and QuickAnswer share the same
+        // profile and follow automatically. Kept failure-tolerant like the
+        // theme repaint itself: a gone browser process or an older runtime
+        // without the profile interface must never break initialization.
+        private void ApplyWebProfileTheme(CoreWebView2 core) {
+            if(core==null)return;
+            try { core.Profile.PreferredColorScheme=PanelTheme.Mode==UiTheme.Dark?CoreWebView2PreferredColorScheme.Dark:CoreWebView2PreferredColorScheme.Light; }
+            catch(Exception) { }
         }
         private bool themeHooked;
         private void UpdateThemeSubscription() {
@@ -884,28 +928,59 @@ namespace DeepSeekFloat
         }
         private void ShowSettingsPage(string openPage)
         {
-            if(settingsOpen||guideOpen)return;
+            if(activeSettings!=null){RestoreSettingsGroup();return;}
+            if(guideOpen)return;
             if(edgeDock!=null&&edgeDock.Docked) { edgeDock.Restore(); ShowChatAt(captureWakeTarget()); }
-            focusVersion++;pendingComposerFocus=false;settingsOpen=true;hotkeys.Suspend();
+            focusVersion++;pendingComposerFocus=false;wakeVersion++;pendingWakePlacement=null;settingsOpen=true;
             try {
-                using(var dialog=new SettingsDialog(settings,ApplySettings,delegate(string action) {
+                var dialog=new SettingsDialog(settings,ApplySettings,delegate(string action) {
                     BeginInvoke(new Action(async delegate {
                         if(action=="feedback")ShowFeedback();
                         if(action=="refresh")await InitializeBrowser();
                         if(action=="import")await PresentSelection(SelectionCapture.FromClipboard());
                         if(action=="help")ShowHelp();
                         if(action=="commands")ReloadCommands();
+                        if(action=="modes")await ReloadChatModes();
                     }));
-                },openPage)) { dialog.Icon=Icon;dialog.ShowDialog(this); }
+                },openPage);
+                activeSettings=dialog;dialog.Icon=Icon;dialog.TopMost=TopMost;
+                foreach(var control in new Control[]{browser,status,mode,chatModeButton,selectionBar}){settingsControlStates[control]=control.Enabled;control.Enabled=false;}
+                dialog.ShortcutEntryChanged+=delegate(bool recording){UpdateSettingsHotkeys(recording);};
+                dialog.FormClosed+=delegate{FinishSettingsSession(dialog);dialog.Dispose();};
+                UpdateSettingsHotkeys(false);dialog.Show(this);dialog.StartPosition=FormStartPosition.Manual;
             }
-            finally {
-                settingsOpen=false;
-                if(!resourcesDisposed&&!quitting&&!IsDisposed&&IsHandleCreated) {
-                    string error=hotkeys.Resume();
-                    tips.SetToolTip(more,error ?? "设置 · 快捷键与窗口");WriteHealth();
-                    if(error!=null)MessageBox.Show(this,error,"快捷键设置");
-                }
+            catch {
+                var failed=activeSettings;FinishSettingsSession(failed);if(failed!=null)failed.Dispose();throw;
             }
+        }
+        private void UpdateSettingsHotkeys(bool recording) {
+            if(activeSettings==null||resourcesDisposed||quitting)return;
+            string error=hotkeys.SetAvailability(recording?HotkeyAvailability.None:HotkeyAvailability.ToggleOnly);
+            if(error!=null)activeSettings.ShowSessionError(error);
+        }
+        private void FinishSettingsSession(SettingsDialog dialog) {
+            if(dialog!=activeSettings)return;
+            activeSettings=null;settingsOpen=false;settingsGroupHidden=false;
+            foreach(var pair in settingsControlStates)if(!pair.Key.IsDisposed)pair.Key.Enabled=pair.Value;
+            settingsControlStates.Clear();
+            if(resourcesDisposed||quitting||IsDisposed||!IsHandleCreated)return;
+            string error=hotkeys.Resume();tips.SetToolTip(more,error??"设置 · 快捷键与窗口");
+            if(error!=null){status.Text=error;status.Show();status.BringToFront();chrome.BringToFront();}
+            WriteHealth();
+        }
+        private void HideSettingsGroup(bool toTray) {
+            if(activeSettings==null)return;
+            CloseOpenMenus();settingsGroupHidden=true;focusVersion++;pendingComposerFocus=false;wakeVersion++;pendingWakePlacement=null;
+            activeSettings.SuspendForToggle();
+            if(toTray)Hide();else WindowState=FormWindowState.Minimized;
+            WriteHealth();
+        }
+        private void RestoreSettingsGroup() {
+            if(activeSettings==null||activeSettings.IsDisposed)return;
+            if(!settingsGroupHidden&&Visible&&WindowState!=FormWindowState.Minimized&&activeSettings.Visible){activeSettings.Activate();return;}
+            allowShow=true;Show();if(WindowState==FormWindowState.Minimized)WindowState=restoreState;
+            Bounds=WakePlacement.Fit(Bounds,Screen.FromRectangle(Bounds).WorkingArea);
+            settingsGroupHidden=false;activeSettings.RestoreAfterToggle(this);WriteHealth();
         }
         private void QueueIntroduction() {
             if(guideQueued||guideOpen||settingsOpen||resourcesDisposed||quitting||!Visible||WindowState==FormWindowState.Minimized||!GettingStarted.NeedsIntroduction)return;
@@ -983,6 +1058,7 @@ namespace DeepSeekFloat
                 if(resourcesDisposed||quitting||browser.IsDisposed)return;
                 browser.ZoomFactor=WindowFrame.DefaultZoom;
                 var core=browser.CoreWebView2;
+                ApplyWebProfileTheme(core);
                 core.Settings.AreHostObjectsAllowed=false;
                 core.Settings.IsWebMessageEnabled=false;
                 core.Settings.AreDevToolsEnabled=pageDiagnostics;
@@ -1164,7 +1240,7 @@ namespace DeepSeekFloat
             // Let Windows commit it (including Snap previews) before following
             // the resulting move / size events. Applying it here competes with
             // the native move loop and also lays out uncommitted proposals.
-            if(m.Msg==0x10 && !quitting) { Hide(); WriteHealth(); return; }
+            if(m.Msg==0x10 && !quitting) { if(activeSettings!=null)HideSettingsGroup(true);else Hide();WriteHealth();return; }
             if(m.Msg==0x84 && WindowState==FormWindowState.Normal)
             {
                 int hit=WindowResize.HitTest(PointToClient(WindowResize.ScreenPoint(m.LParam)),ClientSize,S(WindowResize.Border),false,S(WindowFrame.Radius));
@@ -1174,9 +1250,9 @@ namespace DeepSeekFloat
                 var cursor=WindowResize.CursorFor((int)(m.LParam.ToInt64()&0xffff));
                 if(cursor!=null){Cursor.Current=cursor;m.Result=new IntPtr(1);return;}
             }
-            if(m.Msg==0x312&&(settingsOpen||guideOpen))return;
+            if(m.Msg==0x312&&guideOpen)return;
             if(m.Msg==0x312 && m.WParam.ToInt32()==Native.HotkeyId) { ToggleWindow(); return; }
-            if(m.Msg==0x312 && m.WParam.ToInt32()==Native.CaptureHotkeyId) { CaptureSelection(); return; }
+            if(m.Msg==0x312 && m.WParam.ToInt32()==Native.CaptureHotkeyId) { if(!settingsOpen)CaptureSelection(); return; }
             if(m.Msg==Native.OpenMessage) { ShowChat(); return; }
             base.WndProc(ref m);
         }
@@ -1190,6 +1266,7 @@ namespace DeepSeekFloat
         {
             if(disposing && !resourcesDisposed) {
                 resourcesDisposed=true;
+                if(activeSettings!=null){activeSettings.Dispose();activeSettings=null;}settingsOpen=false;settingsControlStates.Clear();
                 DetachMenuMouseHook();
                 Application.RemoveMessageFilter(menuDismissFilter);
                 Microsoft.Win32.SystemEvents.DisplaySettingsChanged-=OnDisplaySettingsChanged;

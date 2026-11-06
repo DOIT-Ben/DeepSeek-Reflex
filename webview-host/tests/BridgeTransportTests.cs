@@ -55,6 +55,11 @@ namespace DeepSeekFloat {
      Check(Helper(Request()).status=="filled","serve loop survives an unexpected stage failure");
      Thread.Sleep(100);lock(reportedLock)Check(reported.Count==1&&reported[0] is InvalidOperationException,"unexpected failure is reported once to the host");
     }
+    var failingLogCalls=0;
+    using(var failingLog=new ReflexBridge((request,cancel)=>Interlocked.Increment(ref failingLogCalls)==1?Task.FromException<BridgeResult>(new InvalidOperationException("fixture")):Task.FromResult(new BridgeResult("filled")),error=>{throw new IOException("fixture logger unavailable");})) {
+     Thread.Sleep(200);Check(Helper(Request()).status=="outcome-unknown","reporting failure still gives the first caller a bounded result");
+     Check(Helper(Request()).status=="filled","a failed diagnostic logger cannot stop the bridge server");
+    }
     Check(Helper(Request()).status=="outcome-unknown","disposed or legacy missing server fails boundedly without mutating a window");
     Console.WriteLine("TOTAL "+passed+" real transport checks");return 0;
    }catch(Exception error){Console.WriteLine(error);return 1;}

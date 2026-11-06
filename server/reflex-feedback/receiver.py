@@ -13,6 +13,7 @@ WINDOW_SECONDS, LIMIT_PER_WINDOW = 3600.0, 6
 MAX_BYTES = 8192
 MAX_STORE_BYTES = 8 * 1024 * 1024
 MAX_RECENT_KEYS = 256
+READ_TIMEOUT_SECONDS = 3
 STORE = os.environ.get("REFLEX_FEEDBACK_STORE", "/opt/reflex-feedback/feedback.jsonl")
 
 
@@ -42,6 +43,10 @@ def _fresh(hits, now):
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "ReflexFeedback/1.0"
+
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(READ_TIMEOUT_SECONDS)
 
     def _reply(self, code):
         self.send_response(code)
@@ -95,6 +100,12 @@ class Handler(BaseHTTPRequestHandler):
             contact = data.get("contact")
             if isinstance(contact, str) and contact.strip():
                 entry["contact"] = contact.strip()[:100]
+            # Encode before opening the store: malformed Unicode must never
+            # append half a record or turn into a disconnected response.
+            record = (json.dumps(entry, ensure_ascii=False) + "\n").encode("utf-8")
+        except TimeoutError:
+            self._reply(408)
+            return
         except Exception:
             self._reply(400)
             return
@@ -103,11 +114,15 @@ class Handler(BaseHTTPRequestHandler):
                 size = os.path.getsize(STORE)
             except OSError:
                 size = 0
-            if size >= MAX_STORE_BYTES:
+            if size + len(record) > MAX_STORE_BYTES:
                 self._reply(507)
                 return
-            with open(STORE, "a", encoding="utf-8") as fh:
-                fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            try:
+                with open(STORE, "ab") as fh:
+                    fh.write(record)
+            except OSError:
+                self._reply(503)
+                return
         self._reply(204)
 
     def do_GET(self):

@@ -115,7 +115,9 @@ namespace DeepSeekFloat {
         }
         private void ReportUnexpected(Exception error) {
             if(report==null||!reportedFailures.Add(error.GetType()))return;
-            report(error);
+            // Diagnostics are optional. A storage/logging failure must not
+            // terminate the only pipe-serving loop.
+            try{report(error);}catch(Exception){}
         }
         public void Dispose(){lock(sync){if(disposed)return;disposed=true;stopping.Cancel();if(current!=null)current.Dispose();}}
         // The fixed helper reads stdin before connecting; material never becomes argv.

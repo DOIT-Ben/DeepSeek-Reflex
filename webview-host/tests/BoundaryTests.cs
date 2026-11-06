@@ -29,13 +29,14 @@ namespace DeepSeekFloat {
      var dialog=window.OwnedForms.FirstOrDefault(f=>help?f is GettingStartedDialog:f is SettingsDialog);
      if(dialog!=null&&!fired){
       fired=true;Call(window,"ToggleWindow");Application.DoEvents();
-      Check(window.Visible&&window.WindowState==FormWindowState.Normal&&dialog.Visible,"modal tray click focuses panel: hide="+hide+" guide="+help);
+      if(help)Check(window.Visible&&window.WindowState==FormWindowState.Normal&&dialog.Visible,"modal tray click focuses the help panel: hide="+hide);
+      else {Check(!dialog.Visible&&(hide?!window.Visible:window.WindowState==FormWindowState.Minimized),"toggle suspends the settings window group: hide="+hide);Call(window,"ToggleWindow");Application.DoEvents();Check(window.Visible&&dialog.Visible,"toggle restores the settings window group");}
       window.WindowState=FormWindowState.Minimized;Call(window,"ShowChat");Application.DoEvents();
       Check(window.Visible&&window.WindowState==FormWindowState.Normal&&dialog.Visible,"explicit wake restores modal and owner");
       dialog.DialogResult=DialogResult.Cancel;dialog.Close();timer.Stop();
      }else if(++ticks>80){timer.Stop();if(dialog!=null)dialog.Close();throw new Exception("Modal timed out");}
     };
-    timer.Start();Call(window,help?"ShowHelp":"ShowSettings");timer.Stop();Check(fired,"modal test executed");
+    timer.Start();Call(window,help?"ShowHelp":"ShowSettings");for(int wait=0;wait<100&&!fired;wait++){Application.DoEvents();System.Threading.Thread.Sleep(10);}timer.Stop();Check(fired,"owned panel test executed");
     Close(window);
    }
   }
@@ -51,11 +52,11 @@ namespace DeepSeekFloat {
   static void SaveDenied() {
    using(var window=Window(false)) {
     var original=(WindowSettings)Field(window,"settings");var next=original.Clone();next.ToggleKeys=(int)(Keys.Control|Keys.Alt|Keys.Shift|Keys.F20);
-    string blocked=Path.Combine(root,"window-settings.json.new");Directory.CreateDirectory(blocked);
-    try{
+    original.Save();
+    using(var locked=File.Open(Path.Combine(root,"window-settings.json"),FileMode.Open,FileAccess.Read,FileShare.Read)){
      string error=(string)Call(window,"ApplySettings",next);var keys=(HotkeyBindings)Field(window,"hotkeys");
      Check(error!=null&&keys.ToggleKeys==original.ToggleKeys&&keys.ToggleRegistered&&WindowSettings.Load().ToggleKeys==original.ToggleKeys,"access-denied save rolls back actual binding and disk settings");
-    }finally{Directory.Delete(blocked);}
+    }
     Close(window);
    }
   }
@@ -133,6 +134,20 @@ namespace DeepSeekFloat {
    settings.ChatMode=null;settings.Save();Check(WindowSettings.Load().ChatMode=="normal","legacy missing mode uses ordinary conversation");
    foreach(var definition in ChatModes.All)Export("chat-mode-"+definition.Id+".json",ChatModeInjector.Script(definition.Id));
    Export("chat-mode-copy.json",ChatModeInjector.ExpectOneShotScript("COPIED ONE SHOT"));
+   // Overridden builtin wording and a custom mode must reach the injector
+   // catalog exactly like builtins do; reset afterwards so later bridge
+   // assertions keep seeing factory wording.
+   var overrides=new ModeCatalog.Catalog();
+   overrides.Overrides["translate"]="请逐句精翻以下材料，只输出译文。";
+   overrides.Custom.Add(new CustomChatMode{Id="m-boundary",Name="边界模式",Instruction="边界指令。"});
+
+   ChatModes.Apply(overrides);
+   string overridden=ChatModeInjector.Script("translate"),customMode=ChatModeInjector.Script("m-boundary");
+   Check(overridden.Contains("请逐句精翻以下材料")&&!overridden.Contains("中文译为英文"),"overridden instruction replaces the builtin wording in the injector catalog");
+   Check(customMode.Contains("边界指令。")&&customMode.Contains("m-boundary"),"custom modes join the injector catalog under their own id");
+   Export("chat-mode-override.json",overridden);
+   Export("chat-mode-custom.json",customMode);
+   ChatModes.Reset();
    Export("prompt-first.json",PromptInserter.Script("PRIOR REQUEST",null));Export("prompt-second.json",PromptInserter.Script("NEXT REQUEST","PRIOR REQUEST"));Export("focus-script.json",ComposerFocus.Script);
   }
   static void Wait(System.Threading.Tasks.Task task){
@@ -206,9 +221,9 @@ window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true
     Func<string,string> run=delegate(string script){var task=core.ExecuteScriptAsync(script);Wait(task);return task.Result;};
     Check(run(ChatModeInjector.Script("translate"))=="\"ready\"","real WebView enables persistent mode without filling an empty composer");
     run("enter('hello');document.querySelector('#send').click();enter('world');document.querySelector('#chat-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));");
-    Check(run("sent.length===2&&sent.every(x=>x.startsWith('请翻译')&&x.split('待处理内容：').length===2)&&sent[0].endsWith('hello')&&sent[1].endsWith('world')")=="true","real WebView mouse and Enter submit consecutive messages with one prefix each");
+    Check(run("sent.length===2&&sent.every(x=>x.startsWith('【当前模式：翻译模式】')&&x.includes('请翻译')&&x.split('待处理内容：').length===2)&&sent[0].endsWith('hello')&&sent[1].endsWith('world')")=="true","real WebView mouse and Enter submit consecutive messages with one prefix each");
     run("enter('keep my draft');");run(ChatModeInjector.Script("explain"));run(ChatModeInjector.Script("normal"));
-    Check(run("document.querySelector('#chat-input').value==='keep my draft'&&document.querySelector('#edit-history').value==='HISTORY'")=="true","real WebView preserves material on mode switch and does not mutate history editors");
+    Check(run("document.querySelector('#chat-input').value==="+PromptInserter.Json(ChatModes.Prefix(ChatModes.Find("normal"))+"keep my draft")+"&&document.querySelector('#edit-history').value==='HISTORY'")=="true","real WebView preserves material on mode switch under the plain-chat directive and does not mutate history editors");
     run(ChatModeInjector.Script("translate"));run("enter('');");
     Check(run(PromptInserter.Script("ONE SHOT SELECTION",null))=="\"ambiguous\"","one-shot fill still rejects an unrelated second visible editor");
     run("document.querySelector('#edit-history').hidden=true;");
@@ -232,13 +247,14 @@ window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true
     };
     Check(System.Threading.Thread.CurrentThread.GetApartmentState()==System.Threading.ApartmentState.STA&&System.Threading.SynchronizationContext.Current is WindowsFormsSynchronizationContext,"production host fixture starts with the real WinForms STA synchronization context");
     Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","translate"));Set(window,"initializing",false);Wait((System.Threading.Tasks.Task)Call(window,"InitializeBrowser"));
-    Check(view.DefaultBackgroundColor.ToArgb()==Color.White.ToArgb(),"unmodified production WebView retains its default opaque white background");
+    var defaultBackground=view.DefaultBackgroundColor;
+    Check(defaultBackground.A==255&&defaultBackground.ToArgb()==PanelTheme.Back.ToArgb(),"unmodified production WebView keeps an opaque themed default background");
     Check(((Health)Field(window,"health")).initialized,"production host initializes before waiting for isolated navigation: "+((Health)Field(window,"health")).navigationError);
     Wait(navigation.Task);
     Func<string,string> run=delegate(string script){var task=view.CoreWebView2.ExecuteScriptAsync(script);Wait(task);return task.Result;};
     Check(navigation.Task.Result&&run("window.__deepSeekFloatChatMode.mode")=="\"translate\"","production host restores persisted chat mode when the document loads");
     run("enter('native host material');");Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","explain"));
-    Check(run("document.querySelector('#chat-input').value.startsWith('请面向学生')&&document.querySelector('#chat-input').value.endsWith('native host material')")=="true","production mode selector replaces the visible prefix and retains draft material");
+    Check(run("document.querySelector('#chat-input').value.startsWith('【当前模式：解释模式】')&&document.querySelector('#chat-input').value.includes('请面向学生')&&document.querySelector('#chat-input').value.endsWith('native host material')")=="true","production mode selector replaces the visible prefix and retains draft material");
     Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","translate"));
     var material=new BridgeRequest{id=Guid.NewGuid().ToString("D"),mode="polish",text="DSH 自有测试文字"};
     Func<BridgeRequest,BridgeResult> stage=delegate(BridgeRequest input){var task=(System.Threading.Tasks.Task<BridgeResult>)Call(window,"StageFromBridge",input,System.Threading.CancellationToken.None);Wait(task);return task.Result;};
@@ -252,12 +268,13 @@ window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true
     Check(run("document.querySelector('#chat-input').value==="+PromptInserter.Json(expected)+"&&sent.length===0")=="true","bridge applies exactly one requested prefix and never sends");
     Check(((WindowSettings)Field(window,"settings")).ChatMode=="translate"&&stage(material).Status=="draft","bridge preserves persistent mode and rejects replay over an existing tool draft");
     run("document.querySelector('#send').click();enter('after one-shot');");
-    Check(run("document.querySelector('#chat-input').value.startsWith('请翻译')&&document.querySelector('#chat-input').value.endsWith('after one-shot')")=="true","persistent mode resumes on the next ordinary input after explicit fixture sending");
+    Check(run("document.querySelector('#chat-input').value.includes('请翻译')&&document.querySelector('#chat-input').value.endsWith('after one-shot')")=="true","persistent mode resumes on the next ordinary input after explicit fixture sending");
     run("sent=[];enter('');");
     material.mode="normal";material.text="\nNormal material with leading newline";
-    Check(stage(material).Status=="filled"&&run("document.querySelector('#chat-input').value==="+PromptInserter.Json(material.text))=="true","normal-mode bridge keeps leading newline material without persistent wrapping");
+    string normalExpected=ChatModes.Prefix(ChatModes.Find("normal"))+material.text;
+    Check(stage(material).Status=="filled"&&run("document.querySelector('#chat-input').value==="+PromptInserter.Json(normalExpected))=="true","normal-mode bridge keeps leading newline material under the plain-chat directive");
     run("enter('');enter('next after normal one-shot');");
-    Check(run("document.querySelector('#chat-input').value.startsWith('请翻译')")=="true","clearing a leading-newline one-shot restores persistent mode");
+    Check(run("document.querySelector('#chat-input').value.includes('请翻译')")=="true","clearing a leading-newline one-shot restores persistent mode");
     run("enter('');");
     var replyRequest=new BridgeRequest{id=Guid.NewGuid().ToString("D"),op="reply"};
     Func<BridgeRequest,BridgeResult> readReply=delegate(BridgeRequest input){var task=(System.Threading.Tasks.Task<BridgeResult>)Call(window,"ReadReplyFromBridge",System.Threading.CancellationToken.None);Wait(task);return task.Result;};
@@ -290,7 +307,7 @@ window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true
     navigation=new System.Threading.Tasks.TaskCompletionSource<bool>();view.CoreWebView2.Reload();Wait(navigation.Task);
     Check(navigation.Task.Result&&run("window.__deepSeekFloatChatMode.mode")=="\"translate\"","production host reapplies the chosen chat mode after reload");
     Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","normal"));run("enter('raw message');document.querySelector('#send').click();");
-    Check(run("sent[0]")=="\"raw message\"","production ordinary mode sends original material without a prefix");Close(window);
+    Check(run("sent[0]==="+PromptInserter.Json(ChatModes.Prefix(ChatModes.Find("normal"))+"raw message"))=="true","production ordinary mode opens with the plain-chat directive and keeps the material intact");Close(window);
    }
   }
   [STAThread] static int Main(string[] args){

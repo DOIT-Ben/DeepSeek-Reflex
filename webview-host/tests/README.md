@@ -8,7 +8,7 @@ pwsh -NoProfile -File .\webview-host\tests\run-tests.ps1
 
 先离线构建，再分别编译普通 DPI 和应用 DPI manifest 的测试程序。Node.js 仅用于模拟输入框聚焦脚本，可以用 `-NodePath` 指定程序路径；运行应用和构建 C# 均不需要 Node.js。
 
-`-OutputDirectory <绝对路径>` 可指定证据目录，默认写入系统临时目录的独立 GUID 子目录。日志、预览图、测试程序及隔离偏好不写入源码目录。
+`-OutputDirectory <绝对路径>` 可指定证据目录，建议写入已忽略的 `webview-host/tests/results/<本次任务>/`。未指定时使用系统临时目录的独立 GUID 子目录。日志、预览图、测试程序及隔离偏好不得作为源码提交。
 
 覆盖偏好迁移与保存、热键冲突回滚、设置动画、窗口模式、原生命中测试、托盘收起、缓存圆角像素与 HWND 同步、缩放时 GDI 对象数量。测试创建自有窗口并使用隔离偏好，不加载官网或操作已有浏览器。Windows 拒绝测试窗口前台权限时，该项明确标记 SKIP。
 
@@ -21,6 +21,17 @@ pwsh -NoProfile -File .\webview-host\tests\run-tests.ps1
 `focus-tests.cjs` 使用模拟 DOM，检查聚焦不会读取或改写草稿；结果不能代替登录、物理键盘或跨应用取词验收。历史性能基准和交付证据留在项目外的任务归档，回归入口不重复运行基准。
 
 ## 缺陷边界与 CI 门禁
+
+目录和存储极限检查无需交互桌面，使用唯一隔离偏好目录：
+
+```powershell
+pwsh -NoProfile -File .\webview-host\tests\run-audit-tests.ps1 -OutputDirectory <新的证据目录>
+pwsh -NoProfile -File .\webview-host\tests\run-bridge-tests.ps1 -OutputDirectory <新的证据目录>
+```
+
+前者覆盖目录读取上限、标识／名称校验、无效保存保全、最大条目数及并发原子写入；后者编译实际模式目录和桥接依赖，执行 HTTP→WinExe→认证命名管道及服务恢复检查。插件的 `npm run check`、有限工作线程的 Node 测试、Python 接收端原回归与 `test_boundaries`、安装流程检查也接入 CI。
+
+`run-tests.ps1 -AuditUiOnly` 专项检查子页最终保存、原生关闭确认、设置期间延迟取词，以及已删除模式不会被主页快照写回。`-FeedbackOnly` 检查反馈交互、原生层级、浅深主题和 DPI，另用模拟 400% 几何验证短工作区中的纵向滚动及发送／失败／重试可达。两项均编译普通和高 DPI 程序，使用隔离数据；不发送真实反馈或全局测试按键。`-SourceDirectory <旧源码副本>` 可用当前断言验证修改前负例。
 
 `run-boundary-tests.ps1` 编译生产代码，检查设置失败回滚、模态唤起、窗口状态、真实 MSAA/UIA 开关状态、DPI 消息、短引导布局、弹窗关闭以及隔离 WebView 的浏览器进程退出与重建。真实 WebView 测试使用独立资料目录并拦截外部导航，只终止夹具自身获得的浏览器 PID。
 

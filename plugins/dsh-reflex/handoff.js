@@ -28,7 +28,15 @@ export function readStage(req, timeout = 3000) {
     if (!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(req.headers['content-type'] || '')) { req.resume?.(); reject(new Error('invalid-request')); return; }
     let size = 0; const chunks = [];
     const cleanup = () => { clearTimeout(timer); req.removeListener('data', data); req.removeListener('end', end); req.removeListener('error', fail); req.removeListener('aborted', fail); };
-    const fail = () => { cleanup(); req.resume?.(); reject(new Error('invalid-request')); };
+    const fail = () => {
+      cleanup();
+      // IncomingMessage emits aborted, then error, then close on disconnect.
+      // Keep an error listener through close so a cancelled upload cannot
+      // become an unhandled EventEmitter error in the DSH host.
+      const absorb = () => {};
+      req.on('error', absorb); req.once('close', () => req.removeListener('error', absorb));
+      req.resume?.(); reject(new Error('invalid-request'));
+    };
     const data = chunk => { size += chunk.length; if (size > 90000) { fail(); return; } chunks.push(chunk); };
     const end = () => {
       cleanup();
@@ -52,8 +60,8 @@ function runBridge(executable, request, { start = spawn, timeout = 12000, stdout
       child = start(executable, ['--reflex-bridge'], { windowsHide: true, shell: false, stdio: ['pipe', 'pipe', 'ignore'] });
       child.once('error', unknown); child.stdin.once('error', unknown);
       child.stdout.on('data', chunk => { size += chunk.length; if (size > stdoutLimit) unknown(); else chunks.push(chunk); });
-      child.once('close', () => {
-        try { const reply = JSON.parse(Buffer.concat(chunks).toString('utf8')); if (!accept.reply(reply, request.id)) throw new Error(); finish(reply); }
+      child.once('close', code => {
+        try { if (code !== 0) throw new Error(); const reply = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); if (!accept.reply(reply, request.id)) throw new Error(); finish(reply); }
         catch { unknown(); }
       });
       child.stdin.end(JSON.stringify(request));

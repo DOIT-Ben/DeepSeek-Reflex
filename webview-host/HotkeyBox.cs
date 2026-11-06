@@ -9,9 +9,10 @@ namespace DeepSeekFloat {
         internal string Feedback {get;private set;}
         internal bool Invalid {get;private set;}
         internal event EventHandler FeedbackChanged;
+        internal event EventHandler ExitCaptureRequested;
         internal HotkeyBox(int value) {
-            ReadOnly=true;Combination=value;Text=HotkeyBindings.Format(value);
-            BackColor=PanelTheme.Card;ForeColor=PanelTheme.Ink;BorderStyle=BorderStyle.None;
+            ReadOnly=true;previous=value;Combination=value;Text=HotkeyBindings.Format(value);
+            BackColor=PanelTheme.Back;ForeColor=PanelTheme.Ink;BorderStyle=BorderStyle.None;
             TextAlign=HorizontalAlignment.Center;HideSelection=true;
         }
         private void Report(string message,bool invalid) {
@@ -21,28 +22,28 @@ namespace DeepSeekFloat {
         internal void BeginCapture() {
             if(Recording)return;
             previous=Combination;Recording=true;Text="请按组合键…";ForeColor=PanelTheme.Muted;
-            Report("按下组合键；Esc 取消，Tab 切换。",false);
+            Report("录入中，唤出键暂停；Esc 取消，Tab 切换。",false);
         }
-        internal void CancelCapture() {
-            if(!Recording)return;
+        internal void CancelCapture(bool includeCompleted=false) {
+            if(!Recording&&!includeCompleted)return;
             Combination=previous;Recording=false;Text=HotkeyBindings.Format(Combination);ForeColor=PanelTheme.Ink;
             Report("已取消录入，原组合键已保留。",false);
         }
         internal void ResetTo(int value) {
-            Combination=value;Recording=false;Text=HotkeyBindings.Format(value);ForeColor=PanelTheme.Ink;
+            previous=value;Combination=value;Recording=false;Text=HotkeyBindings.Format(value);ForeColor=PanelTheme.Ink;
             Report("已恢复默认 "+Text+"，保存后生效。",false);
         }
         private void Record(Keys keys) {
             var key=keys&Keys.KeyCode;
             if(key==Keys.Tab)return;
-            if(key==Keys.Escape){CancelCapture();return;}
+            if(key==Keys.Escape){CancelCapture(true);if(ExitCaptureRequested!=null)ExitCaptureRequested(this,EventArgs.Empty);return;}
             BeginCapture();
             if(key==Keys.ControlKey||key==Keys.ShiftKey||key==Keys.Menu||key==Keys.LControlKey||key==Keys.RControlKey||key==Keys.LShiftKey||key==Keys.RShiftKey||key==Keys.LMenu||key==Keys.RMenu)return;
             if(!HotkeyBindings.ValidKey((int)keys)) {
                 Report("请用 Ctrl 或 Alt 搭配字母、数字、空格或功能键。",true);return;
             }
             Combination=(int)keys;Recording=false;Text=HotkeyBindings.Format(Combination);ForeColor=PanelTheme.Ink;
-            Report("已录入 "+Text+"，保存后生效。",false);
+            Report("已录入 "+Text+"；Tab 退出录入，保存后生效。",false);
         }
         protected override void OnEnter(EventArgs e){base.OnEnter(e);BeginCapture();}
         protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);if(e.Button==MouseButtons.Left)BeginCapture();Select(Text.Length,0);}
@@ -53,7 +54,7 @@ namespace DeepSeekFloat {
         }
         protected override bool ProcessCmdKey(ref Message message,Keys keyData) {
             var key=keyData&Keys.KeyCode;
-            if(key==Keys.Tab||(key==Keys.Escape&&!Recording))return base.ProcessCmdKey(ref message,keyData);
+            if(key==Keys.Tab)return base.ProcessCmdKey(ref message,keyData);
             Record(keyData);return true;
         }
     }

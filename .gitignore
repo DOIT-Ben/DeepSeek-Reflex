@@ -3,6 +3,8 @@ webview-host/dist/
 webview-host/vendor/
 webview-host/tests/results/
 release/
+node_modules/
+__pycache__/
 *.log
 *.pdb
 *.local

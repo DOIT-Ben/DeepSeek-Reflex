@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.19 — Unreleased (2026-11-06)
+
+- Add custom chat-mode instructions and up to ten custom modes, a shared effective catalog, and per-message mode directives; preserve material and one-shot draft protection when switching modes.
+- Keep the approved settings grouping and spacing while using white light surfaces and one 1-DIP input outline that becomes 2-DIP blue on focus; unify native windows and the DSH plugin recipe.
+- Keep settings as an owned single-instance editing session. The saved wake shortcut hides/restores the main/settings group without losing pages, drafts, selection or scroll; shortcut recording alone pauses all global keys.
+- Improve feedback labels, placeholders, category selection, length counter, focus outlines and pending/error states. Preserve submitted content and prevent duplicate sends.
+- Keep feedback inside short work areas and expose overflow with vertical scrolling, including error details, the fallback link and retry action.
+- Fix collapsed or covered editor fields, null mode drafts during DPI changes, pending editor saves, native close confirmation, delayed capture during settings, and stale settings snapshots restoring deleted modes.
+- Validate catalog identities, normalized names and size limits at load/save boundaries. Serialize atomic preference writes, use unique temporary files, and clean failed writes.
+- Bound feedback receiver reads and storage, return explicit errors for bad Unicode and failed writes, preserve unmanaged legacy installation files, and keep the bridge alive when diagnostics fail.
+- Reject failed helper exits and malformed UTF-8; absorb socket errors after an aborted plugin upload. Restore real bridge-test dependencies and add catalog, installer, receiver and plugin boundary gates to CI.
+- Verify normal/high-DPI native regressions, real 150%/200% cross-display wake, isolated WebView recovery, authenticated pipe transport, concurrency and upper limits. See docs/testing/2026-11-06-functional-boundaries.md for scope and remaining platform checks.
+
 ## 1.0.17 — 2026-10-13
 
 - Follow the pointer's display when waking the chat: center on a different display, preserve the last rectangle on the same display, and relocate an already-visible window instead of hiding it when the pointer is on another display. Retain logical size, maximized state, rounded corners, drafts, and chat mode across DPI changes.

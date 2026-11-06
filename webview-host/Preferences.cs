@@ -9,6 +9,19 @@ namespace DeepSeekFloat
     {
         internal static bool IsStorageFailure(Exception error){return error is IOException||error is UnauthorizedAccessException;}
         internal static readonly string Root = EnsureRoot();
+        private static readonly object writeLock=new object();
+        internal const int CatalogMaxBytes=512*1024;
+        internal static string ReadCatalog(string name) {
+            using(var file=File.OpenRead(Path.Combine(Root,name))) {
+                if(file.Length>CatalogMaxBytes)throw new InvalidDataException("Catalog exceeds its size limit.");
+                using(var reader=new StreamReader(file)) {
+                    var buffer=new char[CatalogMaxBytes+1];int length=0,count;
+                    while(length<buffer.Length&&(count=reader.Read(buffer,length,buffer.Length-length))>0)length+=count;
+                    if(length>CatalogMaxBytes)throw new InvalidDataException("Catalog exceeds its size limit.");
+                    return new string(buffer,0,length);
+                }
+            }
+        }
         // One-time migration: the pre-rename data folder moves to the new name
         // so settings, shortcuts and custom instructions survive the rebrand.
         private static string EnsureRoot() {
@@ -33,11 +46,15 @@ namespace DeepSeekFloat
         }
         internal static void Write(string name, string value)
         {
+            lock(writeLock) {
             Directory.CreateDirectory(Root);
             string path = Path.Combine(Root,name);
-            string temporary = path + ".new";
-            File.WriteAllText(temporary,value);
-            if (File.Exists(path)) File.Replace(temporary,path,null); else File.Move(temporary,path);
+            string temporary = path + ".new-"+Guid.NewGuid().ToString("N");
+            try {
+                File.WriteAllText(temporary,value);
+                if (File.Exists(path)) File.Replace(temporary,path,null); else File.Move(temporary,path);
+            }finally{try{File.Delete(temporary);}catch(Exception error){if(!IsStorageFailure(error))throw;}}
+            }
         }
         internal static string ReadText(string name)
         {

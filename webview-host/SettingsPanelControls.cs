@@ -9,7 +9,8 @@ namespace DeepSeekFloat {
         internal const string FontFamily="Microsoft YaHei UI";
         internal const float CaptionSize=9f,BodySize=10.5f,TitleSize=12f,HeadingSize=14f;
         internal const float CompactFontStep=1.5f;
-        internal const int ControlRadius=8,PanelRadius=12,ControlHeight=32,InputHeight=40,MenuRowHeight=30;
+        // Win11 geometry: system controls round at 4 DIP, panels and cards at 8.
+        internal const int ControlRadius=4,PanelRadius=8,ControlHeight=32,InputHeight=40,MenuRowHeight=30;
         internal const int CompactControlHeight=30,CompactInputHeight=34;
         // Palette members are properties on purpose: painters read them at
         // paint time, so a mode switch recolors everything that draws through
@@ -24,20 +25,35 @@ namespace DeepSeekFloat {
         internal static Color Ink{get{return mode==UiTheme.Light?Color.FromArgb(42,49,63):Color.FromArgb(232,234,237);}}
         internal static Color Muted{get{return mode==UiTheme.Light?Color.FromArgb(103,112,130):Color.FromArgb(156,163,174);}}
         internal static Color Accent{get{return mode==UiTheme.Light?Color.FromArgb(67,102,238):Color.FromArgb(96,131,255);}}
-        internal static Color Tint{get{return mode==UiTheme.Light?Color.FromArgb(237,242,255):Color.FromArgb(38,46,66);}}
-        internal static Color Border{get{return mode==UiTheme.Light?Color.FromArgb(225,231,240):Color.FromArgb(58,64,73);}}
-        internal static Color Surface{get{return mode==UiTheme.Light?Color.FromArgb(247,249,252):Color.FromArgb(38,41,47);}}
-        internal static Color Hover{get{return mode==UiTheme.Light?Color.FromArgb(241,244,248):Color.FromArgb(47,52,60);}}
-        internal static Color Pressed{get{return mode==UiTheme.Light?Color.FromArgb(225,233,252):Color.FromArgb(44,54,78);}}
+        // White light surfaces and one neutral interactive gray family.
+        // Blue is reserved for primary actions, focus and status.
+        internal static Color Tint{get{return mode==UiTheme.Light?Color.FromArgb(229,229,229):Color.FromArgb(58,58,58);}}
+        internal static Color Border{get{return mode==UiTheme.Light?Color.FromArgb(225,225,225):Color.FromArgb(58,58,58);}}
+        internal static Color Surface{get{return mode==UiTheme.Light?Color.FromArgb(247,247,247):Color.FromArgb(41,41,41);}}
+        // Neutral fills for ancillary controls; fields use their parent surface.
+        internal static Color Well{get{return mode==UiTheme.Light?Color.FromArgb(236,236,236):Color.FromArgb(48,48,48);}}
+        internal static Color Hover{get{return mode==UiTheme.Light?Color.FromArgb(236,236,236):Color.FromArgb(48,48,48);}}
+        // Selected is one neutral step past hover. The old pale-blue Tint
+        // fill and the blue-cast grays read as smudges of extra colors.
+        internal static Color Selected{get{return mode==UiTheme.Light?Color.FromArgb(229,229,229):Color.FromArgb(58,58,58);}}
+        internal static Color Pressed{get{return mode==UiTheme.Light?Color.FromArgb(216,216,216):Color.FromArgb(38,38,38);}}
         internal static Color AccentHover{get{return mode==UiTheme.Light?Color.FromArgb(51,82,214):Color.FromArgb(117,148,255);}}
         internal static Color AccentPressed{get{return mode==UiTheme.Light?Color.FromArgb(42,70,190):Color.FromArgb(80,110,235);}}
         internal static Color Error{get{return mode==UiTheme.Light?Color.FromArgb(177,48,48):Color.FromArgb(248,113,113);}}
-        internal static Color InputBorder{get{return mode==UiTheme.Light?Color.FromArgb(131,143,163):Color.FromArgb(90,99,112);}}
+        // Shared resting outline for native fields and the DSH bundle.
+        internal static Color InputBorder{get{return mode==UiTheme.Light?Color.FromArgb(201,201,201):Color.FromArgb(100,100,100);}}
+        // Legacy shared token; InputPanel uses InputBorder for all four edges.
+        internal static Color FieldLine{get{return mode==UiTheme.Light?Color.FromArgb(204,204,204):Color.FromArgb(74,74,74);}}
         internal static Color CloseHover{get{return mode==UiTheme.Light?Color.FromArgb(255,235,235):Color.FromArgb(70,45,45);}}
         internal static Color ClosePressed{get{return mode==UiTheme.Light?Color.FromArgb(255,216,216):Color.FromArgb(92,56,56);}}
-        internal static Color SwitchOff{get{return mode==UiTheme.Light?Color.FromArgb(194,202,216):Color.FromArgb(74,81,92);}}
-        internal static Color Back{get{return mode==UiTheme.Light?Color.White:Color.FromArgb(31,34,39);}}
-        internal static Color Card{get{return mode==UiTheme.Light?Color.White:Color.FromArgb(38,41,47);}}
+        internal static Color SwitchOff{get{return mode==UiTheme.Light?Color.FromArgb(199,199,199):Color.FromArgb(78,78,78);}}
+        // Light pages are white; dark pages keep their existing neutral base.
+        internal static Color Back{get{return mode==UiTheme.Light?Color.White:Color.FromArgb(32,32,32);}}
+        // Light cards merge into the page; spacing supplies grouping.
+        internal static Color Card{get{return mode==UiTheme.Light?Color.White:Color.FromArgb(41,41,41);}}
+        // Secondary (non-primary, non-ghost) command buttons share the same
+        // single interactive gray as wells and hover — the Win11 dialog gray.
+        internal static Color Secondary{get{return mode==UiTheme.Light?Color.FromArgb(236,236,236):Color.FromArgb(48,48,48);}}
         internal const int HoverDuration=120,PressDuration=60,ReleaseDuration=90,SwitchDuration=160;
         internal static Font TextFont(float size=BodySize,bool bold=false){return new Font(FontFamily,size,bold?FontStyle.Bold:FontStyle.Regular,GraphicsUnit.Point);}
         internal static Font CompactFont(float size=BodySize,bool bold=false){return TextFont(size-CompactFontStep,bold);}
@@ -83,33 +99,38 @@ namespace DeepSeekFloat {
         internal bool Primary;
         internal bool Ghost,Segment;
         internal bool DropDown; // vector chevron shares the text color; Text never carries a glyph suffix
-        // Quiet ghost buttons stay borderless unless an outline is requested
-        // for actions that otherwise read as plain text.
-        internal bool Outline;
         // A quiet accent dot marks the chosen pill without widening its text.
         internal bool StatusDot;
         private bool chosen;
-        internal bool InputFocused,InputFrame;
         private readonly UiMotion hoverMotion,pressMotion,choiceMotion;
         internal bool Chosen {get{return chosen;}set{chosen=value;choiceMotion.To(value?1:0);}}
         internal PanelButton(string text) {
             Text=text;AccessibleName=text;FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;Cursor=Cursors.Hand;BackColor=PanelTheme.Back;ForeColor=PanelTheme.Ink;
-            SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
+            // ResizeRedraw: a hand-painted surface must repaint its whole
+            // client on any resize, or stale bands read as crushed rows
+            // (BUG-017).
+            SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw,true);
             hoverMotion=new UiMotion(this);pressMotion=new UiMotion(this);choiceMotion=new UiMotion(this);
             PanelTheme.Feedback(this,hoverMotion,pressMotion);
         }
         protected override void OnPaint(PaintEventArgs e) {
             var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;g.Clear(BackColor);float scale=g.DpiX/96f;
-            var neutral=Segment?PanelTheme.Back:PanelTheme.Card;
-            var color=Primary?PanelTheme.Mix(PanelTheme.Accent,PanelTheme.AccentHover,hoverMotion.Value):PanelTheme.Mix(PanelTheme.Mix(neutral,PanelTheme.Hover,hoverMotion.Value),PanelTheme.Tint,choiceMotion.Value);
+            // Ghost and segment buttons stay transparent on the page;
+            // regular secondary buttons use the Win11 gray. Text fields live
+            // on InputPanel now (BUG-017), not on buttons.
+            var neutral=Segment||Ghost?PanelTheme.Back:PanelTheme.Secondary;
+            // Neutral state ramp: rest → hover → selected are gray steps, no
+            // tinted fills and no accent-tinted text. A chosen surface still
+            // reacts to hover, but at half strength so the state stays legible.
+            var rest=chosen?PanelTheme.Selected:neutral;
+            var color=Primary?PanelTheme.Mix(PanelTheme.Accent,PanelTheme.AccentHover,hoverMotion.Value):PanelTheme.Mix(rest,PanelTheme.Hover,hoverMotion.Value*(chosen?0.4f:1f));
             color=PanelTheme.Mix(color,Primary?PanelTheme.AccentPressed:PanelTheme.Pressed,pressMotion.Value*0.7f);
-            if(!Enabled)color=PanelTheme.Surface;
+            if(!Enabled)color=Ghost||Segment?BackColor:PanelTheme.Surface;
             float inset=scale/2,offset=pressMotion.Value*scale;
             using(var shape=PanelTheme.Rounded(new RectangleF(inset,inset,Width-scale,Height-scale),PanelTheme.ControlRadius*scale)) {
                 using(var brush=new SolidBrush(color))g.FillPath(brush,shape);
-                if((!Ghost&&!Segment)||Outline||InputFocused||(Segment&&chosen))using(var pen=new Pen(Primary||InputFocused?PanelTheme.Accent:InputFrame?PanelTheme.InputBorder:PanelTheme.Mix(PanelTheme.Border,PanelTheme.Accent,choiceMotion.Value),scale))g.DrawPath(pen,shape);
             }
-            var textColor=!Enabled?PanelTheme.Muted:Primary?Color.White:PanelTheme.Mix(ForeColor,PanelTheme.AccentHover,choiceMotion.Value);
+            var textColor=!Enabled?PanelTheme.Muted:Primary?Color.White:ForeColor;
             // Reserve room for the chevron so text and arrow read as one centered group.
             float chevron=DropDown?13f*scale:0f;
             TextRenderer.DrawText(g,Text,Font,new Rectangle((int)Math.Round(4-chevron/2),(int)Math.Round(offset),Width-8,Height),textColor,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
@@ -123,6 +144,27 @@ namespace DeepSeekFloat {
             if(Focused&&ShowFocusCues)PanelTheme.FocusRing(g,Size,scale,PanelTheme.ControlRadius-3,Primary?Color.White:PanelTheme.Accent);
         }
         protected override void Dispose(bool disposing){if(disposing){hoverMotion.Dispose();pressMotion.Dispose();choiceMotion.Dispose();}base.Dispose(disposing);}
+    }
+    // Text-field frame on a plain Panel base. ButtonBase paint paths proved
+    // unreliable for these frames on scaled screens (BUG-017), and the frame
+    // needs nothing a Button provides: one parent-colored surface and outline.
+    internal sealed class InputPanel : Panel {
+        private bool focused;
+        internal bool Accent{get{return focused;}set{focused=value;Invalidate();}}
+        internal InputPanel() {
+            SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw,true);
+            BackColor=PanelTheme.Back;TabStop=false;
+        }
+        protected override void OnPaint(PaintEventArgs e) {
+            var g=e.Graphics;float scale=g.DpiX/96f;
+            g.SmoothingMode=SmoothingMode.AntiAlias;
+            g.Clear(Parent==null?PanelTheme.Back:Parent.BackColor);
+            using(var shape=PanelTheme.Rounded(new RectangleF(0,0,Width,Height),PanelTheme.ControlRadius*scale))
+            using(var brush=new SolidBrush(BackColor))g.FillPath(brush,shape);
+            float width=(Accent?2f:1f)*scale;
+            using(var shape=PanelTheme.Rounded(new RectangleF(width/2,width/2,Math.Max(1,Width-width),Math.Max(1,Height-width)),PanelTheme.ControlRadius*scale))
+            using(var pen=new Pen(Accent?PanelTheme.Accent:PanelTheme.InputBorder,width))g.DrawPath(pen,shape);
+        }
     }
     internal sealed class PanelSwitch : Button {
         private bool value;
@@ -155,6 +197,7 @@ namespace DeepSeekFloat {
         protected override void Dispose(bool disposing){if(disposing){slide.Dispose();hoverMotion.Dispose();pressMotion.Dispose();}base.Dispose(disposing);}
     }
     internal sealed class PanelChoices : Panel {
+        internal bool Flat=true;
         private readonly PanelButton[] choices;private int selected;
         internal event EventHandler SelectedIndexChanged;
         internal int SelectedIndex {
@@ -164,7 +207,7 @@ namespace DeepSeekFloat {
         internal PanelChoices(params string[] names) {
             BackColor=PanelTheme.Back;DoubleBuffered=true;TabStop=false;choices=new PanelButton[names.Length];
             for(int i=0;i<names.Length;i++) {
-                int index=i;var button=new PanelButton(names[i]) {Segment=true,BackColor=PanelTheme.Card};button.AccessibleRole=AccessibleRole.RadioButton;
+                int index=i;var button=new PanelButton(names[i]) {Segment=true,BackColor=PanelTheme.Back};button.AccessibleRole=AccessibleRole.RadioButton;
                 button.Click+=delegate {SelectedIndex=index;};
                 button.KeyDown+=delegate(object sender,KeyEventArgs e){if(e.KeyCode==Keys.Left||e.KeyCode==Keys.Right||e.KeyCode==Keys.Home||e.KeyCode==Keys.End){SelectedIndex=e.KeyCode==Keys.Home?0:e.KeyCode==Keys.End?choices.Length-1:(selected+(e.KeyCode==Keys.Right?1:choices.Length-1))%choices.Length;choices[selected].Focus();e.Handled=true;e.SuppressKeyPress=true;}};
                 choices[i]=button;Controls.Add(button);
@@ -177,20 +220,22 @@ namespace DeepSeekFloat {
             for(int i=0;i<choices.Length;i++){int left=inset+available*i/choices.Length,right=inset+available*(i+1)/choices.Length;choices[i].SetBounds(left,inset,Math.Max(0,right-left),Math.Max(0,Height-inset*2));}
         }
         protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
-            // One framed container split into segments; the chosen segment
-            // highlights itself instead of every option carrying a box.
+            if(Flat)return;
+            // One filled container split into segments; the chosen segment
+            // highlights itself with a tint fill, so no outline is needed on
+            // the container or on the segments.
             using(var shape=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.ControlRadius*e.Graphics.DpiX/96f)){
                 using(var brush=new SolidBrush(PanelTheme.Card))e.Graphics.FillPath(brush,shape);
-                using(var pen=new Pen(PanelTheme.Border))e.Graphics.DrawPath(pen,shape);
             }}
     }
     internal sealed class PanelCard : Panel {
         internal PanelCard() { BackColor=PanelTheme.Back;DoubleBuffered=true; }
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
+            // A filled surface with enough tint to read against the page; no
+            // outline — grouping comes from the fill, not a stroke.
             using(var path=PanelTheme.Rounded(new RectangleF(0,0,Width-1,Height-1),PanelTheme.PanelRadius*e.Graphics.DpiX/96f)) {
                 using(var brush=new SolidBrush(PanelTheme.Card))e.Graphics.FillPath(brush,path);
-                using(var pen=new Pen(PanelTheme.Border))e.Graphics.DrawPath(pen,path);
             }
         }
     }

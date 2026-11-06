@@ -12,10 +12,11 @@ namespace DeepSeekFloat
         internal static string Compose(string text, int action)
         {
             // Builtin selection actions reuse the persistent chat-mode
-            // instructions verbatim: one wording per intent, whichever entry
-            // point fires it, so the two surfaces never drift apart again.
+            // instructions verbatim and open with the same ADR-0005 directive:
+            // one wording per intent, whichever entry point fires it, so the
+            // two surfaces never drift apart again.
             var mode=ChatModes.Find(action==1?"explain":action==2?"question":"translate");
-            return ComposeInstruction(mode.Instruction,text);
+            return ChatModes.Directive(mode)+"\n"+ComposeInstruction(mode.Instruction,text);
         }
         // One envelope for builtin and custom instructions alike; the material
         // stays a quoted <选中文字> block and is never sent automatically.

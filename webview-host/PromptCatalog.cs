@@ -28,17 +28,19 @@ namespace DeepSeekFloat {
         internal static Catalog Load() {
             var result=new Catalog();
             string text;
-            try { text=File.ReadAllText(Path.Combine(Preferences.Root,FileName)); }
-            catch(Exception error) { if(!Preferences.IsStorageFailure(error))throw; return result; }
+            try { text=Preferences.ReadCatalog(FileName); }
+            catch(FileNotFoundException){return result;}
+            catch(DirectoryNotFoundException){return result;}
+            catch(Exception error) { if(!Preferences.IsStorageFailure(error)&&!(error is InvalidDataException))throw;result.Error="指令文件无法读取，已只加载内置指令，原文件保持不变。";return result; }
             try {
                 using(var memory=new MemoryStream(Encoding.UTF8.GetBytes(text))) {
                     var data=(CatalogData)new DataContractJsonSerializer(typeof(CatalogData)).ReadObject(memory);
                     if(data==null||data.Version!=1) { result.Error="指令文件版本不受支持，已只加载内置指令，原文件保持不变。"; return result; }
                     var list=new List<PromptCommand>();
                     if(data.Commands!=null)foreach(var item in data.Commands) {
-                        if(item==null||string.IsNullOrWhiteSpace(item.Id)||string.IsNullOrWhiteSpace(item.Name)||string.IsNullOrWhiteSpace(item.Instruction))continue;
+                        if(item==null||!ValidCustomId(item.Id)||list.Any(c=>c.Id==item.Id.Trim())||ValidateName(item.Name,Builtins.Concat(list),null)!=null||ValidateInstruction(item.Instruction)!=null)continue;
                         if(list.Count>=MaxCommands)break;
-                        list.Add(new PromptCommand{Id=item.Id,Name=item.Name.Trim(),Instruction=item.Instruction.Trim(),BuiltinIndex=-1});
+                        list.Add(new PromptCommand{Id=item.Id.Trim(),Name=item.Name.Trim(),Instruction=item.Instruction.Trim(),BuiltinIndex=-1});
                     }
                     result.Commands=Builtins.Concat(list).ToArray();return result;
                 }
@@ -52,9 +54,10 @@ namespace DeepSeekFloat {
         internal static string ValidateName(string name,IEnumerable<PromptCommand> others,PromptCommand self) {
             if(name==null||(name=name.Trim()).Length==0)return "请输入指令名称。";
             if(name.Length>MaxName)return "名称不超过 16 个字。";
+            if(name.Any(char.IsControl))return "名称不能包含换行或控制字符。";
             foreach(var other in others) {
                 if(self!=null&&Object.ReferenceEquals(other,self))continue;
-                if(string.Equals(other.Name,name,StringComparison.OrdinalIgnoreCase))return "已有同名指令。";
+                if(string.Equals(other.Name==null?null:other.Name.Trim(),name,StringComparison.OrdinalIgnoreCase))return "已有同名指令。";
             }
             return null;
         }
@@ -64,9 +67,16 @@ namespace DeepSeekFloat {
             return null;
         }
         internal static string Save(IEnumerable<PromptCommand> customs) {
+            if(customs==null)return "指令列表无法保存。";
             var list=customs.ToArray();
             if(list.Length>MaxCommands)return "自定义指令最多 20 条，当前 "+list.Length+" 条。";
-            var data=new CatalogData{Version=1,Commands=list.Select(c=>new CommandData{Id=c.Id,Name=c.Name.Trim(),Instruction=c.Instruction.Trim()}).ToArray()};
+            var seen=new List<PromptCommand>(Builtins);
+            foreach(var item in list) {
+                if(item==null||!ValidCustomId(item.Id)||seen.Any(c=>c.Id.Trim()==item.Id.Trim()))return "指令标识无效或重复。";
+                string error=ValidateName(item.Name,seen,null)??ValidateInstruction(item.Instruction);if(error!=null)return error;
+                seen.Add(item);
+            }
+            var data=new CatalogData{Version=1,Commands=list.Select(c=>new CommandData{Id=c.Id.Trim(),Name=c.Name.Trim(),Instruction=c.Instruction.Trim()}).ToArray()};
             using(var memory=new MemoryStream()) {
                 new DataContractJsonSerializer(typeof(CatalogData)).WriteObject(memory,data);
                 try { Preferences.Write(FileName,Encoding.UTF8.GetString(memory.ToArray())); }
@@ -75,6 +85,7 @@ namespace DeepSeekFloat {
             return null;
         }
         internal static string NewId(){return "c-"+Guid.NewGuid().ToString("N").Substring(0,12);}
+        private static bool ValidCustomId(string id){return !string.IsNullOrWhiteSpace(id)&&id.Trim().Length<=64&&!id.Any(char.IsControl)&&!Builtins.Any(c=>c.Id==id.Trim());}
     }
     [DataContract] internal sealed class CatalogData {
         [DataMember] internal int Version;

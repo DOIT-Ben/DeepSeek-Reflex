@@ -104,15 +104,8 @@ foreach ($retiredPath in $RetiredLinks) {
 foreach ($changedPath in @($ExeDst,(Join-Path $InstallDir 'icon.ico'),$DesktopLnk,$StartLnk,$StartupLnk)) {
     if(Test-Path -LiteralPath $changedPath){[ReflexShellRefresh]::SHChangeNotify(0x2000,0x2005,$changedPath,[IntPtr]::Zero)}
 }
-# Retire the pre-rename install directory; user data lives under APPDATA and
-# is migrated by the application, so only program files are removed here.
-$LegacyDir = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Programs\DeepSeekFloat'))
-if (Test-Path -LiteralPath $LegacyDir) {
-    Get-Process -Name 'DeepSeekFloat','DeepSeek' -ErrorAction SilentlyContinue | Where-Object {
-        $_.Path -and [IO.Path]::GetFullPath($_.Path).StartsWith($LegacyDir,[StringComparison]::OrdinalIgnoreCase)
-    } | Stop-Process -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $LegacyDir -Recurse -Force
-}
+# Keep the previous installation directory: it may contain unmanaged files.
+# Upgrade only the managed files staged above, matching the NSIS policy.
 if (-not $NoLaunch) { Start-Process -FilePath $ExeDst -WindowStyle Hidden }
 Write-Output "installed: $ExeDst"
 Write-Output "rollback files: $RollbackDir"

@@ -2,7 +2,8 @@ param(
     [ValidateSet('Preserve','Upgrade')][string]$Stage='Preserve',
     [string]$SetupPath=(Join-Path $PSScriptRoot '../setup.nsi'),
     [string]$OutputDirectory=(Join-Path ([IO.Path]::GetTempPath()) ('Reflex-installer-flow-'+[Guid]::NewGuid().ToString('N'))),
-    [string]$MakeNsisPath='C:\Program Files (x86)\NSIS\makensis.exe'
+    [string]$MakeNsisPath='C:\Program Files (x86)\NSIS\makensis.exe',
+    [string]$InstallScriptPath=(Join-Path $PSScriptRoot '../../install.ps1')
 )
 $ErrorActionPreference='Stop'
 $OutputDirectory=[IO.Path]::GetFullPath($OutputDirectory)
@@ -14,6 +15,11 @@ function Assert-InSandbox([string]$Path){
     return $full
 }
 function Check([bool]$Value,[string]$Name){if(-not $Value){throw $Name};Write-Output "PASS $Name"}
+$tokens=$null;$parseErrors=$null
+$installAst=[Management.Automation.Language.Parser]::ParseFile([IO.Path]::GetFullPath($InstallScriptPath),[ref]$tokens,[ref]$parseErrors)
+if($parseErrors){throw 'Invalid PowerShell install script'}
+$recursiveDeletes=@($installAst.FindAll({param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'Remove-Item' -and @($node.CommandElements | Where-Object {$_ -is [Management.Automation.Language.CommandParameterAst] -and $_.ParameterName -eq 'Recurse'}).Count -gt 0},$true))
+Check ($recursiveDeletes.Count -eq 0) 'PowerShell upgrade never recursively deletes unmanaged installation directories'
 function NsisLiteral([string]$Value){return $Value.Replace('$','$$').Replace('"','$\"')}
 $payload=Assert-InSandbox (Join-Path $OutputDirectory 'payload with spaces')
 New-Item -ItemType Directory -Path $payload | Out-Null

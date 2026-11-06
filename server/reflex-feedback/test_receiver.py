@@ -2,6 +2,7 @@
 import json
 import os
 import threading
+import tempfile
 import urllib.error
 import urllib.request
 
@@ -24,9 +25,8 @@ def post(port, body, headers=None):
 
 
 def main():
-    store = os.path.join(os.environ["TEMP"], "reflex-feedback-test.jsonl")
-    if os.path.exists(store):
-        os.remove(store)
+    directory = tempfile.TemporaryDirectory(prefix="reflex-feedback-")
+    store = os.path.join(directory.name, "feedback.jsonl")
     receiver.STORE = store
     receiver.RECENT.clear()
     receiver.MAX_STORE_BYTES = 8 * 1024 * 1024
@@ -50,8 +50,9 @@ def main():
         print("PASS feedback receiver peer limit, ip literal and store cap")
     finally:
         httpd.shutdown()
-        if os.path.exists(store):
-            os.remove(store)
+        httpd.server_close()
+        thread.join(2)
+        directory.cleanup()
 
 
 if __name__ == "__main__":

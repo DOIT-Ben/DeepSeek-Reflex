@@ -63,15 +63,15 @@ namespace DeepSeekFloat {
     }
    }
    Preferences.Write("feedback-contact","QA before local failure");
-   string blocked=Path.Combine(Preferences.Root,"feedback-contact.new");Directory.CreateDirectory(blocked);int posts=0;
-   try{
+   int posts=0;
+   using(var locked=File.Open(Path.Combine(Preferences.Root,"feedback-contact"),FileMode.Open,FileAccess.Read,FileShare.Read)){
     using(var dialog=new FeedbackDialog(delegate{posts++;return null;})){
      SendFeedback(dialog,"");Until(delegate{return Field<Label>(dialog,"thanksText").Visible;});
      Check(posts==1,"preference write failure never replays a successful post");
      Check(Preferences.ReadText("feedback-contact")=="QA before local failure","failed local memory write preserves previous file");
      Check(Field<Label>(dialog,"thanksText").Visible,"successful post remains successful when local memory write fails");
     }
-   }finally{Directory.Delete(blocked);}
+   }
    using(var entered=new ManualResetEventSlim())using(var release=new ManualResetEventSlim())using(var finished=new ManualResetEventSlim()){
     Exception asyncError=null;ThreadExceptionEventHandler handler=delegate(object sender,ThreadExceptionEventArgs e){asyncError=e.Exception;};Application.ThreadException+=handler;
     try{

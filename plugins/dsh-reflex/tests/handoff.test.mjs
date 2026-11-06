@@ -82,3 +82,32 @@ test('HTTP reply route is body-free, single-flight and forwards a fresh request 
   assert.equal((await invoke('/reflex-window/reply', 'GET')).status, 405);
   assert.equal((await invoke('/reflex-window/nope')).status, 404);
 });
+
+test('bridge helpers reject nonzero exit and malformed UTF-8 even with parseable JSON', async () => {
+  const value = request();
+  const start = childFactory(null, (_args, _body, child) => {
+    child.stdout.emit('data', Buffer.from(JSON.stringify({ id: value.id, status: 'filled' })));
+    child.emit('close', 1);
+  });
+  assert.equal((await stageExecutable('fixture', value, { start })).status, 'outcome-unknown');
+  const reply = newReplyRequest();
+  const badEncoding = childFactory(null, (_args, _body, child) => {
+    child.stdout.emit('data', Buffer.concat([Buffer.from('{"id":"' + reply.id + '","status":"ok","text":"'), Buffer.from([0xff]), Buffer.from('"}') ]));
+    child.emit('close', 0);
+  });
+  assert.equal((await replyExecutable('fixture', reply, { start: badEncoding })).status, 'outcome-unknown');
+});
+
+test('aborted uploads absorb the following socket error and release their listeners', async () => {
+  for (let index = 0; index < 30; index++) {
+    const req = new PassThrough(); req.headers = { 'content-type': 'application/json' };
+    const pending = readStage(req);
+    req.emit('aborted');
+    await assert.rejects(pending, /invalid-request/);
+    assert.doesNotThrow(() => req.emit('error', new Error('connection reset')));
+    req.emit('close');
+    assert.equal(req.listenerCount('data'), 0);
+    assert.equal(req.listenerCount('error'), 0);
+    req.destroy();
+  }
+});

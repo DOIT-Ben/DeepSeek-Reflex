@@ -2,10 +2,11 @@ using System;
 using System.Windows.Forms;
 namespace DeepSeekFloat
 {
+    internal enum HotkeyAvailability { All, ToggleOnly, None }
     internal sealed class HotkeyBindings : IDisposable
     {
         private readonly IntPtr window;
-        private bool suspended;
+        internal HotkeyAvailability Availability {get;private set;}
         internal int ToggleKeys { get; private set; }
         internal int CaptureKeys { get; private set; }
         internal bool ToggleRegistered { get; private set; }
@@ -59,11 +60,25 @@ namespace DeepSeekFloat
                 return HotkeyBindings.Format(first?capture:toggle)+" 已被占用，请换一组。"+restored;
             }
             ToggleKeys=toggle;CaptureKeys=capture;ToggleRegistered=CaptureRegistered=true;
-            if(suspended)Release();
+            if(Availability==HotkeyAvailability.None)Release();
+            else if(Availability==HotkeyAvailability.ToggleOnly){Native.UnregisterHotKey(window,Native.CaptureHotkeyId);CaptureRegistered=false;}
             return null;
         }
-        internal void Suspend() { suspended=true;Release(); }
-        internal string Resume() { suspended=false;return Apply(ToggleKeys,CaptureKeys); }
+        internal string SetAvailability(HotkeyAvailability value) {
+            bool wantToggle=value!=HotkeyAvailability.None,wantCapture=value==HotkeyAvailability.All;
+            var previous=Availability;bool oldToggle=ToggleRegistered,oldCapture=CaptureRegistered;
+            if(!wantCapture&&CaptureRegistered){Native.UnregisterHotKey(window,Native.CaptureHotkeyId);CaptureRegistered=false;}
+            if(!wantToggle&&ToggleRegistered){Native.UnregisterHotKey(window,Native.HotkeyId);ToggleRegistered=false;}
+            if(wantToggle&&!ToggleRegistered)ToggleRegistered=Register(Native.HotkeyId,ToggleKeys);
+            if(wantCapture&&ToggleRegistered&&!CaptureRegistered)CaptureRegistered=Register(Native.CaptureHotkeyId,CaptureKeys);
+            if((wantToggle&&!ToggleRegistered)||(wantCapture&&!CaptureRegistered)) {
+                Release();ToggleRegistered=oldToggle&&Register(Native.HotkeyId,ToggleKeys);CaptureRegistered=oldCapture&&Register(Native.CaptureHotkeyId,CaptureKeys);Availability=previous;
+                return "快捷键恢复失败，请检查是否被其他应用占用。";
+            }
+            Availability=value;return null;
+        }
+        internal void Suspend() { SetAvailability(HotkeyAvailability.None); }
+        internal string Resume() { return SetAvailability(HotkeyAvailability.All); }
         public void Dispose() { Release(); }
     }
 }

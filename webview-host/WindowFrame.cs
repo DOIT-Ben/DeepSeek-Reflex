@@ -4,7 +4,9 @@ using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 namespace DeepSeekFloat {
     internal sealed class WindowFrame : Control {
-        internal const int Radius=22;
+        // Closer to the Windows 11 system window corner (~8 px visual) than the
+        // old 22, while keeping the custom alpha frame usable.
+        internal const int Radius=12;
         internal const double DefaultZoom=0.9;
         internal static Color Outline{get{return PanelTheme.Mode==UiTheme.Dark?Color.FromArgb(70,76,85):Color.FromArgb(178,188,204);}}
         internal static int OutlineWidth(float dpiScale){return Math.Max(1,(int)Math.Round(dpiScale));}

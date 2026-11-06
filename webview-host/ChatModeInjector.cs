@@ -3,7 +3,7 @@ namespace DeepSeekFloat {
     internal static class ChatModeInjector {
         internal static string ExpectOneShotScript(string prompt){return "(()=>{if(location.origin!=='https://chat.deepseek.com'||window.top!==window)return false;const state=window.__deepSeekFloatChatMode;if(!state)return false;state.oneShotPending="+PromptInserter.Json(prompt)+";return true;})()";}
         internal static string Script(string id) {
-            string catalog="{"+string.Join(",",ChatModes.All.Select(m=>PromptInserter.Json(m.Id)+":"+PromptInserter.Json(ChatModes.Prefix(m))))+"}";
+            string catalog="{"+string.Join(",",ChatModes.Effective.Select(m=>PromptInserter.Json(m.Id)+":"+PromptInserter.Json(ChatModes.Prefix(m))))+"}";
             return "(()=>{if(location.origin!=='https://chat.deepseek.com'||window.top!==window)return 'wrong-host';const prefixes="+catalog+",mode="+PromptInserter.Json(ChatModes.Find(id).Id)+";"+@"
 let state=window.__deepSeekFloatChatMode;
 if(!state){
@@ -29,7 +29,9 @@ if(!state){
  state.adopt=(e,text)=>{const end=text.indexOf('\n',Math.max(0,text.search(/\S/)));state.marker=null;state.oneShot={element:e,url:location.href,header:end<0?text:text.slice(0,end)};};
  state.apply=()=>{
   if(state.suspended||state.writing||state.composing)return 'busy';
-  if(state.mode==='normal'&&!state.marker)return 'ready';
+  // ADR-0005: plain chat also carries its directive once there is real
+  // material; only a truly empty composer skips all work.
+  if(state.mode==='normal'&&!state.marker){const current=editor();if(!current||!read(current).trim())return 'ready';}
   const e=editor();if(!e)return 'no-editor';
   if(e.tagName!=='TEXTAREA')return 'unsupported-editor';
   const text=read(e),mark=state.marker;

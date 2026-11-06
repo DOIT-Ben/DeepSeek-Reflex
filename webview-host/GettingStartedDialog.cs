@@ -40,9 +40,9 @@ namespace DeepSeekFloat {
             progress=LabelAt(surface,"",24,68,352,22,PanelTheme.CaptionSize,false);progress.ForeColor=PanelTheme.Muted;
             heading=LabelAt(surface,"",24,100,352,50,PanelTheme.HeadingSize,true);
             body=LabelAt(surface,"",24,158,352,50,PanelTheme.BodySize,false);
-            var card=new PanelCard();Place(surface,card,24,224,352,86);
-            key=LabelAt(card,"",16,10,320,28,PanelTheme.TitleSize,true);key.ForeColor=PanelTheme.Accent;key.BackColor=PanelTheme.Surface;
-            hint=LabelAt(card,"",16,42,320,34,PanelTheme.CaptionSize,false);hint.ForeColor=PanelTheme.Muted;hint.BackColor=PanelTheme.Surface;
+            var card=new Panel {BackColor=PanelTheme.Back};Place(surface,card,24,224,352,86);
+            key=LabelAt(card,"",16,10,320,28,PanelTheme.TitleSize,true);key.ForeColor=PanelTheme.Ink;
+            hint=LabelAt(card,"",16,42,320,34,PanelTheme.CaptionSize,false);hint.ForeColor=PanelTheme.Muted;
             help=LabelAt(surface,"以后可以在设置 → 使用帮助中重新查看。",24,326,352,22,PanelTheme.CaptionSize,false);help.ForeColor=PanelTheme.Muted;
             previous=new PanelButton("上一步");Place(surface,previous,180,396,88,PanelTheme.CompactControlHeight);previous.Click+=delegate{SetStep(Step-1);};
             next=new PanelButton("下一步") {Primary=true};Place(surface,next,280,396,96,PanelTheme.CompactControlHeight);

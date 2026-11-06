@@ -33,7 +33,29 @@ jobs:
           ./packaging/test-package.ps1 -ZipPath "release/DeepSeek-Reflex-$version-Windows-x64.zip"
       - name: Core behavior gates
         shell: pwsh
-        run: ./webview-host/tests/run-boundary-tests.ps1 -CoreOnly
+        run: |
+          ./webview-host/tests/run-boundary-tests.ps1 -CoreOnly
+          ./webview-host/tests/run-audit-tests.ps1 -OutputDirectory "$env:RUNNER_TEMP/reflex-audit"
+          ./webview-host/tests/run-bridge-tests.ps1 -OutputDirectory "$env:RUNNER_TEMP/reflex-bridge"
+          ./packaging/tests/test-installer-flow.ps1 -Stage Upgrade -OutputDirectory "$env:RUNNER_TEMP/reflex-installer"
+      - name: Plugin contract gates
+        shell: pwsh
+        working-directory: plugins/dsh-reflex
+        run: |
+          npm ci --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { throw 'Plugin dependency install failed' }
+          npm run check
+          if ($LASTEXITCODE -ne 0) { throw 'Plugin artifact check failed' }
+          node --test --test-concurrency=2 tests/*.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Plugin boundary tests failed' }
+      - name: Feedback receiver gates
+        shell: pwsh
+        working-directory: server/reflex-feedback
+        run: |
+          python -B test_receiver.py
+          if ($LASTEXITCODE -ne 0) { throw 'Feedback receiver regression failed' }
+          python -B -m unittest -v test_boundaries
+          if ($LASTEXITCODE -ne 0) { throw 'Feedback receiver boundaries failed' }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: DeepSeek-Reflex-Windows-x64

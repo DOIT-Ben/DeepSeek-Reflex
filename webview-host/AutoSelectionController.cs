@@ -58,7 +58,8 @@ namespace DeepSeekFloat
         }
         internal void ShowSelection(SelectionResult result,Point anchor)
         {
-            if(disposed || string.IsNullOrWhiteSpace(result.Text) || result.Text.Length>SelectionCapture.Limit) return;
+            var chat=dispatcher.FindForm() as ChatWindow;
+            if(disposed || (chat!=null&&chat.ModalOpen) || result==null || string.IsNullOrWhiteSpace(result.Text) || result.Text.Length>SelectionCapture.Limit) return;
             if(popup!=null && !popup.IsDisposed) {
                 if(popup.Expanded && popup.Visible) return;
                 popup.Close();
