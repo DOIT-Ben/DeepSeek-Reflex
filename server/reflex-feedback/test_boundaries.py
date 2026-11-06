@@ -5,6 +5,7 @@ import os
 import socket
 import tempfile
 import threading
+import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
@@ -81,6 +82,22 @@ class Boundaries(unittest.TestCase):
         self.assertEqual(statuses.count(429), 10)
         with open(self.store, encoding="utf-8") as stream:
             self.assertEqual(len([json.loads(line) for line in stream]), 6)
+
+    def test_rate_limited_split_body_is_consumed_before_closing(self):
+        receiver.RECENT["127.0.0.1"] = [time.time()] * receiver.LIMIT_PER_WINDOW
+        body = b'{"text":"valid"}'
+        with socket.create_connection(("127.0.0.1", self.port), timeout=2) as connection:
+            connection.sendall(("POST /feedback HTTP/1.0\r\nContent-Length: %d\r\n\r\n" % len(body)).encode("ascii"))
+            connection.settimeout(0.05)
+            with self.assertRaises(socket.timeout):
+                connection.recv(1)
+            connection.settimeout(2)
+            connection.sendall(body)
+            response = http.client.HTTPResponse(connection)
+            response.begin()
+            self.assertEqual(response.status, 429)
+            response.read()
+        self.assertFalse(os.path.exists(self.store))
 
     def test_wrong_route_and_invalid_length(self):
         self.assertEqual(self.post({"text": "x"}, path="/unknown"), 404)

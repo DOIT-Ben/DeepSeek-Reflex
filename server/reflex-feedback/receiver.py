@@ -61,20 +61,32 @@ class Handler(BaseHTTPRequestHandler):
         ip = logged_ip(peer, self.headers.get("X-Real-IP"))
         key = peer or "unknown"
         now = time.time()
+        limited = False
         with LOCK:
             stale = [item for item, hits in RECENT.items() if not _fresh(hits, now)]
             for item in stale:
                 del RECENT[item]
             hits = _fresh(RECENT.get(key, []), now)
             if key not in RECENT and len(RECENT) >= MAX_RECENT_KEYS:
-                self._reply(429)
-                return
-            if len(hits) >= LIMIT_PER_WINDOW:
+                limited = True
+            elif len(hits) >= LIMIT_PER_WINDOW:
                 RECENT[key] = hits
-                self._reply(429)
-                return
-            hits.append(now)
-            RECENT[key] = hits
+                limited = True
+            else:
+                hits.append(now)
+                RECENT[key] = hits
+        if limited:
+            # Closing with an unread request body can reset the TCP connection
+            # before Windows clients receive 429. Drain only bounded bodies,
+            # under the existing socket timeout and outside the quota lock.
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if 0 < length <= MAX_BYTES:
+                    self.rfile.read(length)
+            except (ValueError, OSError):
+                pass
+            self._reply(429)
+            return
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
