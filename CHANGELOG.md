@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.19 — Unreleased (2026-11-06)
+## 1.0.19 — 2026-11-06
 
 - Share owner-centered first placement across settings, feedback, help and login/link windows; normalize creation DPI and prevent repeated popup scaling across monitors.
 

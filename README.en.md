@@ -137,17 +137,17 @@ Selected-text import depends on the source application's accessibility support. 
 
 ### Persistent chat modes
 
-Source development follows [ADR-0002](docs/adr/0002-compact-mode-and-dsh-handoff.md): the mode selector moves into the title bar, reclaiming the old 38-DIP row. The downloadable v1.0.17 still uses the separate bar described below. See the [stage record](docs/adr/0002-review.md) for implementation and acceptance status; this does not indicate a new release or an updated local installation.
+In v1.0.19, the chat-mode selector lives in the title bar. Choose regular chat, translation, explanation, questions, polishing, or summarization. The current draft and later messages show a mode directive and any task instruction for you to review before sending. Regular chat includes the mode directive without a task instruction. Switching modes preserves your material, and the choice is remembered locally.
 
-The **对话模式 (Chat mode)** selector below the title bar stays visible. It adds the selected instruction to the current draft and each subsequent message, so you can inspect the actual text before sending. Translation converts Chinese to English and other languages to Chinese. Regular chat removes the tool's unchanged prefix and preserves your material. The selected mode is saved locally and restored on restart.
+Open **Settings → 聊天模式 (Chat modes)** to edit built-in instructions, restore defaults, or add up to ten custom modes. Names allow up to 16 UTF-16 units and instructions up to 2,000. Deleting the active custom mode returns to regular chat.
 
-Empty drafts stay empty, IME composition is preserved, and selected-text requests remain one-time actions without an extra mode prefix. Edited instructions are retained; clearing the composer starts a fresh message using the selected mode. This feature is available from v1.0.17. Built-in definitions live in `webview-host/ChatModes.cs`; custom mode management is planned for a later iteration. See the [mode notes](docs/chat-modes.md) for implementation and verification boundaries.
+Empty drafts stay empty, IME composition is preserved, and selected-text requests remain one-time actions without an extra persistent-mode prefix. Edited instructions remain intact; clearing the composer starts a fresh message using the selected mode. See the [mode notes](docs/chat-modes.md) for implementation and verification boundaries.
 
 ### Wake on the pointer's display
 
 At wake time, use the display containing the pointer. Changing displays centers the chat in that display's working area; waking on the same display keeps its last position and size. A visible chat on another display moves over instead of toggling closed. On the same display, the shortcut retains its existing hide/minimize behavior. Capture snapshots the target before waiting for selected text; tray opening and existing-instance activation use the same positioning rules.
 
-Moving the pointer alone does not move the chat. Settings/help panels stay on their current display while open. Cross-display movement preserves logical size, pin/maximized state, drafts and chat mode, and fits the available space after DPI changes. Returning to a previously used display centers again; there is no position history per display. This feature is available from v1.0.17. See the [wake verification notes](docs/testing/2026-10-13-wake-placement.md).
+Moving the pointer alone does not move the chat. With settings open, the saved wake shortcut hides and restores the main/settings group while preserving the page, draft, focus and selection. Shortcut recording temporarily pauses global keys; Tab finishes and Esc cancels. Settings, feedback, help and login/link windows initially center on their owner. Cross-display movement preserves logical size, pin/maximized state, drafts and chat mode, and fits the available space after DPI changes. Returning to a previously used display centers again; there is no position history per display. This feature is available from v1.0.17. See the [wake verification notes](docs/testing/2026-10-13-wake-placement.md).
 
 ## Data and privacy
 
