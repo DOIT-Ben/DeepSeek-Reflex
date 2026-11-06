@@ -34,10 +34,10 @@ namespace DeepSeekFloat {
         private readonly PanelButton addMode=new PanelButton("填入示例") {Ghost=true};
         private readonly PanelButton saveModeEntry=new PanelButton("保存到列表");
         private readonly PanelButton resetMode=new PanelButton("恢复默认") {Ghost=true};
-        private readonly TextBox commandName=new TextBox {BorderStyle=BorderStyle.None};
-        private readonly TextBox commandBody=new TextBox {BorderStyle=BorderStyle.None,Multiline=true};
-        private readonly TextBox modeName=new TextBox {BorderStyle=BorderStyle.None};
-        private readonly TextBox modeBody=new TextBox {BorderStyle=BorderStyle.None,Multiline=true};
+        private readonly TextBox commandName=new EditorTextBox {BorderStyle=BorderStyle.None};
+        private readonly TextBox commandBody=new EditorTextBox {BorderStyle=BorderStyle.None,Multiline=true};
+        private readonly TextBox modeName=new EditorTextBox {BorderStyle=BorderStyle.None};
+        private readonly TextBox modeBody=new EditorTextBox {BorderStyle=BorderStyle.None,Multiline=true};
         private readonly Label nameError=new Label {AutoSize=false,BackColor=Color.Transparent,ForeColor=PanelTheme.Error};
         private readonly Label instructionError=new Label {AutoSize=false,BackColor=Color.Transparent,ForeColor=PanelTheme.Error};
         private readonly Label modeNameError=new Label {AutoSize=false,BackColor=Color.Transparent,ForeColor=PanelTheme.Error};

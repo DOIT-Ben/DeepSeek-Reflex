@@ -13,9 +13,9 @@ namespace DeepSeekFloat {
         internal const int MaxChars=1000;
         internal const int ContactMaxChars=100;
         internal static readonly string[] Categories={"问题","建议","其他"};
-        private readonly TextBox body=new TextBox {BorderStyle=BorderStyle.None,Multiline=true,BackColor=PanelTheme.Back,ForeColor=PanelTheme.Ink};
+        private readonly TextBox body=new EditorTextBox {BorderStyle=BorderStyle.None,Multiline=true,BackColor=PanelTheme.Back,ForeColor=PanelTheme.Ink};
         private readonly Label bodyHint=new Label {AutoSize=false,BackColor=Color.Transparent,Cursor=Cursors.IBeam};
-        private readonly TextBox contact=new TextBox {BorderStyle=BorderStyle.None,BackColor=PanelTheme.Back,ForeColor=PanelTheme.Ink};
+        private readonly TextBox contact=new EditorTextBox {BorderStyle=BorderStyle.None,BackColor=PanelTheme.Back,ForeColor=PanelTheme.Ink};
         private readonly Label contactHint=new Label {AutoSize=false,BackColor=Color.Transparent,Cursor=Cursors.IBeam};
         private readonly InputPanel bodyFrame=new InputPanel {TabStop=false,BackColor=PanelTheme.Back};
         private readonly InputPanel contactFrame=new InputPanel {TabStop=false,BackColor=PanelTheme.Back};

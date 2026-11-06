@@ -40,7 +40,7 @@
 | [BUG-032](BUG-032-bridge-log-failure.md) | P2 | 诊断日志失败会终止唯一桥接服务循环 | 已修复，本地验收通过 | 本轮功能与边界审计 |
 | [BUG-033](BUG-033-deleted-mode-settings.md) | P2 | 主页旧快照会写回已删除的当前模式 | 已修复，本地验收通过 | 本轮功能与边界审计 |
 | [BUG-034](BUG-034-feedback-short-work-area.md) | P2 | 反馈布局重新撑大已适配短屏的窗口 | 已修复，本地验收通过 | 短工作区、反馈错误提示与重试可达性 |
-| [BUG-035](BUG-035-editor-first-focus-selection.md) | P2 | 点击编辑时提示词被自动全选 | 已修复，本地验收通过 | 模式、指令和示例入口的初始选区 |
+| [BUG-035](BUG-035-editor-first-focus-selection.md) | P2 | 预填输入框首次聚焦会自动全选 | 已修复，全页专项验收通过 | 设置、模式、指令、反馈与快捷键录入 |
 
 两个尚未证实的场景另列于 [待复验候选](CANDIDATES.md)，不计入确认问题数量。验证范围、对照及脱敏诊断见 [证据汇总](evidence/2026-10-06-audit.md)。
 

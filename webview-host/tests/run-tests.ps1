@@ -8,10 +8,11 @@ param(
     [switch]$SettingsSessionOnly,
     [switch]$FeedbackOnly,
     [switch]$AuditUiOnly,
+    [switch]$InputFocusOnly,
     [string]$SourceDirectory
 )
 $ErrorActionPreference = 'Stop'
-if(@($InteractionOnly,$EditorOnly,$GeneralOnly,$SurfacesOnly,$SettingsSessionOnly,$FeedbackOnly,$AuditUiOnly).Where({$_}).Count -gt 1){throw 'Choose only one focused test mode'}
+if(@($InteractionOnly,$EditorOnly,$GeneralOnly,$SurfacesOnly,$SettingsSessionOnly,$FeedbackOnly,$AuditUiOnly,$InputFocusOnly).Where({$_}).Count -gt 1){throw 'Choose only one focused test mode'}
 $HostSources = Split-Path -Parent $PSScriptRoot
 $Compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 $Node = (Get-Command $NodePath -ErrorAction Stop).Source
@@ -49,9 +50,10 @@ foreach ($Dpi in @('default','high-dpi')) {
     if($SettingsSessionOnly){$TestArgs+='--settings-session-only'}
     if($FeedbackOnly){$TestArgs+='--feedback-only'}
     if($AuditUiOnly){$TestArgs+='--audit-ui-only'}
+    if($InputFocusOnly){$TestArgs+='--input-focus-only'}
     & $TestExe @TestArgs | Tee-Object -FilePath (Join-Path $RunDirectory 'regression.log')
     if ($LASTEXITCODE -ne 0) { throw "Window regression failed: $Dpi" }
-    if(-not ($InteractionOnly -or $EditorOnly -or $GeneralOnly -or $SurfacesOnly -or $SettingsSessionOnly -or $FeedbackOnly -or $AuditUiOnly)){
+    if(-not ($InteractionOnly -or $EditorOnly -or $GeneralOnly -or $SurfacesOnly -or $SettingsSessionOnly -or $FeedbackOnly -or $AuditUiOnly -or $InputFocusOnly)){
         & $Node "$PSScriptRoot\focus-tests.cjs" $RunDirectory | Tee-Object -FilePath (Join-Path $RunDirectory 'focus.log')
         if ($LASTEXITCODE -ne 0) { throw "Focus script regression failed: $Dpi" }
     }
@@ -62,6 +64,7 @@ if($GeneralOnly){Write-Output "Focused general settings evidence: $OutputDirecto
 if($SurfacesOnly){Write-Output "Surface review evidence: $OutputDirectory";return}
 if($SettingsSessionOnly){Write-Output "Settings session evidence: $OutputDirectory";return}
 if($FeedbackOnly){Write-Output "Feedback evidence: $OutputDirectory";return}
+if($InputFocusOnly){Write-Output "Input focus evidence: $OutputDirectory";return}
 if($AuditUiOnly){Write-Output "Audit UI evidence: $OutputDirectory";return}
 & (Join-Path $PSScriptRoot 'run-boundary-tests.ps1') -OutputDirectory (Join-Path $OutputDirectory 'boundary')
 Write-Output "Test evidence: $OutputDirectory"

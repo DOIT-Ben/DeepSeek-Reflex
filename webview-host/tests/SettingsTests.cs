@@ -622,6 +622,59 @@ internal static class SettingsTests {
   ChatModes.Reset();
  }
  static int SessionToggleKeys {get{return (int)(Keys.Control|Keys.F20);}}
+ static void TestInputFocus(string directory) {
+  var previous=PanelTheme.Mode;
+  try {
+   foreach(var theme in new[]{UiTheme.Light,UiTheme.Dark})foreach(float dpi in new[]{1f,1.5f,2f}) {
+    PanelTheme.SetMode(theme);string sample=theme+"-"+dpi;
+    Action<TextBox,Control,string> verify=delegate(TextBox field,Control away,string label) {
+     field.Focus();Pump(10);
+     Check(field.Focused&&field.SelectionLength==0,"first field focus never selects existing contents: "+label+sample);
+     var frame=field.Parent as InputPanel;Check(frame!=null&&frame.Accent,"focused field has its shared outline: "+label+sample);
+     field.Select(1,Math.Min(3,field.TextLength-1));int start=field.SelectionStart,length=field.SelectionLength;
+     away.Focus();Pump(10);Check(!frame.Accent&&field.HideSelection,"inactive field hides active focus and selection: "+label+sample);
+     field.Focus();Pump(10);Check(field.SelectionStart==start&&field.SelectionLength==length,"returning focus preserves an intentional selection: "+label+sample);
+     field.SelectAll();Check(field.SelectionLength==field.TextLength,"explicit select-all remains available: "+label+sample);
+    };
+    using(var dialog=new SettingsDialog(WindowSettings.Defaults(),next=>null,null,"commands")) {
+     dialog.Show();Pump(10);dialog.ApplyDpi(dpi,new Rectangle(dialog.Location,new Size((int)(460*dpi),(int)(580*dpi))));
+     Click((Button)Field(dialog,"addCommand"));var name=(TextBox)Field(dialog,"commandName");var body=(TextBox)Field(dialog,"commandBody");var away=(Control)Field(dialog,"close");
+     verify(name,away,"command name ");away.Focus();
+     verify(body,away,"command body ");name.Focus();dialog.SelectNextControl(name,true,true,true,true);Check(body.Focused,"Tab moves command name to body: "+sample);
+     name.Text=new string('字',17);Click((Button)Field(dialog,"saveEntry"));Pump(10);
+     Check(name.Focused&&name.SelectionLength==0&&name.TextLength==17&&((Label)Field(dialog,"nameError")).Text.Length>0,"invalid name keeps its contents without selecting all: "+sample);
+    }
+    using(var dialog=new SettingsDialog(WindowSettings.Defaults(),next=>null,null,"modes")) {
+     dialog.Show();Pump(10);dialog.ApplyDpi(dpi,new Rectangle(dialog.Location,new Size((int)(460*dpi),(int)(660*dpi))));
+     Click((Button)Field(dialog,"addMode"));var name=(TextBox)Field(dialog,"modeName");var body=(TextBox)Field(dialog,"modeBody");var away=(Control)Field(dialog,"close");
+     verify(name,away,"mode name ");verify(body,away,"mode body ");
+     typeof(SettingsDialog).GetMethod("EditBuiltinMode",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(dialog,new object[]{"summarize"});
+     body.Text=new string('字',2001);Click((Button)Field(dialog,"saveModeEntry"));Pump(10);
+     Check(body.Focused&&body.SelectionLength==0&&body.TextLength==2001,"invalid prompt retains contents without selecting all: "+sample);
+     body.Select(2,3);var viewport=(Panel)Field(dialog,"body");viewport.ScrollControlIntoView(body.Parent);var scroll=viewport.AutoScrollPosition;
+     dialog.SuspendForToggle();dialog.RestoreAfterToggle(null);Pump(50);
+     Check(body.Focused&&body.SelectionStart==2&&body.SelectionLength==3&&viewport.AutoScrollPosition==scroll,"restoring settings retains selection and scroll: "+sample);
+     Check(name.ReadOnly,"builtin name remains readonly: "+sample);name.Focus();name.SelectAll();Check(name.SelectedText==name.Text,"readonly name can still be selected for copying: "+sample);
+    }
+    using(var dialog=new SettingsDialog(WindowSettings.Defaults(),next=>null)) {
+     dialog.Show();Pump(10);var toggle=(HotkeyBox)Field(dialog,"toggle");var capture=(HotkeyBox)Field(dialog,"capture");toggle.Focus();Pump(10);
+     Check(toggle.Recording&&toggle.SelectionLength==0,"shortcut recording has no automatic text selection: "+sample);
+     dialog.SelectNextControl(toggle,true,true,true,true);Pump(10);Check(!toggle.Recording&&capture.Focused&&capture.Recording&&capture.SelectionLength==0,"Tab transfers shortcut recording without selecting text: "+sample);
+     Native.SendMessage(capture.Handle,0x100,new IntPtr(27),IntPtr.Zero);Pump(10);Check(!capture.Recording&&!dialog.ShortcutEntryFocused&&dialog.Visible,"Escape exits shortcut recording without closing settings: "+sample);
+    }
+    Preferences.Write("feedback-contact","fixture@example.invalid");
+    using(var dialog=new FeedbackDialog(json=>"isolated")) {
+     dialog.Show();Pump(10);dialog.ApplyDpi(dpi,new Rectangle(dialog.Location,new Size((int)(420*dpi),(int)(408*dpi))));
+     var body=(TextBox)Field(dialog,"body");var contact=(TextBox)Field(dialog,"contact");var away=(Control)Field(dialog,"close");
+     body.Text="feedback fixture";verify(contact,away,"remembered contact ");verify(body,away,"feedback body ");
+     body.Focus();dialog.SelectNextControl(body,true,true,true,true);Check(contact.Focused,"Tab moves feedback body to contact: "+sample);
+     body.Focus();body.Select(1,3);System.Threading.SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());Click((Button)Field(dialog,"send"));
+     for(int i=0;i<100&&!((LinkLabel)Field(dialog,"issueLink")).Visible;i++)Pump(10);
+     Check(((LinkLabel)Field(dialog,"issueLink")).Visible&&body.Text=="feedback fixture"&&body.SelectionStart==1&&body.SelectionLength==3,"failed feedback retains draft and intentional selection: "+sample);
+    }
+   }
+  }finally{PanelTheme.SetMode(previous);Preferences.Write("feedback-contact","");}
+ }
  static void TestAuditUi(string directory) {
   var failures=new List<string>();
   Action<string,Action> run=delegate(string name,Action action){try{action();Check(true,name);}catch(Exception error){failures.Add(name);Console.WriteLine("FAIL "+name+": "+error.GetType().Name);}};
@@ -879,6 +932,7 @@ internal static class SettingsTests {
    Application.EnableVisualStyles();
    var root=Path.Combine(args[0],"test-preferences-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
    typeof(Preferences).GetField("Root",BindingFlags.NonPublic|BindingFlags.Static).SetValue(null,root);
+   if(args.Contains("--input-focus-only")){GettingStarted.Acknowledge();TestInputFocus(args[0]);Console.WriteLine("TOTAL "+passed+" input focus checks");return;}
    if(args.Contains("--audit-ui-only")){GettingStarted.Acknowledge();TestAuditUi(args[0]);Console.WriteLine("TOTAL "+passed+" audit UI checks");return;}
    if(args.Contains("--feedback-only")){TestFeedback(args[0]);TestFeedbackLayout(args[0]);Console.WriteLine("TOTAL "+passed+" feedback checks");return;}
    if(args.Contains("--settings-session-only")){GettingStarted.Acknowledge();TestSettingsSession(args[0]);Console.WriteLine("TOTAL "+passed+" settings session checks");return;}
@@ -1143,6 +1197,7 @@ internal static class SettingsTests {
    TestEditorLayout(args[0]);
    TestGeneralLayout(args[0]);
    TestSettingsSession(args[0]);
+   TestInputFocus(args[0]);
    TestAuditUi(args[0]);
    using(var window=new ChatWindow(new[]{"--background"})) {
     var method=typeof(ChatWindow).GetMethod("BuildMenu",BindingFlags.Instance|BindingFlags.NonPublic);var menu=(ContextMenuStrip)method.Invoke(window,null);

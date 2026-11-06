@@ -73,3 +73,11 @@ pwsh -NoProfile -File .\webview-host\tests\run-boundary-tests.ps1 -WakeOnly
 `run-boundary-tests.ps1 -DpiOnly` 先把窗口稳定在目标显示器并同步真实 DPI，再注入模拟消息。检查仍要求精确的 150% 缩放、负坐标和建议宽高，不与同一次移动触发的真实 DPI 消息竞争。真实跨屏 DPI 另由 WakeOnly 验证。
 
 v1.0.17 发布前在临时源码副本禁用 `WM_DPICHANGED` 处理分支，确认该专项在预期断言失败；原源码不参与变异修改。负例和完整门禁结果见 [发布验证](../../docs/testing/1.0.17-release.md)。
+
+## 所有原生输入控件的焦点与选区
+
+```powershell
+pwsh -NoProfile -File .\webview-host\tests\run-tests.ps1 -InputFocusOnly -OutputDirectory <本次证据目录>
+```
+
+普通／高 DPI 两套运行六个普通字段和两个快捷键字段，覆盖浅深主题、三档几何、首次聚焦、主动选区、失焦样式、Tab／Esc、校验失败、发送失败和设置隐藏恢复。夹具使用隔离偏好，不发送全局组合键或真实反馈。该专项也随完整原生入口运行；CI 的无桌面核心检查与本地原生结果分开记录。
