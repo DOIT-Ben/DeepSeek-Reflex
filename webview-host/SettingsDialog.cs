@@ -66,6 +66,7 @@ namespace DeepSeekFloat {
         private SmoothFrame smoothFrame;
         private bool arranging;
         private bool closingApproved;
+        private bool initialPlacementDone;
         private Control rememberedFocus;
         private Point rememberedScroll;
         private int rememberedSelectionStart,rememberedSelectionLength;
@@ -98,7 +99,7 @@ namespace DeepSeekFloat {
             toggle.AccessibleName="唤出 / 收起快捷键";capture.AccessibleName="选中文字取词快捷键";
             using(var graphics=Graphics.FromHwnd(IntPtr.Zero))scale=graphics.DpiX/96f;
             Text="DeepSeek-Reflex 设置";Font=PanelTheme.CompactFont();BackColor=PanelTheme.Back;ForeColor=PanelTheme.Ink;DoubleBuffered=true;
-            FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;MinimizeBox=false;ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;
+            FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;MinimizeBox=false;ShowInTaskbar=false;StartPosition=FormStartPosition.Manual;
             AutoScaleMode=AutoScaleMode.None;ClientSize=new Size(S(460),S(DialogHeight()));Padding=Padding.Empty;
             Controls.Add(surface);
             heading=LabelAt(surface,"小窗设置",20,14,292,28,PanelTheme.HeadingSize,true);
@@ -190,9 +191,14 @@ namespace DeepSeekFloat {
                 ShowGeneralPage();
             };
             Shown+=delegate {
-                var area=Screen.FromControl(this).WorkingArea;
-                Bounds=FitBounds(Bounds,area,scale);Arrange();
+                if(initialPlacementDone)return;
+                initialPlacementDone=true;
+                PositionAtOwner();Arrange();
                 close.Focus();
+                // Moving to the owner's monitor can deliver WM_DPICHANGED.
+                // Center again with the settled physical size, only on first open.
+                int version=sessionRestoreVersion;
+                if(Owner!=null)BeginInvoke(new Action(delegate{if(!IsDisposed&&Visible&&version==sessionRestoreVersion)PositionAtOwner();}));
             };
             body.Layout+=delegate{ArrangeContent();};surface.Resize+=delegate{Arrange();};
             Controls.Add(frame);smoothFrame=new SmoothFrame(this,scale,delegate{frame.UpdateShape(this,scale,smoothFrame.Ready);},false);
@@ -499,6 +505,14 @@ namespace DeepSeekFloat {
             Arrange();
         }
         // ----- shared layout -----
+        private void PositionAtOwner() {
+            var owner=Owner;
+            // A minimized owner's native Bounds are its off-screen icon slot.
+            var ownerBounds=owner==null?Bounds:owner.WindowState==FormWindowState.Minimized?owner.RestoreBounds:owner.Bounds;
+            var area=Screen.FromRectangle(ownerBounds).WorkingArea;
+            var requested=owner==null?Bounds:new Rectangle(ownerBounds.Left+(ownerBounds.Width-Width)/2,ownerBounds.Top+(ownerBounds.Height-Height)/2,Width,Height);
+            Bounds=FitBounds(requested,area,scale);
+        }
         internal static Rectangle FitBounds(Rectangle bounds,Rectangle area,float dpiScale) {
             int margin=Math.Min((int)Math.Round(12*dpiScale),Math.Min(area.Width,area.Height)/4);
             int width=Math.Min(bounds.Width,area.Width-margin*2),height=Math.Min(bounds.Height,area.Height-margin*2);

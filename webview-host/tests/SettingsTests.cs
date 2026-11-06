@@ -677,7 +677,42 @@ internal static class SettingsTests {
  }
  static void TestAuditUi(string directory) {
   var failures=new List<string>();
-  Action<string,Action> run=delegate(string name,Action action){try{action();Check(true,name);}catch(Exception error){failures.Add(name);Console.WriteLine("FAIL "+name+": "+error.GetType().Name);}};
+  Action<string,Action> run=delegate(string name,Action action){try{action();Check(true,name);}catch(Exception error){failures.Add(name);Console.WriteLine("FAIL "+name+": "+error.GetType().Name+": "+error.Message);}};
+  run("settings first open follows owner and restored sessions preserve manual placement",delegate{
+   foreach(var screen in Screen.AllScreens)foreach(var page in new[]{"general","commands","modes"}) {
+    var area=screen.WorkingArea;
+    using(var owner=new Form {StartPosition=FormStartPosition.Manual,Bounds=new Rectangle(area.Right-540,area.Bottom-420,480,360)}) {
+     owner.Show();Pump(30);
+     using(var dialog=new SettingsDialog(WindowSettings.Defaults(),next=>null,null,page=="general"?null:page)) {
+      dialog.Show(owner);Pump(100);
+      var expected=SettingsDialog.FitBounds(new Rectangle(owner.Left+(owner.Width-dialog.Width)/2,owner.Top+(owner.Height-dialog.Height)/2,dialog.Width,dialog.Height),Screen.FromControl(owner).WorkingArea,(float)Field(dialog,"scale"));
+      if(dialog.Bounds!=expected)throw new Exception("First placement differs: "+page+" actual="+dialog.Bounds+" expected="+expected);
+      int expectedWidth=Math.Min((int)Math.Round(460*(float)Field(dialog,"scale")),area.Width-(int)Math.Round(24*(float)Field(dialog,"scale")));
+      if(Math.Abs(dialog.Width-expectedWidth)>1)throw new Exception("Cross-screen logical width changed");
+      var frame=(SmoothFrame)Field(dialog,"smoothFrame");if(!frame.Ready||!frame.Aligned||Native.GetWindow(dialog.Handle,4)!=owner.Handle)throw new Exception("Owned frame lost alignment");
+      dialog.Location=new Point(expected.Left+8,expected.Top+8);var manual=dialog.Bounds;
+      dialog.SuspendForToggle();dialog.RestoreAfterToggle(owner);Pump(60);
+      var fitted=SettingsDialog.FitBounds(manual,Screen.FromControl(dialog).WorkingArea,(float)Field(dialog,"scale"));
+      if(dialog.Bounds!=fitted)throw new Exception("Restore discarded manual placement");
+     }
+     owner.Location=new Point(area.Left+100,area.Top+80);Pump(20);
+     using(var dialog=new SettingsDialog(WindowSettings.Defaults(),next=>null,null,page=="general"?null:page)) {
+      dialog.Show(owner);Pump(100);
+      var expected=SettingsDialog.FitBounds(new Rectangle(owner.Left+(owner.Width-dialog.Width)/2,owner.Top+(owner.Height-dialog.Height)/2,dialog.Width,dialog.Height),Screen.FromControl(owner).WorkingArea,(float)Field(dialog,"scale"));
+      if(dialog.Bounds!=expected)throw new Exception("Reopen ignored owner move: "+page);
+     }
+     if(page=="general") {
+      var restored=owner.Bounds;owner.WindowState=FormWindowState.Minimized;Pump(20);
+      using(var dialog=new SettingsDialog(WindowSettings.Defaults(),next=>null)) {
+       dialog.Owner=owner;Com(dialog,"PositionAtOwner",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.InvokeMethod);
+       var expected=SettingsDialog.FitBounds(new Rectangle(restored.Left+(restored.Width-dialog.Width)/2,restored.Top+(restored.Height-dialog.Height)/2,dialog.Width,dialog.Height),Screen.FromRectangle(restored).WorkingArea,(float)Field(dialog,"scale"));
+       if(dialog.Bounds!=expected)throw new Exception("Minimized owner icon coordinates were used instead of its restored bounds");
+      }
+      owner.WindowState=FormWindowState.Normal;
+     }
+    }
+   }
+  });
   run("editing builtin prompts places the caret at the end without selecting text",delegate{
    using(var dialog=new SettingsDialog(WindowSettings.Defaults(),next=>null,null,"modes")) {
     dialog.Show();Pump(20);

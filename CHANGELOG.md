@@ -2,6 +2,8 @@
 
 ## 1.0.19 — Unreleased (2026-11-06)
 
+- Center newly opened settings on their owner within its monitor work area, settle mixed-DPI placement, and preserve manually placed editing sessions when restored.
+
 - Preserve caret and intentional selections across all native form fields and shortcut recorders, preventing first-focus select-all during Tab navigation, validation and feedback retries. Keep the caret at the end when loading mode or command edits.
 
 - Add custom chat-mode instructions and up to ten custom modes, a shared effective catalog, and per-message mode directives; preserve material and one-shot draft protection when switching modes.

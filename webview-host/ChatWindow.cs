@@ -947,7 +947,7 @@ namespace DeepSeekFloat
                 foreach(var control in new Control[]{browser,status,mode,chatModeButton,selectionBar}){settingsControlStates[control]=control.Enabled;control.Enabled=false;}
                 dialog.ShortcutEntryChanged+=delegate(bool recording){UpdateSettingsHotkeys(recording);};
                 dialog.FormClosed+=delegate{FinishSettingsSession(dialog);dialog.Dispose();};
-                UpdateSettingsHotkeys(false);dialog.Show(this);dialog.StartPosition=FormStartPosition.Manual;
+                UpdateSettingsHotkeys(false);dialog.Show(this);
             }
             catch {
                 var failed=activeSettings;FinishSettingsSession(failed);if(failed!=null)failed.Dispose();throw;
