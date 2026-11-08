@@ -29,8 +29,8 @@ if(!state){
  state.adopt=(e,text)=>{const end=text.indexOf('\n',Math.max(0,text.search(/\S/)));state.marker=null;state.oneShot={element:e,url:location.href,header:end<0?text:text.slice(0,end)};};
  state.apply=()=>{
   if(state.suspended||state.writing||state.composing)return 'busy';
-  // ADR-0005: plain chat also carries its directive once there is real
-  // material; only a truly empty composer skips all work.
+  // ADR-0005 (amended 2026-11-08): plain chat injects nothing; an empty
+  // composer without an owned task prefix has nothing to strip or add.
   if(state.mode==='normal'&&!state.marker){const current=editor();if(!current||!read(current).trim())return 'ready';}
   const e=editor();if(!e)return 'no-editor';
   if(e.tagName!=='TEXTAREA')return 'unsupported-editor';

@@ -223,7 +223,7 @@ window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true
     run("enter('hello');document.querySelector('#send').click();enter('world');document.querySelector('#chat-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));");
     Check(run("sent.length===2&&sent.every(x=>x.startsWith('【当前模式：翻译模式】')&&x.includes('请翻译')&&x.split('待处理内容：').length===2)&&sent[0].endsWith('hello')&&sent[1].endsWith('world')")=="true","real WebView mouse and Enter submit consecutive messages with one prefix each");
     run("enter('keep my draft');");run(ChatModeInjector.Script("explain"));run(ChatModeInjector.Script("normal"));
-    Check(run("document.querySelector('#chat-input').value==="+PromptInserter.Json(ChatModes.Prefix(ChatModes.Find("normal"))+"keep my draft")+"&&document.querySelector('#edit-history').value==='HISTORY'")=="true","real WebView preserves material on mode switch under the plain-chat directive and does not mutate history editors");
+    Check(run("document.querySelector('#chat-input').value==='keep my draft'&&document.querySelector('#edit-history').value==='HISTORY'")=="true","real WebView sends plain-chat material as typed after switching away from a task mode and does not mutate history editors");
     run(ChatModeInjector.Script("translate"));run("enter('');");
     Check(run(PromptInserter.Script("ONE SHOT SELECTION",null))=="\"ambiguous\"","one-shot fill still rejects an unrelated second visible editor");
     run("document.querySelector('#edit-history').hidden=true;");
@@ -271,8 +271,7 @@ window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true
     Check(run("document.querySelector('#chat-input').value.includes('请翻译')&&document.querySelector('#chat-input').value.endsWith('after one-shot')")=="true","persistent mode resumes on the next ordinary input after explicit fixture sending");
     run("sent=[];enter('');");
     material.mode="normal";material.text="\nNormal material with leading newline";
-    string normalExpected=ChatModes.Prefix(ChatModes.Find("normal"))+material.text;
-    Check(stage(material).Status=="filled"&&run("document.querySelector('#chat-input').value==="+PromptInserter.Json(normalExpected))=="true","normal-mode bridge keeps leading newline material under the plain-chat directive");
+    Check(stage(material).Status=="filled"&&run("document.querySelector('#chat-input').value==="+PromptInserter.Json(material.text))=="true","normal-mode bridge keeps the leading-newline material raw without any header");
     run("enter('');enter('next after normal one-shot');");
     Check(run("document.querySelector('#chat-input').value.includes('请翻译')")=="true","clearing a leading-newline one-shot restores persistent mode");
     run("enter('');");
@@ -307,7 +306,7 @@ window.enter=text=>{e.value=text;e.dispatchEvent(new Event('input',{bubbles:true
     navigation=new System.Threading.Tasks.TaskCompletionSource<bool>();view.CoreWebView2.Reload();Wait(navigation.Task);
     Check(navigation.Task.Result&&run("window.__deepSeekFloatChatMode.mode")=="\"translate\"","production host reapplies the chosen chat mode after reload");
     Wait((System.Threading.Tasks.Task)Call(window,"SwitchChatMode","normal"));run("enter('raw message');document.querySelector('#send').click();");
-    Check(run("sent[0]==="+PromptInserter.Json(ChatModes.Prefix(ChatModes.Find("normal"))+"raw message"))=="true","production ordinary mode opens with the plain-chat directive and keeps the material intact");Close(window);
+    Check(run("sent[0]==='raw message'")=="true","production ordinary mode sends the typed message untouched without any directive");Close(window);
    }
   }
   [STAThread] static int Main(string[] args){
