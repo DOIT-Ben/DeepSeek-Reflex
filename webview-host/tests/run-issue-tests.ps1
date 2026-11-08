@@ -29,7 +29,7 @@ $sources+=@($isolatedSource,(Join-Path $PSScriptRoot 'IssueRegressionTests.cs'))
 $main='DeepSeekFloat.IssueRegressionTests'
 if($Case -eq 'Regression'){$sources+=Join-Path $PSScriptRoot 'SettingsTests.cs';$main='DeepSeekFloat.SettingsTests'}
 $framework=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319'
-$refs=@('/reference:System.dll','/reference:System.Core.dll','/reference:System.Drawing.dll','/reference:System.Windows.Forms.dll','/reference:System.Runtime.Serialization.dll')
+$refs=@('/reference:System.dll','/reference:System.Core.dll','/reference:System.Drawing.dll','/reference:System.Windows.Forms.dll','/reference:System.IO.Compression.dll','/reference:System.IO.Compression.FileSystem.dll','/reference:System.Runtime.Serialization.dll')
 foreach($name in @('UIAutomationClient.dll','UIAutomationTypes.dll','WindowsBase.dll')){$refs+='/reference:'+(Join-Path $framework ('WPF/'+$name))}
 foreach($name in @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll')){
     $path=Join-Path $hostSources ('vendor/WebView2/lib/net462/'+$name)

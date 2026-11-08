@@ -6,7 +6,7 @@ $Framework=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
 $Compiler=Join-Path $Framework 'csc.exe'
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $OutputDirectory=[IO.Path]::GetFullPath($OutputDirectory)
-$References=@('/reference:System.dll','/reference:System.Core.dll','/reference:System.Drawing.dll','/reference:System.Windows.Forms.dll','/reference:System.Runtime.Serialization.dll')
+$References=@('/reference:System.dll','/reference:System.Core.dll','/reference:System.Drawing.dll','/reference:System.Windows.Forms.dll','/reference:System.IO.Compression.dll','/reference:System.IO.Compression.FileSystem.dll','/reference:System.Runtime.Serialization.dll')
 foreach($Name in @('UIAutomationClient.dll','UIAutomationTypes.dll','WindowsBase.dll')){$References+="/reference:$Framework\WPF\$Name"}
 $ClipboardExe=Join-Path $OutputDirectory 'ClipboardBoundary.exe'
 $SavedLib=$env:LIB

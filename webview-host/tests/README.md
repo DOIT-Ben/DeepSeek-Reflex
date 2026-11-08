@@ -1,5 +1,19 @@
 # 回归检查
 
+更新器专项（ADR-0006）：
+
+```powershell
+pwsh -NoProfile -File .\webview-host\tests\run-update-tests.ps1 -OutputDirectory <新的隔离目录>
+pwsh -NoProfile -File .\webview-host\tests\run-update-ui-tests.ps1 -OutputDirectory <新的隔离目录>
+pwsh -NoProfile -File .\webview-host\tests\run-update-tests.ps1 -Live -OutputDirectory <新的联网证据目录>
+```
+
+第一项使用独立 mutex、带版本的 fixture 程序、真实子进程、文件锁和专属 HKCU 临时键，验证下载边界、原子安装、失败回退、竞争启动及强制终止后的恢复，不访问个人安装或资料。`-NegativeStartupRace` 保留旧启动检查变体，应失败。
+
+第二项覆盖协调器状态、设置草稿、真实自有 HWND 与基础 WebView 离线页面、浅深主题和 100%/150%/200% 几何；不发送全局键鼠。`-NegativeDraft` 恢复旧草稿脚本，应在纯空白草稿断言失败。基础 WebView DOM 证据不等同于完整 WinForms 浏览器控件初始化。
+
+`-Live` 使用应用的无凭据网络路径，只检查、下载及验证当前官方包，不安装。限流是失败，不算跳过后通过。`-Live -MetadataFile <文件>` 仅用于 QA 官方元数据快照＋真实包下载的分层诊断，不能冒充无凭据检查成功。个人配置和登录资料不进入测试产物或发行包。
+
 在项目根目录使用 PowerShell 7：
 
 ```powershell

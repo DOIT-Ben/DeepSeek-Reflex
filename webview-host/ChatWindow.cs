@@ -98,6 +98,10 @@ namespace DeepSeekFloat
         private bool updatingChoice;
         private bool capturing, inserting, settingsOpen, pendingComposerFocus,layingOut,guideOpen,guideQueued;
         private SettingsDialog activeSettings;
+        private UpdateCoordinator updater;
+        private UpdateDialog updateDialog;
+        private bool updatePreparing;
+        private readonly Dictionary<Control,bool> updateControlStates=new Dictionary<Control,bool>();
         private bool settingsGroupHidden;
         private readonly Dictionary<Control,bool> settingsControlStates=new Dictionary<Control,bool>();
         private int focusVersion;
@@ -264,8 +268,9 @@ namespace DeepSeekFloat
                 }
                 WriteHealth();
             };
-            Shown += delegate { if(!background){if(!startupPositioned){startupPositioned=true;PositionForWake(startupTarget);}RequestComposerFocus();}QueueIntroduction(); };
+            Shown += delegate { if(!background){if(!startupPositioned){startupPositioned=true;PositionForWake(startupTarget);}RequestComposerFocus();}QueueIntroduction();StartUpdateChecks(); };
             FormClosing += delegate(object sender,FormClosingEventArgs e) {
+                if(updatePreparing&&!quitting){e.Cancel=true;return;}
                 if (!quitting && e.CloseReason == CloseReason.UserClosing) { e.Cancel=true;if(activeSettings!=null)HideSettingsGroup(true);else Hide();WriteHealth(); }
                 else SaveBounds();
             };
@@ -297,7 +302,7 @@ namespace DeepSeekFloat
         }
         // Edge-dock controller hooks; kept internal for the controller and tests.
         internal WindowSettings Settings {get{return settings;}}
-        internal bool ModalOpen {get{return settingsOpen||guideOpen;}}
+        internal bool ModalOpen {get{return settingsOpen||guideOpen||updatePreparing;}}
         internal float DockScale {get{return dpiScale;}}
         internal Icon AppIcon {get{return Icon;}}
         internal void WakeFromDock() {
@@ -383,7 +388,7 @@ namespace DeepSeekFloat
             capturing=true;
             try {
                 var result=await SelectionCapture.CaptureAsync(source);
-                if(resourcesDisposed || quitting || IsDisposed || settingsOpen || guideOpen) return;
+                if(resourcesDisposed || quitting || IsDisposed || ModalOpen) return;
                 await PresentSelectionAt(result,target);
             } catch(Exception) { failed=!resourcesDisposed; }
             finally { capturing=false; }
@@ -398,7 +403,7 @@ namespace DeepSeekFloat
         }
         private async Task PresentSelectionAt(SelectionResult result,WakeTarget target)
         {
-            if(resourcesDisposed||quitting||IsDisposed||settingsOpen||guideOpen)return;
+            if(resourcesDisposed||quitting||IsDisposed||ModalOpen)return;
             selectionVersion++;
             selectedText=result.Text;
             // Failed captures keep the user's foreground: the window appears
@@ -480,7 +485,7 @@ namespace DeepSeekFloat
         }
         private async Task FillSelection()
         {
-            if(selectedText==null || inserting || resourcesDisposed || settingsOpen || guideOpen) return;
+            if(selectedText==null || inserting || resourcesDisposed || ModalOpen) return;
             inserting=true;
             int version=selectionVersion, length=selectedText.Length;
             string prompt=ComposeSelection();
@@ -586,14 +591,14 @@ namespace DeepSeekFloat
             if(edgeDock!=null&&edgeDock.Docked)edgeDock.Restore();
             wakeVersion++;
             startupPositioned=true;
-            if(!settingsOpen&&!guideOpen)PositionForWake(target);
+            if(!ModalOpen)PositionForWake(target);
             allowShow = true;
             showWithoutActivation=!activate;
             Show();
             showWithoutActivation=false;
             if(!activate)Native.SetWindowPos(Handle,IntPtr.Zero,0,0,0,0,0x53); // top of z-order, no activation
             if (WindowState == FormWindowState.Minimized) WindowState=restoreState;
-            if(settingsOpen||guideOpen) {
+            if(ModalOpen) {
                 var dialog=OwnedForms.FirstOrDefault(f=>f is SettingsDialog||f is GettingStartedDialog);
                 if(dialog!=null){if(!dialog.Visible)dialog.Show(this);if(dialog.WindowState==FormWindowState.Minimized)dialog.WindowState=FormWindowState.Normal;dialog.Activate();}
                 return;
@@ -604,6 +609,7 @@ namespace DeepSeekFloat
         }
         private void ToggleWindow()
         {
+            if(updatePreparing)return;
             var target=captureWakeTarget();
             if(activeSettings!=null){if(settingsGroupHidden||!Visible||WindowState==FormWindowState.Minimized)RestoreSettingsGroup();else HideSettingsGroup(settings.HideToTrayOnToggle);return;}
             if(guideOpen){ShowChat();return;}
@@ -635,7 +641,7 @@ namespace DeepSeekFloat
             if(state==FormWindowState.Maximized)WindowState=state;
             restoreState=state;SaveBounds();
             if(placement!=null&&IsHandleCreated)BeginInvoke(new Action(delegate{
-                if(resourcesDisposed||quitting||version!=wakeVersion||!Visible||settingsOpen||guideOpen||WindowState!=FormWindowState.Normal)return;
+                if(resourcesDisposed||quitting||version!=wakeVersion||!Visible||ModalOpen||WindowState!=FormWindowState.Normal)return;
                 // Recenter once after queued native DPI changes, using the real DPI.
                 float actual=WindowDpi.Scale(this);pendingWakePlacement=placement;
                 try{ApplyDpi(actual,placement.Bounds(actual));}finally{pendingWakePlacement=null;}
@@ -688,7 +694,7 @@ namespace DeepSeekFloat
                 if(cancel.IsCancellationRequested||resourcesDisposed||quitting){completion.TrySetResult(R("outcome-unknown"));return;}
                 if(bridgeInFlight){completion.TrySetResult(R("busy"));return;}
                 var target=captureWakeTarget();
-                if(settingsOpen||guideOpen){ShowChatAt(target);completion.TrySetResult(R("busy"));return;}
+                if(ModalOpen){ShowChatAt(target);completion.TrySetResult(R("busy"));return;}
                 var core=browser.CoreWebView2;
                 ShowChatAt(target);
                 if(core==null||initializing||updatingChatMode){completion.TrySetResult(R("loading"));return;}
@@ -941,6 +947,7 @@ namespace DeepSeekFloat
                         if(action=="help")ShowHelp();
                         if(action=="commands")ReloadCommands();
                         if(action=="modes")await ReloadChatModes();
+                        if(action=="updates")ShowUpdates();
                     }));
                 },openPage);
                 activeSettings=dialog;dialog.Icon=Icon;dialog.TopMost=TopMost;
@@ -954,7 +961,7 @@ namespace DeepSeekFloat
             }
         }
         private void UpdateSettingsHotkeys(bool recording) {
-            if(activeSettings==null||resourcesDisposed||quitting)return;
+            if(activeSettings==null||resourcesDisposed||quitting||updatePreparing)return;
             string error=hotkeys.SetAvailability(recording?HotkeyAvailability.None:HotkeyAvailability.ToggleOnly);
             if(error!=null)activeSettings.ShowSessionError(error);
         }
@@ -997,6 +1004,62 @@ namespace DeepSeekFloat
                 if(!resourcesDisposed&&!quitting&&!IsDisposed&&IsHandleCreated){string error=hotkeys.Resume();tips.SetToolTip(more,error??"设置 · 快捷键与窗口");RequestComposerFocus();WriteHealth();}
             }
         }
+        // The window only supplies lifecycle/unsaved checks. Network, package
+        // validation and publication stay in the updater modules.
+        private void EnsureUpdater() {
+            if(updater!=null)return;
+            updater=new UpdateCoordinator(UpdateBlockReason,FreezeForUpdate,delegate{quitting=true;Close();});
+            updater.NewVersion+=delegate(string version){if(resourcesDisposed||quitting)return;tray.ShowBalloonTip(5000,"DeepSeek-Reflex 有新版本","v"+version+" 已发布，点击查看。",ToolTipIcon.Info);};
+            tray.BalloonTipClicked+=delegate{if(!resourcesDisposed&&!quitting)ShowUpdates();};
+        }
+        private async void StartUpdateChecks() {
+            // Existing source-based regression executables never contact the
+            // public feed. The actual branded application is the only caller.
+            if(!string.Equals(Path.GetFileName(System.Reflection.Assembly.GetEntryAssembly().Location),"DeepSeek-Reflex.exe",StringComparison.OrdinalIgnoreCase))return;
+            EnsureUpdater();string result=UpdateCoordinator.LastResult(AppDomain.CurrentDomain.BaseDirectory);
+            if(result!=null)tray.ShowBalloonTip(5000,"DeepSeek-Reflex 更新结果",result,ToolTipIcon.Info);
+            await Task.Delay(2500);if(resourcesDisposed||quitting)return;await updater.CheckAsync(true);
+        }
+        private void ShowUpdates() {
+            if(resourcesDisposed||quitting||updatePreparing)return;EnsureUpdater();
+            if(updateDialog!=null&&!updateDialog.IsDisposed){updateDialog.Show();updateDialog.Activate();return;}
+            if(edgeDock!=null&&edgeDock.Docked)edgeDock.Restore();
+            allowShow=true;Show();if(WindowState==FormWindowState.Minimized)WindowState=restoreState;
+            var dialog=new UpdateDialog(updater){Icon=Icon,TopMost=TopMost};updateDialog=dialog;
+            dialog.FormClosed+=delegate{if(updateDialog==dialog)updateDialog=null;dialog.Dispose();};dialog.Show(this);
+        }
+        internal const string UpdateDraftScript=@"(()=>{
+if(location.origin!=='https://chat.deepseek.com'||document.readyState!=='complete')return 'unknown';
+const editors=Array.from(document.querySelectorAll('textarea,[contenteditable=true]')).filter(e=>!e.disabled&&!e.readOnly&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden');
+if(editors.length!==1)return 'unknown';
+return String(editors[0].value===undefined?editors[0].textContent:editors[0].value).length>0?'dirty':'clean';})()";
+        private async Task<string> UpdateBlockReason() {
+            if(resourcesDisposed||quitting)return "程序正在退出，请重新打开后更新。";
+            if(activeSettings!=null){string reason=activeSettings.UpdateBlockReason;if(reason!=null)return reason;}
+            if(guideOpen||OwnedForms.Any(f=>!f.IsDisposed&&!(f is CornerSurface)&&f!=activeSettings&&f!=updateDialog))return "请先关闭帮助、反馈或登录等其它窗口，再安装更新。";
+            if(bridgeInFlight||inserting||capturing||initializing||updatingChatMode)return "当前操作尚未完成，请稍后安装更新。";
+            if(!string.IsNullOrEmpty(selectedText)&&selectionBar.Visible)return "取词栏还有未处理的文字，请先处理或关闭取词栏。";
+            return await ProbeUpdateDraft(browser.CoreWebView2);
+        }
+        internal static async Task<string> ProbeUpdateDraft(CoreWebView2 core) {
+            if(core==null)return "聊天页面尚未就绪，无法确认未保存内容，请稍后重试。";
+            try {
+                string draft=(await core.ExecuteScriptAsync(UpdateDraftScript)).Trim('"');
+                if(draft=="dirty")return "聊天输入框有未发送内容，请先发送或清空，再安装更新。";
+                return draft=="clean"?null:"无法确认聊天草稿，请先回到 DeepSeek 聊天页，待页面就绪后重试。";
+            }catch(Exception){return "无法确认聊天草稿，请待页面就绪后重试。";}
+        }
+        private void FreezeForUpdate(bool value) {
+            if(resourcesDisposed)return;updatePreparing=value;focusVersion++;pendingComposerFocus=false;selectionVersion++;wakeVersion++;pendingWakePlacement=null;
+            if(value) {
+                CloseOpenMenus();foreach(var control in new Control[]{browser,chrome,status,selectionBar,activeSettings})if(control!=null){updateControlStates[control]=control.Enabled;control.Enabled=false;}
+                if(contextMenu!=null)contextMenu.Enabled=false;hotkeys.Suspend();
+            } else {
+                foreach(var item in updateControlStates)if(!item.Key.IsDisposed)item.Key.Enabled=item.Value;updateControlStates.Clear();if(contextMenu!=null)contextMenu.Enabled=true;
+                string failure=hotkeys.SetAvailability(activeSettings==null?HotkeyAvailability.All:activeSettings.ShortcutEntryFocused?HotkeyAvailability.None:HotkeyAvailability.ToggleOnly);
+                if(failure!=null){status.Text=failure;status.Show();}
+            }
+        }
         private void RequestComposerFocus()
         {
             focusVersion++;pendingComposerFocus=settings.FocusOnOpen;
@@ -1006,7 +1069,7 @@ namespace DeepSeekFloat
         {
             if(browser.CoreWebView2==null) { health.composerFocus="loading";return; }
             health.composerFocus=await ComposerFocus.TryFocusAsync(browser.CoreWebView2,delegate {
-                return !resourcesDisposed&&!quitting&&!settingsOpen&&!guideOpen&&settings.FocusOnOpen&&version==focusVersion&&Visible&&WindowState!=FormWindowState.Minimized&&Native.GetForegroundWindow()==Handle;
+                return !resourcesDisposed&&!quitting&&!ModalOpen&&settings.FocusOnOpen&&version==focusVersion&&Visible&&WindowState!=FormWindowState.Minimized&&Native.GetForegroundWindow()==Handle;
             });
             if(version==focusVersion)pendingComposerFocus=false;
             WriteHealth();
@@ -1021,7 +1084,8 @@ namespace DeepSeekFloat
             menu.AddDivider();
             menu.AddAction("设置",delegate { BeginInvoke(new Action(ShowSettings)); });
             menu.AddAction("反馈",delegate { BeginInvoke(new Action(ShowFeedback)); });
-            menu.AddAction("退出",delegate { BeginInvoke(new Action(delegate { quitting=true;Close(); })); });
+            menu.AddAction("检查更新",delegate { BeginInvoke(new Action(ShowUpdates)); });
+            menu.AddAction("退出",delegate { BeginInvoke(new Action(delegate { if(updatePreparing)return;quitting=true;Close(); })); });
             menu.Opening+=delegate { pinItem.Text=pinned?"取消置顶":"置顶窗口"; };
             contextMenu=menu;return menu;
         }
@@ -1240,6 +1304,7 @@ namespace DeepSeekFloat
             // Let Windows commit it (including Snap previews) before following
             // the resulting move / size events. Applying it here competes with
             // the native move loop and also lays out uncommitted proposals.
+            if(updatePreparing&&(m.Msg==0x10||m.Msg==0x312||m.Msg==Native.OpenMessage))return;
             if(m.Msg==0x10 && !quitting) { if(activeSettings!=null)HideSettingsGroup(true);else Hide();WriteHealth();return; }
             if(m.Msg==0x84 && WindowState==FormWindowState.Normal)
             {
@@ -1266,6 +1331,7 @@ namespace DeepSeekFloat
         {
             if(disposing && !resourcesDisposed) {
                 resourcesDisposed=true;
+                if(updater!=null)updater.Dispose();if(updateDialog!=null){updateDialog.Dispose();updateDialog=null;}
                 if(activeSettings!=null){activeSettings.Dispose();activeSettings=null;}settingsOpen=false;settingsControlStates.Clear();
                 DetachMenuMouseHook();
                 Application.RemoveMessageFilter(menuDismissFilter);

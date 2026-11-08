@@ -115,7 +115,7 @@ internal static class SettingsTests {
    PressKey(buttons[1],Keys.End);Check(choices.SelectedIndex==2,"segmented choices support End without moving the panel geometry");
    Check(buttons[0].BackColor==PanelTheme.Back,"segmented choices blend into the page without per-option boxes");
    var dialogScale=(float)Field(dialog,"scale");
-   Check(dialog.ClientSize.Height==(int)Math.Round(664*dialogScale),"general page auto-fits the dialog height");
+   Check(dialog.ClientSize.Height==(int)Math.Round(636*dialogScale),"general page auto-fits the dialog height");
    var themeChoice=(PanelChoices)Field(dialog,"themeChoice");
    Check(themeChoice.SelectedIndex==0&&themeChoice.Controls.OfType<PanelButton>().Count()==3,"theme row defaults to following the system with three choices");
    float scale=(float)Field(dialog,"scale");var body=(Panel)Field(dialog,"body");var footer=(Panel)Field(dialog,"footer");
@@ -918,6 +918,8 @@ internal static class SettingsTests {
      dialog.Show();Application.DoEvents();float originalScale=(float)Field(dialog,"scale");
      dialog.ApplyDpi(targetScale,new Rectangle(dialog.Left,dialog.Top,(int)(460*targetScale),(int)(dialog.Height*targetScale/originalScale)));Application.DoEvents();
      var surface=(Panel)Field(dialog,"surface");string sample=theme+"-"+(int)(targetScale*100);
+     var header=(Label)Field(dialog,"heading");var version=(Label)Field(dialog,"appVersion");var update=(Button)Field(dialog,"checkUpdates");
+     Check(!header.Bounds.IntersectsWith(version.Bounds)&&!version.Bounds.IntersectsWith(update.Bounds),"header version has no overlapping title or update button: "+sample);
      using(var bitmap=new Bitmap(surface.Width,surface.Height)){surface.DrawToBitmap(bitmap,surface.ClientRectangle);bitmap.Save(Path.Combine(directory,"general-"+sample+".png"));}
      foreach(string fieldName in new[]{"toggle","capture"}) {
       var field=(HotkeyBox)Field(dialog,fieldName);var frame=field.Parent;
@@ -1268,7 +1270,7 @@ internal static class SettingsTests {
     var method=typeof(ChatWindow).GetMethod("BuildMenu",BindingFlags.Instance|BindingFlags.NonPublic);var menu=(ContextMenuStrip)method.Invoke(window,null);
     bool same=true;for(int i=0;i<30;i++)same&=Object.ReferenceEquals(menu,method.Invoke(window,null));
     Check(same&&!menu.IsDisposed&&menu.Items[menu.Items.Count-1].Text=="退出","persistent menu lifecycle and deferred exit retained");
-    Check(menu.Items.Cast<ToolStripItem>().Any(i=>i.Text=="设置")&&menu.Items.Cast<ToolStripItem>().Any(i=>i.Text=="反馈")&&menu.Items.Count==6,"compact tray actions plus settings and feedback entries wired");Check(Object.ReferenceEquals(((NotifyIcon)Field(window,"tray")).ContextMenuStrip,menu)&&menu.AutoClose,"real tray icon owns the automatically dismissible menu");
+    Check(menu.Items.Cast<ToolStripItem>().Any(i=>i.Text=="设置")&&menu.Items.Cast<ToolStripItem>().Any(i=>i.Text=="反馈")&&menu.Items.Cast<ToolStripItem>().Any(i=>i.Text=="检查更新")&&menu.Items.Count==7,"compact tray actions plus settings, feedback and update entries wired");Check(Object.ReferenceEquals(((NotifyIcon)Field(window,"tray")).ContextMenuStrip,menu)&&menu.AutoClose,"real tray icon owns the automatically dismissible menu");
     var button=(ChromeButton)Field(window,"mode");Check(button.AccessibleName.Length>0&&button.Text==button.AccessibleName,"size button has accessible name");
     var settingsButton=(ChromeButton)Field(window,"more");Check(settingsButton.Kind=="settings"&&settingsButton.AccessibleName=="设置","titlebar settings icon replaces dropdown trigger");
     var label=(PanelButton)Field(window,"chatModeButton");var minimize=(ChromeButton)Field(window,"minimize");var pin=(ChromeButton)Field(window,"pin");var sizeButton=(ChromeButton)Field(window,"mode");

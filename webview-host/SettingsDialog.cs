@@ -44,6 +44,8 @@ namespace DeepSeekFloat {
         private readonly Label modeInstructionError=new Label {AutoSize=false,BackColor=Color.Transparent,ForeColor=PanelTheme.Error};
         private readonly ChromeButton close=new ChromeButton("close","关闭设置");
         private readonly Label heading;
+        private readonly Label appVersion;
+        private readonly PanelButton checkUpdates;
         private readonly WindowSettings original;
         private static readonly string[][] Examples={
             new[]{"提炼要点","请从下面的材料提炼 3–5 个要点，用简短列表输出，不添加材料中没有的事实。"},
@@ -81,10 +83,10 @@ namespace DeepSeekFloat {
         // Action rows keep >=24 DIP of tail padding inside the scrollable
         // page, so a height-clamped window cuts into padding before it cuts
         // into controls.
-        private const int GeneralContentHeight=520,CommandsContentHeight=436,ModesContentHeight=516;
+        private const int GeneralContentHeight=504,CommandsContentHeight=436,ModesContentHeight=516;
         // Header 52 + content + viewport slack 12 + footer band 80: the dialog
         // is exactly as tall as the active page, so nothing scrolls by default.
-        private int DialogHeight(){return 144+(onCommandsPage?CommandsContentHeight:onModesPage?ModesContentHeight:GeneralContentHeight);}
+        private int DialogHeight(){return (onCommandsPage||onModesPage?144:132)+(onCommandsPage?CommandsContentHeight:onModesPage?ModesContentHeight:GeneralContentHeight);}
         private void ApplyDialogHeight(){
             // During construction no owner has been assigned yet. Asking for
             // Screen.FromControl would create the HWND before ShowDialog can
@@ -124,17 +126,17 @@ namespace DeepSeekFloat {
                 input.Leave+=delegate{if(IsHandleCreated&&!IsDisposed)BeginInvoke(new Action(delegate{if(!IsDisposed&&ShortcutEntryChanged!=null)ShortcutEntryChanged(ShortcutEntryFocused);}));};
                 input.ExitCaptureRequested+=delegate{close.Focus();};
             }
-            var behavior=GeneralSection("窗口行为",148,138);
+            var behavior=GeneralSection("窗口行为",148,130);
             focus.Checked=settings.FocusOnOpen;Place(behavior,focus,0,26,420,32);focus.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             dock.Checked=settings.EdgeDockEnabled;Place(behavior,dock,0,64,420,32);dock.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             tips.SetToolTip(dock,"拖到屏幕左右边缘释放即收纳为标签，点击标签恢复。");
-            hideMode.SelectedIndex=settings.HideToTrayOnToggle?1:0;GeneralChoice(behavior,"收起方式",hideMode,104);
-            var appearance=GeneralSection("外观",302,98);
+            hideMode.SelectedIndex=settings.HideToTrayOnToggle?1:0;GeneralChoice(behavior,"收起方式",hideMode,96);
+            var appearance=GeneralSection("外观",294,98);
             windowMode.SelectedIndex=settings.Mode=="reading"?2:settings.Mode=="compact"?1:0;GeneralChoice(appearance,"窗口尺寸",windowMode,26);
             themeChoice.SelectedIndex=settings.Theme=="dark"?2:settings.Theme=="light"?1:0;GeneralChoice(appearance,"主题",themeChoice,66);
             themeChoice.AccessibleName="界面主题";
             var actions=new Panel {Margin=Padding.Empty,Padding=Padding.Empty,BackColor=PanelTheme.Back};
-            Place(content,actions,0,486,420,PanelTheme.ControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
+            Place(content,actions,0,470,420,PanelTheme.ControlHeight);actions.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
             var refresh=new PanelButton("刷新页面") {Ghost=true};var import=new PanelButton("粘贴导入") {Ghost=true};var help=new PanelButton("使用帮助") {Ghost=true};
             tips.SetToolTip(import,"导入剪贴板中的文字");
             var actionButtons=new[]{refresh,import,help};
@@ -144,13 +146,18 @@ namespace DeepSeekFloat {
             var commands=new PanelButton("快捷指令");commands.Margin=Padding.Empty;commands.AccessibleName="快捷指令管理";
             tips.SetToolTip(commands,"自定义取词栏「更多指令」中的条目");
             commands.Click+=delegate{ShowCommandsPage(true);};
-            var management=GeneralSection("内容与模式",416,54);
+            var management=GeneralSection("内容与模式",408,54);
             Place(management,commands,0,24,206,30);
             var modes=new PanelButton("聊天模式");modes.Margin=Padding.Empty;modes.AccessibleName="聊天模式提示词";
             tips.SetToolTip(modes,"自定义各模式的提示词，或新增自己的模式");
             modes.Click+=delegate{ShowModesPage(true);};
             Place(management,modes,214,24,206,30);
             management.Resize+=delegate{int half=Math.Max(1,(management.ClientSize.Width-S(8))/2);commands.SetBounds(0,S(24),half,S(30));modes.SetBounds(half+S(8),S(24),half,S(30));};
+
+            appVersion=LabelAt(surface,"v"+System.Diagnostics.FileVersionInfo.GetVersionInfo(System.Reflection.Assembly.GetExecutingAssembly().Location).ProductVersion,132,20,92,22,PanelTheme.CaptionSize,false);appVersion.ForeColor=PanelTheme.Muted;
+            checkUpdates=new PanelButton("检查更新") {Ghost=true,AccessibleName="检查正式版本更新",Enabled=quickAction!=null};
+            Place(surface,checkUpdates,310,16,86,28);checkUpdates.Anchor=AnchorStyles.Top|AnchorStyles.Right;
+            checkUpdates.Click+=delegate{if(quickAction!=null)quickAction("updates");};
             var allActions=new[]{refresh,import,help};
             Action arrangeActions=delegate{for(int i=0;i<allActions.Length;i++){int left=actions.Width*i/allActions.Length,right=actions.Width*(i+1)/allActions.Length;allActions[i].SetBounds(left,0,right-left,actions.Height);}};
             actions.Resize+=delegate{arrangeActions();};arrangeActions();
@@ -327,6 +334,18 @@ namespace DeepSeekFloat {
         private void ClearEditor(){commandName.Text="";commandBody.Text="";editorDirty=false;ClearFieldErrors();}
         private void ClearFieldErrors(){nameError.Text="";instructionError.Text="";}
         private bool UnsavedCommands {get{return commandsDirty||editorDirty;}}
+        internal string UpdateBlockReason {
+            get {
+                if(toggle.Recording||capture.Recording)return "请先完成或取消设置中的快捷键录入，再安装更新。";
+                if(UnsavedCommands)return "快捷指令有未保存的修改，请先保存或放弃修改。";
+                if(UnsavedModes)return "聊天模式有未保存的修改，请先保存或放弃修改。";
+                string nextMode=windowMode.SelectedIndex==2?"reading":windowMode.SelectedIndex==1?"compact":"custom";
+                string nextTheme=themeChoice.SelectedIndex==2?"dark":themeChoice.SelectedIndex==1?"light":"auto";
+                if(toggle.Combination!=original.ToggleKeys||capture.Combination!=original.CaptureKeys||focus.Checked!=original.FocusOnOpen||dock.Checked!=original.EdgeDockEnabled||(hideMode.SelectedIndex==1)!=original.HideToTrayOnToggle||nextMode!=original.Mode||nextTheme!=original.Theme)
+                    return "设置有未保存的修改，请先保存或取消设置，再安装更新。";
+                return null;
+            }
+        }
         // ----- modes page -----
         private void BuildModesPage(Action<string> quickAction) {
             var intro=LabelAt(modesPage,"内置模式可改提示词，也可新增自己的模式；普通对话不加任务提示词。",0,0,420,18,PanelTheme.CaptionSize,false);intro.ForeColor=PanelTheme.Muted;
@@ -526,7 +545,11 @@ namespace DeepSeekFloat {
             if(arranging)return;arranging=true;
             try {
                 int width=Math.Max(1,surface.ClientSize.Width-S(40));
-                heading.Width=Math.Max(1,surface.Width-S(76));
+                heading.Width=Math.Min(S(96),Math.Max(1,surface.Width-S(180)));
+                appVersion.Visible=!onCommandsPage&&!onModesPage&&surface.Width>=S(390);
+                checkUpdates.Visible=!onCommandsPage&&!onModesPage;
+                appVersion.SetBounds(S(132),S(20),S(92),S(22));
+                checkUpdates.SetBounds(surface.Width-S(150),S(16),S(86),S(28));
                 close.SetBounds(surface.Width-S(52),S(16),S(32),S(28));
                 // Viewport runs to just above the footer; the old 136 left a
                 // band of dead white between the last row and the buttons.

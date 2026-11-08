@@ -36,6 +36,8 @@ jobs:
         run: |
           ./webview-host/tests/run-boundary-tests.ps1 -CoreOnly
           ./webview-host/tests/run-audit-tests.ps1 -OutputDirectory "$env:RUNNER_TEMP/reflex-audit"
+          ./webview-host/tests/run-update-tests.ps1 -OutputDirectory "$env:RUNNER_TEMP/reflex-updates"
+          ./webview-host/tests/run-signed-feed-tests.ps1 -OutputDirectory "$env:RUNNER_TEMP/reflex-signed-feed"
           ./webview-host/tests/run-bridge-tests.ps1 -OutputDirectory "$env:RUNNER_TEMP/reflex-bridge"
           ./packaging/tests/test-installer-flow.ps1 -Stage Upgrade -OutputDirectory "$env:RUNNER_TEMP/reflex-installer"
       - name: Plugin contract gates

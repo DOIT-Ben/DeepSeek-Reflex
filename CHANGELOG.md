@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.21 — Static-feed preview
+
+- Replace anonymous GitHub API version checks with a signed HTTPS static feed hosted on the existing HK site. Verify RSA/SHA256 signatures, expiry, download origin and persisted version/digest high-water state before accepting an update.
+- Add immutable package publication, atomic feed replacement, publication locking, renewal and route rollback tooling. Preserve existing package validation, installation recovery, settings and login profiles.
+- Keep GitHub Releases as the project announcement page. This preview is distributed through the dedicated static feed; no GitHub Release is created by this change.
+
+## 1.0.20 — Unreleased
+
+- Add a shared settings/tray update entry, daily opt-out version checks, download progress, cancellation and retry, using the fixed official GitHub Releases feed without account credentials.
+- Validate release metadata, asset SHA256, the complete ZIP allowlist, internal hashes and executable branding before offering installation. Never downgrade.
+- Hand off installation to an independent worker with durable backups, an atomic journal, startup barriers and crash recovery. Replace only the established 11 program files; preserve configuration, login profiles, uninstallers and unmanaged files.
+- Block install/restart while settings, shortcut recording, command/mode editors, chat drafts or other owned windows need attention; freeze and recheck immediately before exit.
+- This version is a local preview until separately released. Existing v1.0.19 installations require one manual upgrade to obtain the updater.
+
 ## 1.0.19 — 2026-11-06
 
 - Share owner-centered first placement across settings, feedback, help and login/link windows; normalize creation DPI and prevent repeated popup scaling across monitors.

@@ -40,7 +40,7 @@ $PreviousLib = $env:LIB
 try {
     # This managed build does not use stale machine-wide MSVC library paths.
     $env:LIB = ''
-    & $Compiler /nologo /target:winexe /platform:x64 /optimize+ /warnaserror+ "/out:$Output\DeepSeek-Reflex.exe" "/win32icon:$Root\assets\icon.ico" "/win32manifest:$Root\app.manifest" /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Runtime.Serialization.dll "/reference:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\UIAutomationClient.dll" "/reference:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\UIAutomationTypes.dll" "/reference:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\WindowsBase.dll" "/reference:$Core" "/reference:$Forms" $Sources
+    & $Compiler /nologo /target:winexe /platform:x64 /optimize+ /warnaserror+ "/out:$Output\DeepSeek-Reflex.exe" "/win32icon:$Root\assets\icon.ico" "/win32manifest:$Root\app.manifest" /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll /reference:System.Runtime.Serialization.dll "/reference:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\UIAutomationClient.dll" "/reference:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\UIAutomationTypes.dll" "/reference:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\WindowsBase.dll" "/reference:$Core" "/reference:$Forms" $Sources
 } finally { $env:LIB = $PreviousLib }
 if ($LASTEXITCODE -ne 0) { throw "C# build failed: $LASTEXITCODE" }
 foreach ($File in @($Core,$Forms,(Join-Path $Vendor 'runtimes\win-x64\native\WebView2Loader.dll'))) {

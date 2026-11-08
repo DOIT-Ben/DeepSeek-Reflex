@@ -19,7 +19,7 @@ $Node = (Get-Command $NodePath -ErrorAction Stop).Source
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 & (Join-Path $HostSources 'build.ps1') -Offline
-$Refs = @('/reference:System.dll','/reference:System.Core.dll','/reference:System.Drawing.dll','/reference:System.Windows.Forms.dll','/reference:System.Runtime.Serialization.dll')
+$Refs = @('/reference:System.dll','/reference:System.Core.dll','/reference:System.Drawing.dll','/reference:System.Windows.Forms.dll','/reference:System.IO.Compression.dll','/reference:System.IO.Compression.FileSystem.dll','/reference:System.Runtime.Serialization.dll')
 foreach ($Name in @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll')) {
     $Refs += "/reference:$HostSources\vendor\WebView2\lib\net462\$Name"
 }

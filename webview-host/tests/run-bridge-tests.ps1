@@ -15,7 +15,7 @@ try {
  if(-not $source.Contains($initializer)){throw 'Review changed preference initialization'}
  $literal=ConvertTo-Json -InputObject (Join-Path $OutputDirectory 'preferences') -Compress
  [IO.File]::WriteAllText($preferences,$source.Replace($initializer,'internal static readonly string Root = '+$literal+';'))
- & $Compiler /nologo /target:winexe /platform:x64 /warnaserror+ /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Runtime.Serialization.dll "/out:$TestExe" (Join-Path $SourceRoot 'ReflexBridge.cs') (Join-Path $SourceRoot 'ChatModes.cs') (Join-Path $SourceRoot 'ModeCatalog.cs') $preferences (Join-Path $PSScriptRoot 'BridgeTransportTests.cs')
+ & $Compiler /nologo /target:winexe /platform:x64 /warnaserror+ /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll /reference:System.Runtime.Serialization.dll "/out:$TestExe" (Join-Path $SourceRoot 'ReflexBridge.cs') (Join-Path $SourceRoot 'ChatModes.cs') (Join-Path $SourceRoot 'ModeCatalog.cs') $preferences (Join-Path $PSScriptRoot 'BridgeTransportTests.cs')
  if($LASTEXITCODE -ne 0){throw 'Transport test compilation failed'}
 }finally{$env:LIB=$PriorLib}
 $Script=[IO.Path]::GetFullPath((Join-Path $SourceRoot '../plugins/dsh-reflex/tests/native-transport.mjs'))
