@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.2 — 2026-11-24
+
+为方便 DeepSeek 当日额度用完后继续提问，本次公开版在浮窗标题栏新增国产模型客户端选择入口，支持 DeepSeek、豆包、千问和 Kimi。各客户端分别保留登录状态，重启恢复上次选择。[中文更新说明](docs/releases/1.1.2.md)
+
+- Propagate tray and minimized window state to the active WebView2 controller. Chromium can throttle the hidden site's rendering while chat responses and drafts stay in the same tab.
+
+## 1.1.1 — Lighter tray operation
+
+- Reduce the active website's memory target when the window loses focus or goes into the tray. After a minute out of view, release an untouched chat home page. Keep conversations, drafts and sign-in flows available on wake.
+- Stop monitoring page mutations in ordinary chat mode. Task modes still track editor replacements.
+
+## 1.1.0 — Desktop client switcher
+
+- Switch among DeepSeek, Doubao, Qianwen and Kimi from the title bar. Each website retains its sign-in, and the app restores the last client. Existing DeepSeek profiles are reused in place.
+- Load the selected website on first wake, share the WebView2 browser process, release idle pages and suspend pages holding an unsent draft.
+
 ## 1.0.21 — Static-feed preview
 
 - Replace anonymous GitHub API version checks with a signed HTTPS static feed hosted on the existing HK site. Verify RSA/SHA256 signatures, expiry, download origin and persisted version/digest high-water state before accepting an update.

@@ -5,7 +5,7 @@
 </p>
 
 <h1 align="center">DeepSeek-Reflex</h1>
-<p align="center"><strong>让 DeepSeek 随叫随到。</strong><br>一个轻巧、可置顶、可用全局快捷键唤出的 Windows AI 聊天小窗。</p>
+<p align="center"><strong>用快捷键打开常用的 AI 客户端。</strong><br>一个轻巧、可置顶、可用全局快捷键唤出的 Windows AI 聊天小窗。</p>
 <p align="center">
   <a href="https://github.com/DOIT-Ben/DeepSeek-Reflex/releases"><img src="https://img.shields.io/github/v/release/DOIT-Ben/DeepSeek-Reflex" alt="Release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
@@ -16,7 +16,7 @@
 
 **[下载最新版 →](https://github.com/DOIT-Ben/DeepSeek-Reflex/releases/latest)** · [问题反馈](https://github.com/DOIT-Ben/DeepSeek-Reflex/issues) · [更新记录](CHANGELOG.md)
 
-这是独立的社区开源工具，直接加载 [DeepSeek 官网](https://chat.deepseek.com)，没有与 DeepSeek 官方的隶属或背书关系。
+这是独立的社区开源工具。标题栏可以切换 DeepSeek、豆包、千问和 Kimi，直接打开各自的官方聊天网页。
 
 首次打开有可跳过的使用引导，设置中也能重新查看。版本变化见 [更新记录](CHANGELOG.md)。
 
@@ -27,6 +27,7 @@
 | 随时唤起 | 全局快捷键打开 / 收起同一个聊天窗口，保留当前对话。 |
 | 跟随鼠标所在屏幕 | 换屏唤起时居中；同屏再次唤起沿用上次的位置和大小。 |
 | 置顶陪伴 | 一边看 Word、网页或代码，一边问问题；置顶开关就在标题栏。 |
+| 客户端切换 | 标题栏显示当前客户端。每家分别登录，重启恢复上次选择，原有 DeepSeek 登录资料沿用。 |
 | 正常登录 | 使用官网账号、历史对话和附件功能；不需要单独申请 API Key。收起窗口保留当前网页。 |
 | 选中文字带入 | 用快捷键把文字带入小窗，翻译、解释或继续提问；保留已有草稿，由你确认后发送。 |
 | 持续对话模式 | 切换翻译、解释、理解提问、润色或总结，每条消息自动在输入框中填入对应提示词；随时切回普通对话。 |
@@ -34,7 +35,7 @@
 | 顺手的设置 | 独立面板配置快捷键、收起方式、自动聚焦、尺寸和主题（跟随系统 / 浅色 / 深色）；小屏幕可滚动，保存按钮始终可见。 |
 | 平滑的外框 | 拖动时保留圆角，按钮和开关带有平滑的交互反馈。 |
 
-适合查资料时快速追问、教师备课时解释概念、阅读外文时翻译段落，以及写代码时问一个短问题。官网、模型服务与登录仍需要联网，网站本身的功能和可用性由 DeepSeek 提供。
+适合查资料时快速追问、教师备课时解释概念、阅读外文时翻译段落，以及写代码时问一个短问题。官网、模型服务与登录仍需要联网，网站功能、收费和登录有效期由各服务提供方决定。
 
 ## 临时问题留在小窗，主任务保持专注
 
@@ -105,8 +106,8 @@
 
 | 文件 | 怎么用 |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.17-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
-| `DeepSeek-Reflex-1.0.17-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeek-Reflex.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
+| `DeepSeek-Reflex-1.1.2-Setup-x64.exe` | 双击安装，当前用户安装，无需管理员权限；可选桌面快捷方式、开机驻留托盘，可从 Windows 应用列表卸载。 |
+| `DeepSeek-Reflex-1.1.2-Windows-x64.zip` | 完整解压后运行文件夹里的 `DeepSeek-Reflex.exe`，无需安装；依赖 DLL 必须和 EXE 放在一起。 |
 | `SHA256SUMS.txt` | 对照下载文件的 SHA-256。源码压缩包由 GitHub 自动提供。 |
 
 要求 **Windows 10/11 x64、.NET Framework 4.8、WebView2 Evergreen Runtime**。V1 在 Windows 11 上验证；Windows 10 兼容性尚未逐机验收。安装器会检查运行环境，缺少时提示安装 [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) 或 [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48)。安装包不静默下载其他软件。ARM64 原生版本尚未提供。
@@ -114,7 +115,7 @@
 当前发行包未签名，Windows 可能显示未知发布者提示。签名申请与接入情况见 [签名说明](docs/code-signing.md)。请从本仓库 Releases 下载，并核对哈希：
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.17-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.1.2-Setup-x64.exe -Algorithm SHA256
 ```
 
 升级前先从托盘右键菜单选择 **退出**。卸载保留个人设置和官网登录资料，重新安装可以继续使用。ZIP 也使用同一用户数据目录；它是免安装版本，数据不会跟着 ZIP 文件夹移动。
@@ -124,7 +125,7 @@ Get-FileHash .\DeepSeek-Reflex-1.0.17-Setup-x64.exe -Algorithm SHA256
 
 首次打开或首次更新到带引导的版本时，会出现四步使用说明。可点“跳过”直接进入聊天，完成或跳过后不再自动弹出；设置 → **使用帮助** 可随时重看。后台开机启动不会弹出引导，等主动唤起小窗后才显示。说明里的唤起键、取词键和收起方式来自当前设置。
 
-1. 第一次打开，在窗口中按官网流程登录 DeepSeek。
+1. 点标题栏的客户端名称，选择 DeepSeek、豆包、千问或 Kimi，首次使用时按该官网流程登录。下次切回沿用各自的登录态。
 2. 默认按 **Ctrl+Space** 唤出 / 最小化小窗；设置中可改成“收进托盘”。
 3. 在其他应用选中文字后，按 **Ctrl+Shift+D** 带入小窗；选择翻译、学生解释或理解提问，检查草稿后发送。
 4. 标题栏左侧依次为最小化、置顶、尺寸切换；右侧为设置和收起。关闭或 Alt+F4 收进托盘，托盘菜单的“退出”才结束程序。
@@ -136,7 +137,7 @@ Get-FileHash .\DeepSeek-Reflex-1.0.17-Setup-x64.exe -Algorithm SHA256
 
 ### 持续对话模式
 
-v1.0.19 的模式选择位于标题栏，可选择普通对话、翻译、解释、理解提问、润色或总结。当前草稿和后续消息会显示当前模式声明及相应任务提示词，由你检查后发送；普通对话只附模式声明，不加任务提示词。切换保留原文，所选模式在本机记忆。
+DeepSeek、豆包的持续模式位于客户端名称旁。千问和 Kimi 使用官网原生输入框，也支持快捷键取词。使用持续模式时，可选择普通对话、翻译、解释、理解提问、润色或总结。普通对话直接发送你输入的原文。任务模式会在草稿中显示对应指令，供你检查后发送。切换保留原文，所选模式在本机记忆。
 
 在设置 → **聊天模式** 可修改内置提示词、恢复默认，或新增最多 10 个自定义模式。名称最多 16 字，提示词最多 2000 字；删除正在使用的自定义模式后回到普通对话。
 
@@ -150,8 +151,9 @@ v1.0.19 的模式选择位于标题栏，可选择普通对话、翻译、解释
 
 ## 数据与隐私
 
-- 使用独立 WebView2 profile；不复制普通浏览器的 Cookie、密码或登录资料。
-- 直接访问 `https://chat.deepseek.com`，不反代官网、不替换聊天 API、不额外上传对话到项目服务器。
+- 四个客户端共用 WebView2 浏览器进程，每家有独立的持久资料。托盘冷启动等到首次唤起才创建网页，切走的空闲页会释放，有草稿的页面按需挂起。
+- 浮窗失去焦点时会调低网页内存目标。短暂收起后可直接回到原页，连续收起或最小化一分钟后会卸下尚未操作的聊天首页，并保留标签页的临时登录态。对话、草稿和登录中的页面继续运行。
+- 直接访问所选官网。登录、聊天和上传附件均使用该服务的页面。
 - 快捷键取词或明确导入时才读取文字。选中文字不写入应用日志；带入官网草稿后，发送由用户确认。
 - 不含项目自建遥测或统计服务；嵌入的官网和 Microsoft Runtime 仍遵循各自的数据政策。
 - 用户数据保存在 `%APPDATA%\cloud.doitbenai.deepseek-reflex`（旧版 `cloud.doitbenai.deepseekfloat` 会在新版本首次启动时自动迁移）；安装位置默认 `%LOCALAPPDATA%\Programs\DeepSeek-Reflex`，进程名为 `DeepSeek-Reflex`。

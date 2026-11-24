@@ -38,6 +38,7 @@ namespace DeepSeekFloat
         [DataMember] public string toggleShortcut;
         [DataMember] public string windowMode;
         [DataMember] public string chatMode;
+        [DataMember] public string chatClient;
         [DataMember] public bool focusOnOpen;
         [DataMember] public bool hideToTrayOnToggle;
         [DataMember] public string composerFocus;
@@ -62,10 +63,30 @@ namespace DeepSeekFloat
         [DataMember] public string taskbarAppId;
     }
 
-    internal sealed class ChatWindow : Form
+    internal sealed partial class ChatWindow : Form
     {
-        private WebView2 browser = new WebView2();
+        private WebView2 browser = new DeferredFocusWebView();
+        private sealed class ClientPage
+        {
+            internal readonly ChatClient Client;
+            internal WebView2 View;
+            internal int Generation;
+            internal bool Initialized, Navigated, LowMemory, DownloadStarted, ParkedHome, OwnerHidden;
+            internal ulong NavigationId;
+            internal string Message, Error;
+            internal ClientPage(ChatClient client, WebView2 view)
+            {
+                Client=client; View=view; Message="正在打开 "+client.Name+"…";
+                view.AccessibleName=client.Name+" 官网聊天";
+            }
+        }
+        private readonly Dictionary<ChatClient,ClientPage> pages=new Dictionary<ChatClient,ClientPage>();
+        private ClientPage page;
+        private CoreWebView2Environment environment;
         private bool recreateBrowser,browserExited;
+        private ChatClient queuedClient;
+        private readonly PanelButton clientButton=new PanelButton("") { Ghost=true, DropDown=true };
+
         private readonly Panel chrome = new ResizeChrome();
         private readonly Label hostChip = new Label { AutoEllipsis=true, TextAlign=ContentAlignment.MiddleLeft, Visible=false };
         private string offsiteHost;
@@ -113,6 +134,7 @@ namespace DeepSeekFloat
         // WM_MOUSEACTIVATE stage, so neither the toolstrip's own auto-close
         // nor a thread message filter ever sees a button-down from the page.
         // The LL hook observes the physical input before anyone can eat it.
+        private Control menuAnchor, suppressedAnchor;
         private IntPtr menuMouseHook;private Native.MouseHook menuMouseHookProc;private int pillSuppressTick;
         private HotkeyBindings hotkeys;
         private int selectionVersion;
@@ -135,12 +157,14 @@ namespace DeepSeekFloat
         private bool startupPositioned;
         private EdgeDockController edgeDock;
         private FormWindowState restoreState=FormWindowState.Normal;
-        private CoreWebView2Environment environment;
         private bool allowShow, quitting, initializing;
         private readonly Health health = new Health();
 
         internal ChatWindow(string[] args)
         {
+            page=new ClientPage(ChatClient.Selected(),browser);
+            pages.Add(page.Client,page);
+            InitializeIdlePolicy();
             startupTarget=captureWakeTarget();
             background = args.Contains("--background");
             diagnostics = args.FirstOrDefault(a => a.StartsWith("--diagnostics=",StringComparison.Ordinal)||a.StartsWith("--window-diagnostics=",StringComparison.Ordinal));
@@ -210,7 +234,7 @@ namespace DeepSeekFloat
             RefreshPin();
             RefreshMode();
 
-            status.Text = "正在打开 DeepSeek…";
+            status.Text = page.Message;
             status.TextAlign = ContentAlignment.MiddleCenter;
             Font=PanelTheme.TextFont();
             status.Font = PanelTheme.TextFont();
@@ -219,7 +243,10 @@ namespace DeepSeekFloat
             status.Click += async delegate { await InitializeBrowser(); };
             // WebView defaults to opaque white. Avoid requesting an optional
             // background-color controller interface just to set the default.
-            browser.AccessibleName = "DeepSeek 官网聊天";
+            clientButton.Font=PanelTheme.TextFont();
+            clientButton.Click+=delegate{ShowClientMenu();};
+            chrome.Controls.Add(clientButton);
+            RefreshClientButton();
             chatModeButton.Font=PanelTheme.TextFont();
             chatModeButton.AccessibleName="选择持续生效的对话模式";
             chatModeButton.Click+=delegate{ShowChatModeMenu();};
@@ -318,9 +345,13 @@ namespace DeepSeekFloat
             dpiScale=value;
             // Pixel-unit font for the mode pill keeps its measured width equal
             // to its painted width after any resolution/DPI change.
-            var previousFont=chatModeButton.Font;
-            chatModeButton.Font=new Font(PanelTheme.FontFamily,Math.Max(9f,(float)Math.Round(12f*Math.Max(1f,value)*2f)/2f),GraphicsUnit.Pixel);
-            if(previousFont!=null)previousFont.Dispose();
+            float pixels=Math.Max(9f,(float)Math.Round(12f*Math.Max(1f,value)*2f)/2f);
+            foreach(var selector in new[]{chatModeButton,clientButton}){
+                var previous=selector.Font;
+                if(previous.Unit==GraphicsUnit.Pixel&&previous.Size==pixels)continue;
+                selector.Font=new Font(PanelTheme.FontFamily,pixels,GraphicsUnit.Pixel);
+                previous.Dispose();
+            }
             if(pendingWakePlacement!=null)bounds=pendingWakePlacement.Bounds(value);
             var area=Screen.FromRectangle(bounds).WorkingArea;
             MinimumSize=new Size(Math.Min(S(360),area.Width),Math.Min(S(480),area.Height));
@@ -351,13 +382,15 @@ namespace DeepSeekFloat
             for(int i=0;i<leftButtons.Length;i++)leftButtons[i].SetBounds(S(8)+width*i,0,width,S(28));
             var rightButtons = new[]{close,more,minimize};
             for(int i=0;i<rightButtons.Length;i++)rightButtons[i].SetBounds(ClientSize.Width-S(8)-width*(i+1),0,width,S(28));
-            int available=Math.Max(0,ClientSize.Width-S(192));
-            // Hug the mode text plus chevron instead of a fixed pill width.
-            int selectorWidth=Math.Min(Math.Max(S(92),TextRenderer.MeasureText(chatModeButton.Text,chatModeButton.Font).Width+S(32)),Math.Max(S(92),available));
-            // Center on the whole title bar rather than the left/right button
-            // clusters, so the pill reads as the window's title.
-            chatModeButton.SetBounds(Math.Max(S(112),(ClientSize.Width-selectorWidth)/2),0,selectorWidth,S(28));
-            int chipLeft=chatModeButton.Right+S(8), chipRight=more.Left-S(4);
+            int left=mode.Right+S(4), right=minimize.Left-S(4);
+            int available=Math.Max(1,right-left), gap=S(4);
+            int clientWidth=Math.Min(S(84),TextRenderer.MeasureText(clientButton.Text,clientButton.Font).Width+S(22));
+            int modeWidth=page.Client.SupportsModes ? Math.Min(Math.Max(S(88),TextRenderer.MeasureText(chatModeButton.Text,chatModeButton.Font).Width+S(28)),Math.Max(1,available-clientWidth-gap)) : 0;
+            int groupWidth=clientWidth+(modeWidth>0?gap+modeWidth:0);
+            int groupLeft=Math.Max(left,Math.Min((ClientSize.Width-groupWidth)/2,right-groupWidth));
+            clientButton.SetBounds(groupLeft,0,clientWidth,S(28));
+            chatModeButton.SetBounds(clientButton.Right+gap,0,modeWidth,S(28));
+            int chipLeft=groupLeft+groupWidth+S(4), chipRight=right;
             bool showHost=!string.IsNullOrEmpty(offsiteHost) && chipRight-chipLeft>=S(64);
             hostChip.Visible=showHost;
             hostChip.SetBounds(showHost?chipLeft:0,0,showHost?chipRight-chipLeft:0,showHost?S(28):0);
@@ -382,13 +415,14 @@ namespace DeepSeekFloat
         private async void CaptureSelection()
         {
             if(capturing) return;
+            var requestedPage=page;
             var source=Native.GetForegroundWindow();
             var target=captureWakeTarget();
             bool failed=false;
             capturing=true;
             try {
                 var result=await SelectionCapture.CaptureAsync(source);
-                if(resourcesDisposed || quitting || IsDisposed || ModalOpen) return;
+                if(resourcesDisposed || quitting || IsDisposed || ModalOpen || page!=requestedPage) return;
                 await PresentSelectionAt(result,target);
             } catch(Exception) { failed=!resourcesDisposed; }
             finally { capturing=false; }
@@ -472,7 +506,7 @@ namespace DeepSeekFloat
             try {
                 string prompt=ComposeSelection();Clipboard.SetText(prompt);
                 var core=browser.CoreWebView2;
-                if(core!=null)try{await core.ExecuteScriptAsync(ChatModeInjector.ExpectOneShotScript(prompt));}catch(Exception){}
+                if(core!=null)try{await core.ExecuteScriptAsync(ChatModeInjector.ExpectOneShotScript(prompt,page.Client));}catch(Exception){}
                 if(!resourcesDisposed&&!quitting&&version==selectionVersion)selectionStatus.Text="请求已复制，可粘贴到对话框";
             }
             catch(System.Runtime.InteropServices.ExternalException) { selectionStatus.Text="剪贴板正忙，请重试"; }
@@ -490,10 +524,10 @@ namespace DeepSeekFloat
             int version=selectionVersion, length=selectedText.Length;
             string prompt=ComposeSelection();
             try {
-                var result=await PromptInserter.InsertAsync(browser.CoreWebView2,prompt,lastInserted);
+                var result=await PromptInserter.InsertAsync(browser.CoreWebView2,prompt,lastInserted,page.Client);
                 if(resourcesDisposed || quitting || IsDisposed) return;
-                if(result=="filled") lastInserted=prompt;
                 if(version!=selectionVersion) return;
+                if(result=="filled") lastInserted=prompt;
                 if(result=="filled") { selectionStatus.Text="已填入 "+length+" 字的请求，请确认后发送"; }
                 else if(result=="draft") selectionStatus.Text="输入框已有草稿；请保留或清空后点“填入”";
                 else if(result=="loading") selectionStatus.Text="页面正在加载，完成后点“填入”";
@@ -576,7 +610,7 @@ namespace DeepSeekFloat
             if(menu==null||!menu.Visible)return false;
             var pt=Control.MousePosition;
             if(menu.Bounds.Contains(pt))return false;
-            bool onPill=chatModeButton.RectangleToScreen(chatModeButton.ClientRectangle).Contains(pt);
+            bool onPill=menuAnchor!=null && menuAnchor.RectangleToScreen(menuAnchor.ClientRectangle).Contains(pt);
             CloseOpenMenus();
             return onPill;
         }
@@ -652,7 +686,9 @@ namespace DeepSeekFloat
         protected override void SetVisibleCore(bool value)
         {
             if (background && !allowShow && value) { if (!IsHandleCreated) CreateHandle(); base.SetVisibleCore(false); return; }
+            bool firstWake=value && !Visible && background && !page.Initialized && !initializing;
             base.SetVisibleCore(value);
+            if(firstWake && IsHandleCreated)QueueBrowserStart();
         }
         protected override void OnHandleCreated(EventArgs e)
         {
@@ -669,7 +705,13 @@ namespace DeepSeekFloat
             if(autoSelection==null)autoSelection=new AutoSelectionController(this);
             autoSelection.SetEnabled(Preferences.AutomaticSelectionEnabled());
             ReloadCommands();
-            BeginInvoke(new Action(async delegate { await InitializeBrowser(); }));
+            if(!background||allowShow)QueueBrowserStart();
+        }
+        private void QueueBrowserStart()
+        {
+            BeginInvoke(new Action(async delegate {
+                if(!resourcesDisposed&&!quitting&&!page.Initialized&&!initializing)await InitializeBrowser();
+            }));
         }
         protected override void OnHandleDestroyed(EventArgs e)
         {
@@ -738,9 +780,9 @@ namespace DeepSeekFloat
         private void ShowChatModeMenu() {
             // A press on the pill closed the menu moments ago (LL hook path);
             // skip one cycle so the same click cannot reopen it.
-            if(pillSuppressTick!=0&&Environment.TickCount-pillSuppressTick<350)return;
+            if(suppressedAnchor==chatModeButton&&pillSuppressTick!=0&&unchecked(Environment.TickCount-pillSuppressTick)<350)return;
+            if(!page.Client.SupportsModes)return;
             var menu=CreateChatModeMenu();
-            AttachMenuMouseHook();
             // Left edges stay flush: the popup grows right/down from the anchor
             // point, so a DPI rescale on show cannot shove it sideways.
             menu.Show(chatModeButton,new Point(0,chatModeButton.Height));
@@ -770,7 +812,7 @@ namespace DeepSeekFloat
             var menu=openMenu;
             if(menu==null||!menu.Visible)return;
             if(menu.Bounds.Contains(screenPoint))return;
-            if(chatModeButton.RectangleToScreen(chatModeButton.ClientRectangle).Contains(screenPoint))pillSuppressTick=Environment.TickCount;
+            if(menuAnchor!=null && menuAnchor.RectangleToScreen(menuAnchor.ClientRectangle).Contains(screenPoint)){suppressedAnchor=menuAnchor;pillSuppressTick=Environment.TickCount;}
             try{BeginInvoke(new Action(CloseOpenMenus));}catch(InvalidOperationException){}
         }
         private TrayMenu CreateChatModeMenu() {
@@ -783,14 +825,76 @@ namespace DeepSeekFloat
             }
             menu.AddDivider();
             menu.AddAction("自定义提示词…",delegate{ShowSettingsPage("modes");});
-            openMenu=menu;AttachMenuMouseHook();
-            menu.Closed+=delegate{
-                if(openMenu==menu)openMenu=null;
-                DetachMenuMouseHook();
-                if(!resourcesDisposed&&!quitting&&IsHandleCreated){chatModeButton.Focus();BeginInvoke(new Action(menu.Dispose));}
+            TrackTitleMenu(menu,chatModeButton);
+            return menu;
+        }
+        private void TrackTitleMenu(TrayMenu menu,Control anchor)
+        {
+            CloseOpenMenus();
+            openMenu=menu;menuAnchor=anchor;AttachMenuMouseHook();
+            menu.Closed+=delegate {
+                if(openMenu==menu){openMenu=null;menuAnchor=null;DetachMenuMouseHook();}
+                if(!resourcesDisposed&&!quitting&&IsHandleCreated){anchor.Focus();BeginInvoke(new Action(menu.Dispose));}
                 else menu.Dispose();
             };
-            return menu;
+        }
+        private void RefreshClientButton()
+        {
+            clientButton.Text=page.Client.Name;
+            clientButton.AccessibleName="切换客户端，当前"+page.Client.Name;
+            tips.SetToolTip(clientButton,clientButton.AccessibleName);
+            chatModeButton.Visible=page.Client.SupportsModes;
+        }
+        private void ShowClientMenu()
+        {
+            if(suppressedAnchor==clientButton&&pillSuppressTick!=0&&unchecked(Environment.TickCount-pillSuppressTick)<350)return;
+            var menu=new TrayMenu(dpiScale);
+            foreach(var client in ChatClient.All){
+                var choice=client;
+                var item=menu.AddAction(choice.Name,async delegate{await SwitchClient(choice);});
+                item.Checked=choice==page.Client;
+            }
+            TrackTitleMenu(menu,clientButton);
+            menu.Show(clientButton,new Point(0,clientButton.Height));
+        }
+        private async Task SwitchClient(ChatClient client)
+        {
+            if(resourcesDisposed||quitting||ModalOpen)return;
+            if(initializing){queuedClient=client;return;}
+            if(client==page.Client)return;
+            try{Preferences.Write("chat-client.txt",client.Id);}
+            catch(Exception error){
+                if(!Preferences.IsStorageFailure(error))throw;
+                MessageBox.Show(this,"客户端选择未能保存，请重试。","DeepSeek-Reflex");return;
+            }
+            foreach(var popup in OwnedForms.OfType<PopupWindow>().ToArray())popup.Close();
+            selectionVersion++;focusVersion++;selectedText=null;lastInserted=null;selectionBar.Hide();
+            lastOffsiteUri=null;offsiteHost=null;pendingComposerFocus=false;
+            var previous=page;
+            browser.Hide();
+            if(!pages.TryGetValue(client,out page)){
+                var view=new DeferredFocusWebView {DefaultBackgroundColor=PanelTheme.Back,Visible=false};
+                page=new ClientPage(client,view);
+                pages.Add(client,page);
+                Controls.Add(view);
+            }
+            page.Generation++;
+            browser=page.View;
+            if(page.Initialized&&!recreateBrowser){
+                var core=browser.CoreWebView2;
+                if(core.IsSuspended)page.LowMemory=false;
+                core.Resume();
+            }
+            browser.DefaultBackgroundColor=PanelTheme.Back;
+            RefreshClientButton();RefreshChatMode();LayoutContent();
+            browser.Show();browser.BringToFront();chrome.BringToFront();frame.BringToFront();
+            UpdatePageActivity();
+            health.pageFacts=null;health.composerFocus=null;
+            PresentBrowserState(page);
+            if(!page.Initialized||recreateBrowser)await InitializeBrowser();
+            else {ApplyWebProfileTheme(browser.CoreWebView2);await UpdateChatMode();}
+            await ParkPage(previous);
+            if(!resourcesDisposed&&!quitting&&client==page.Client)RequestComposerFocus();
         }
         private async Task SwitchChatMode(string value) {
             if(ChatModes.Find(value).Id==settings.ChatMode)return;
@@ -815,14 +919,15 @@ namespace DeepSeekFloat
             settings=next;RefreshChatMode();await UpdateChatMode();WriteHealth();
         }
         private async Task UpdateChatMode() {
+            if(!page.Client.SupportsModes)return;
             chatModeUpdatePending=true;if(updatingChatMode)return;
             updatingChatMode=true;
             try{
                 while(chatModeUpdatePending&&!resourcesDisposed&&!quitting){
-                    chatModeUpdatePending=false;var core=browser.CoreWebView2;if(core==null)return;
+                    chatModeUpdatePending=false;var core=browser.CoreWebView2;if(core==null||!page.Client.SupportsModes)return;
                     string chosen=settings.ChatMode;
                     try{
-                        string result=(await core.ExecuteScriptAsync(ChatModeInjector.Script(chosen))).Trim('"');
+                        string result=(await core.ExecuteScriptAsync(ChatModeInjector.Script(chosen,page.Client))).Trim('"');
                         if(resourcesDisposed||quitting||chosen!=settings.ChatMode||!Object.ReferenceEquals(core,browser.CoreWebView2))continue;
                         RefreshChatMode();
                         if(chosen!="normal"&&result=="unsupported-editor")SetChatModeError("此输入框暂不支持");
@@ -951,7 +1056,7 @@ namespace DeepSeekFloat
                     }));
                 },openPage);
                 activeSettings=dialog;dialog.Icon=Icon;dialog.TopMost=TopMost;
-                foreach(var control in new Control[]{browser,status,mode,chatModeButton,selectionBar}){settingsControlStates[control]=control.Enabled;control.Enabled=false;}
+                foreach(var control in new Control[]{browser,status,mode,clientButton,chatModeButton,selectionBar}){settingsControlStates[control]=control.Enabled;control.Enabled=false;}
                 dialog.ShortcutEntryChanged+=delegate(bool recording){UpdateSettingsHotkeys(recording);};
                 dialog.FormClosed+=delegate{FinishSettingsSession(dialog);dialog.Dispose();};
                 UpdateSettingsHotkeys(false);dialog.Show(this);
@@ -1039,14 +1144,27 @@ return String(editors[0].value===undefined?editors[0].textContent:editors[0].val
             if(guideOpen||OwnedForms.Any(f=>!f.IsDisposed&&!(f is CornerSurface)&&f!=activeSettings&&f!=updateDialog))return "请先关闭帮助、反馈或登录等其它窗口，再安装更新。";
             if(bridgeInFlight||inserting||capturing||initializing||updatingChatMode)return "当前操作尚未完成，请稍后安装更新。";
             if(!string.IsNullOrEmpty(selectedText)&&selectionBar.Visible)return "取词栏还有未处理的文字，请先处理或关闭取词栏。";
-            return await ProbeUpdateDraft(browser.CoreWebView2);
+            foreach(var other in pages.Values.ToArray()){
+                if(other==page||other.View.IsDisposed)continue;
+                var core=other.View.CoreWebView2;
+                if(core==null)return other.Client.Name+" 的页面正在加载。";
+                bool suspended=core.IsSuspended;
+                if(suspended)core.Resume();
+                string reason=await ProbeUpdateDraft(core,other.Client);
+                if(suspended && other!=page && !other.View.IsDisposed)await core.TrySuspendAsync();
+                if(reason!=null)return other.Client.Name+"："+reason;
+            }
+            if(page.ParkedHome)return null;
+            return await ProbeUpdateDraft(browser.CoreWebView2,page.Client);
         }
-        internal static async Task<string> ProbeUpdateDraft(CoreWebView2 core) {
+        internal static async Task<string> ProbeUpdateDraft(CoreWebView2 core, ChatClient client = null) {
             if(core==null)return "聊天页面尚未就绪，无法确认未保存内容，请稍后重试。";
             try {
-                string draft=(await core.ExecuteScriptAsync(UpdateDraftScript)).Trim('"');
+                string script=UpdateDraftScript;
+                if(client!=null&&client!=ChatClient.DeepSeek)script="(()=>{if(!("+client.OriginCheck+")||document.readyState!=='complete')return 'unknown';const editors=Array.from(document.querySelectorAll("+PromptInserter.Json(client.EditorSelector)+")).filter(e=>!e.disabled&&!e.readOnly&&e.getClientRects().length);if(editors.length!==1)return 'unknown';return editors.some("+client.HasDraftScript+")?'dirty':'clean';})()";
+                string draft=(await core.ExecuteScriptAsync(script)).Trim('"');
                 if(draft=="dirty")return "聊天输入框有未发送内容，请先发送或清空，再安装更新。";
-                return draft=="clean"?null:"无法确认聊天草稿，请先回到 DeepSeek 聊天页，待页面就绪后重试。";
+                return draft=="clean"?null:"无法确认聊天草稿，请先回到当前客户端聊天页，待页面就绪后重试。";
             }catch(Exception){return "无法确认聊天草稿，请待页面就绪后重试。";}
         }
         private void FreezeForUpdate(bool value) {
@@ -1070,7 +1188,7 @@ return String(editors[0].value===undefined?editors[0].textContent:editors[0].val
             if(browser.CoreWebView2==null) { health.composerFocus="loading";return; }
             health.composerFocus=await ComposerFocus.TryFocusAsync(browser.CoreWebView2,delegate {
                 return !resourcesDisposed&&!quitting&&!ModalOpen&&settings.FocusOnOpen&&version==focusVersion&&Visible&&WindowState!=FormWindowState.Minimized&&Native.GetForegroundWindow()==Handle;
-            });
+            },page.Client);
             if(version==focusVersion)pendingComposerFocus=false;
             WriteHealth();
         }
@@ -1089,96 +1207,167 @@ return String(editors[0].value===undefined?editors[0].textContent:editors[0].val
             menu.Opening+=delegate { pinItem.Text=pinned?"取消置顶":"置顶窗口"; };
             contextMenu=menu;return menu;
         }
+        // Only the active page runs. Release a clean page after its replacement is selected.
+        // A draft, upload, login in progress or an uncertain page stays in its original controller.
+        private async Task ParkPage(ClientPage parked)
+        {
+            if(page==parked||resourcesDisposed||quitting||parked.View.IsDisposed)return;
+            int generation=++parked.Generation;
+            var view=parked.View;
+            if(view.IsDisposed||recreateBrowser)return;
+            if(!parked.Initialized||(!parked.Navigated&&parked.Error!=null)){
+                pages.Remove(parked.Client);Controls.Remove(view);view.Dispose();return;
+            }
+            if(!parked.Navigated)return;
+            var core=view.CoreWebView2;
+            try {
+                string script=@"(()=>{
+if(!("+parked.Client.OriginCheck+@")||document.readyState!=='complete')return 'keep';
+const editors=document.querySelectorAll("+PromptInserter.Json(parked.Client.EditorSelector)+@");
+if(Array.from(editors).some("+parked.Client.HasDraftScript+@"))return 'keep';
+if(window.__reflexAttachment || [...document.querySelectorAll('input[type=file]')].some(e=>e.files.length))return 'keep';
+if(window.__reflexInteracted && (!editors.length || location.pathname!=='/' && location.pathname!=='/chat/'))return 'keep';
+return 'release';})()";
+                string disposition=(await core.ExecuteScriptAsync(script)).Trim('"');
+                if(!StillParked(parked,generation))return;
+                if(disposition=="release"){
+                    pages.Remove(parked.Client);Controls.Remove(view);view.Dispose();return;
+                }
+                await core.TrySuspendAsync();
+                if(!view.IsDisposed&&page==parked){if(core.IsSuspended)parked.LowMemory=false;core.Resume();UpdatePageActivity();}
+            }catch(Exception error){if(StillParked(parked,generation))Program.LogError(error,"park-page");}
+        }
+        private bool StillParked(ClientPage parked,int generation)
+        {
+            return !resourcesDisposed&&!quitting&&parked!=page&&!parked.View.IsDisposed&&parked.Generation==generation;
+        }
+        private void PresentBrowserState(ClientPage changed)
+        {
+            if(changed!=page||resourcesDisposed||quitting)return;
+            health.initialized=page.Initialized;health.navigationSucceeded=page.Navigated;health.navigationError=page.Error;
+            Uri uri=null;
+            if(page.Initialized&&!recreateBrowser&&browser.CoreWebView2.Source!=IdleDocument)Uri.TryCreate(browser.CoreWebView2.Source,UriKind.Absolute,out uri);
+            health.sourceHost=uri==null?null:uri.Host;
+            SetOffsiteHost(uri);
+            status.Visible=page.Message!=null;
+            if(page.Message!=null)ShowBrowserError(page.Message);
+            WriteHealth();
+        }
         private async Task InitializeBrowser()
         {
-            if (initializing||resourcesDisposed||quitting) return;
+            if(initializing||resourcesDisposed||quitting)return;
             if(recreateBrowser&&!browserExited){ShowBrowserError("浏览器正在退出，稍后点此重试");return;}
-            if(recreateBrowser) {
+            if(recreateBrowser){
                 foreach(var popup in OwnedForms.OfType<PopupWindow>().ToArray())popup.Close();
-                Controls.Remove(browser);browser.Dispose();
-                browser=new WebView2 {AccessibleName="DeepSeek 官网聊天",DefaultBackgroundColor=PanelTheme.Back};
-                Controls.Add(browser);recreateBrowser=false;browserExited=false;environment=null;health.initialized=false;
-                lastInserted=null;LayoutContent();chrome.BringToFront();frame.BringToFront();
+                foreach(var old in pages.Values){Controls.Remove(old.View);old.View.Dispose();}
+                var client=page.Client;pages.Clear();
+                browser=new DeferredFocusWebView {DefaultBackgroundColor=PanelTheme.Back};
+                page=new ClientPage(client,browser);pages.Add(client,page);Controls.Add(browser);
+                recreateBrowser=false;browserExited=false;environment=null;lastInserted=null;
+                LayoutContent();chrome.BringToFront();frame.BringToFront();
             }
-            if (browser.CoreWebView2 != null) {
-                try{browser.Reload();}catch(Exception error){health.navigationError=error.GetType().Name;ShowBrowserError("刷新未完成，点此重试");}
+            var owner=page;
+            if(owner.Initialized){
+                try{
+                    if(browser.CoreWebView2.Source==IdleDocument){browser.Show();browser.CoreWebView2.Resume();browser.CoreWebView2.Navigate(owner.Client.Home.AbsoluteUri);}
+                    else browser.Reload();
+                }catch(Exception error){owner.Error=error.GetType().Name;owner.Message="刷新未完成，点此重试";PresentBrowserState(owner);}
                 return;
             }
             initializing=true;
-            status.Text="正在打开 DeepSeek…";
-            status.Show();status.BringToFront();chrome.BringToFront();frame.BringToFront();
-            try
-            {
-                // A dedicated, persistent profile; the existing Edge profile is never copied or modified.
-                environment=await CoreWebView2Environment.CreateAsync(null,Path.Combine(Preferences.Root,"webview2-profile"));
-                if(resourcesDisposed||quitting)return;
-                var currentEnvironment=environment;
-                currentEnvironment.BrowserProcessExited+=delegate(object sender,CoreWebView2BrowserProcessExitedEventArgs args) {
-                    if(resourcesDisposed||quitting||!Object.ReferenceEquals(environment,currentEnvironment)||args.BrowserProcessExitKind!=CoreWebView2BrowserProcessExitKind.Failed)return;
-                    recreateBrowser=true;browserExited=true;health.initialized=false;
-                    ShowBrowserError("浏览器已退出，点此重新打开（登录资料保留）");
-                };
-                await browser.EnsureCoreWebView2Async(environment);
-                if(resourcesDisposed||quitting||browser.IsDisposed)return;
-                browser.ZoomFactor=WindowFrame.DefaultZoom;
-                var core=browser.CoreWebView2;
+            owner.Message="正在打开 "+owner.Client.Name+"…";PresentBrowserState(owner);
+            try {
+                if(environment==null){
+                    var shared=await CoreWebView2Environment.CreateAsync(null,ChatClient.UserDataDirectory);
+                    if(resourcesDisposed||quitting)return;
+                    environment=shared;
+                    shared.BrowserProcessExited+=delegate(object sender,CoreWebView2BrowserProcessExitedEventArgs args){
+                        if(resourcesDisposed||quitting||environment!=shared||args.BrowserProcessExitKind!=CoreWebView2BrowserProcessExitKind.Failed)return;
+                        recreateBrowser=true;browserExited=true;health.initialized=false;
+                        ShowBrowserError("浏览器已退出，点此重新打开（登录资料保留）");
+                    };
+                }
+                await owner.Client.InitializeView(owner.View,environment);
+                if(resourcesDisposed||quitting||owner.View.IsDisposed)return;
+                owner.View.ZoomFactor=WindowFrame.DefaultZoom;
+                var core=owner.View.CoreWebView2;
                 ApplyWebProfileTheme(core);
                 core.Settings.AreHostObjectsAllowed=false;
                 core.Settings.IsWebMessageEnabled=false;
                 core.Settings.AreDevToolsEnabled=pageDiagnostics;
-                core.NavigationStarting += delegate(object sender,CoreWebView2NavigationStartingEventArgs e) {
-                    lastInserted=null;
-                    Uri uri;
-                    bool parsed=Uri.TryCreate(e.Uri,UriKind.Absolute,out uri);
-                    if (!parsed || !NavigationPolicy.AllowMainFrame(uri)) {
-                        e.Cancel=true;
-                        if (parsed && string.Equals(uri.Scheme,"https",StringComparison.OrdinalIgnoreCase) && IsHandleCreated && !resourcesDisposed && !quitting) {
-                            var target=uri;
-                            BeginInvoke(new Action(delegate { OpenOffsite(target); }));
-                        }
-                    }
+                await core.AddScriptToExecuteOnDocumentCreatedAsync(@"if(top===window){
+for(const event of ['pointerdown','keydown','click','input','change','submit','wheel'])addEventListener(event,()=>{window.__reflexUsedPage=true;},{capture:true,passive:true,once:true});
+addEventListener('input',()=>{window.__reflexInteracted=true},{capture:true,once:true});
+addEventListener('change',e=>{if(e.target.files&&e.target.files.length)window.__reflexAttachment=true;},true);
+for(const event of ['paste','drop'])addEventListener(event,e=>{const d=e.clipboardData||e.dataTransfer;if(d&&d.files.length)window.__reflexAttachment=true;},true);
+}");
+                if(resourcesDisposed||quitting||owner.View.IsDisposed)return;
+                RegisterIdleDocument(core);
+                core.DownloadStarting+=delegate{owner.DownloadStarted=true;};
+                core.NavigationStarting+=delegate(object sender,CoreWebView2NavigationStartingEventArgs e){
+                    if(e.Uri.StartsWith(IdleDocument,StringComparison.Ordinal)){e.Cancel=e.Uri!=IdleDocument||!owner.ParkedHome;return;}
+                    owner.NavigationId=e.NavigationId;
+                    if(page==owner)lastInserted=null;
+                    Uri uri;bool parsed=Uri.TryCreate(e.Uri,UriKind.Absolute,out uri);
+                    if(parsed&&NavigationPolicy.AllowMainFrame(uri,owner.Client))return;
+                    e.Cancel=true;
+                    if(parsed&&uri.Scheme=="https"&&IsHandleCreated&&!resourcesDisposed&&!quitting&&page==owner)
+                        BeginInvoke(new Action(delegate{if(page==owner&&!owner.View.IsDisposed)OpenOffsite(uri);}));
                 };
-                core.NavigationCompleted += async delegate(object sender,CoreWebView2NavigationCompletedEventArgs e) {
-                    health.navigationSucceeded=e.IsSuccess;
-                    health.navigationError=e.IsSuccess ? null : e.WebErrorStatus.ToString();
-                    // WebView2 persists zoom per origin in the profile, so the
-                    // pre-navigation default does not survive a real navigation.
-                    // Reapply it once the document has committed.
-                    if (e.IsSuccess && Math.Abs(browser.ZoomFactor-WindowFrame.DefaultZoom)>0.0005) browser.ZoomFactor=WindowFrame.DefaultZoom;
-                    Uri uri;
-                    if (Uri.TryCreate(core.Source,UriKind.Absolute,out uri)) {
-                        health.sourceHost=uri.Host;
-                        SetOffsiteHost(uri);
-                        if (e.IsSuccess && uri.Scheme=="https" && uri.Host=="chat.deepseek.com") {
-                            try{Preferences.Write("webview-last-page.txt",uri.GetLeftPart(UriPartial.Path));}
-                            catch(Exception error){if(!Preferences.IsStorageFailure(error))throw;}
-                        }
+                core.SourceChanged+=delegate(object sender,CoreWebView2SourceChangedEventArgs e){
+                    if(!e.IsNewDocument&&owner.Navigated&&!owner.View.IsDisposed)RememberPage(owner,core.Source);
+                };
+                core.NavigationCompleted+=async delegate(object sender,CoreWebView2NavigationCompletedEventArgs e){
+                    if(resourcesDisposed||quitting||owner.View.IsDisposed||e.WebErrorStatus==CoreWebView2WebErrorStatus.OperationCanceled)return;
+                    if(owner.ParkedHome&&owner==page&&core.Source==IdleDocument){
+                        owner.Navigated=false;health.navigationSucceeded=false;health.sourceHost=null;health.pageFacts=null;
+                        await SuspendIdleDocument(owner,core);return;
                     }
-                    else SetOffsiteHost(null);
-                    status.Visible=!e.IsSuccess;
-                    if (!e.IsSuccess) { status.Text="页面暂时无法打开，点此重试"; status.BringToFront(); chrome.BringToFront(); frame.BringToFront(); }
-                    if (pageDiagnostics && e.IsSuccess) await CollectPageFacts();
-                    if(e.IsSuccess)await UpdateChatMode();
-                    if(e.IsSuccess&&pendingComposerFocus)FocusComposer(focusVersion);
+                    owner.Navigated=e.IsSuccess;owner.Error=e.IsSuccess?null:e.WebErrorStatus.ToString();
+                    owner.Message=e.IsSuccess?null:"页面暂时无法打开，点此重试";
+                    if(e.IsSuccess){
+                        if(Math.Abs(owner.View.ZoomFactor-WindowFrame.DefaultZoom)>0.0005)owner.View.ZoomFactor=WindowFrame.DefaultZoom;
+                        RememberPage(owner,core.Source);
+                    }
+                    if(page!=owner){
+                        if(e.IsSuccess)await ParkPage(owner);
+                        else if(!owner.View.IsDisposed){pages.Remove(owner.Client);Controls.Remove(owner.View);owner.View.Dispose();}
+                        return;
+                    }
+                    PresentBrowserState(owner);
+                    UpdatePageActivity();
+                    if(e.IsSuccess){
+                        await UpdateChatMode();
+                        if(page==owner&&pendingComposerFocus)FocusComposer(focusVersion);
+                        if(page==owner&&pageDiagnostics)await CollectPageFacts(owner);
+                    }
                     WriteHealth();
                 };
-                core.NewWindowRequested += OpenPopup;
-                core.ProcessFailed += delegate(object sender,CoreWebView2ProcessFailedEventArgs args){HandleProcessFailure(args.ProcessFailedKind);};
-                health.initialized=true;
-                core.Navigate(Preferences.LastPage());
-                WriteHealth();
-            }
-            catch (Exception e)
-            {
-                health.navigationError=e.GetType().Name;
-                status.Text="小窗未能打开，请点此重试";
-                WriteHealth();
-            }
-            finally { initializing=false; }
+                core.NewWindowRequested+=delegate(object sender,CoreWebView2NewWindowRequestedEventArgs e){
+                    if(page!=owner||resourcesDisposed||quitting){e.Handled=true;return;}
+                    OpenPopup(sender,e);
+                };
+                core.ProcessFailed+=delegate(object sender,CoreWebView2ProcessFailedEventArgs args){
+                    if(page==owner)HandleProcessFailure(args.ProcessFailedKind);
+                    else if(BrowserRecovery.For(args.ProcessFailedKind)!=RecoveryAction.Ignore&&!owner.View.IsDisposed){
+                        owner.Error=args.ProcessFailedKind.ToString();owner.Message="页面暂时停止响应，点此刷新";
+                    }
+                };
+                owner.Initialized=true;health.initialized=true;core.Navigate(owner.Client.LastPage());WriteHealth();
+            }catch(Exception error){
+                if(!resourcesDisposed&&!quitting){owner.Error=error.GetType().Name;owner.Message="小窗未能打开，请点此重试";PresentBrowserState(owner);}
+            }finally{initializing=false;}
+            var next=queuedClient;queuedClient=null;
+            if(next!=null&&!resourcesDisposed&&!quitting)await SwitchClient(next);
+        }
+        private static void RememberPage(ClientPage owner,string source)
+        {
+            Uri uri;if(!Uri.TryCreate(source,UriKind.Absolute,out uri))return;
+            try{owner.Client.RememberPage(uri);}catch(Exception error){if(!Preferences.IsStorageFailure(error))throw;}
         }
         private void ShowBrowserError(string text){if(resourcesDisposed||quitting)return;status.Text=text;status.Show();status.BringToFront();chrome.BringToFront();frame.BringToFront();}
         private void SetOffsiteHost(Uri uri) {
-            string next=uri!=null && NavigationPolicy.ShowHostChip(uri) ? NavigationPolicy.DisplayHost(uri) : null;
+            string next=uri!=null && NavigationPolicy.ShowHostChip(uri,page.Client) ? NavigationPolicy.DisplayHost(uri) : null;
             if(next==offsiteHost) return;
             offsiteHost=next;
             hostChip.Text=next??"";
@@ -1190,17 +1379,28 @@ return String(editors[0].value===undefined?editors[0].textContent:editors[0].val
             int now=Environment.TickCount;
             if(lastOffsiteUri!=null && string.Equals(lastOffsiteUri.AbsoluteUri,uri.AbsoluteUri,StringComparison.Ordinal) && unchecked(now-lastOffsiteTick)<1500) return;
             lastOffsiteUri=uri; lastOffsiteTick=now;
+            var opener=page;
             PopupWindow popup=null;
             try {
                 popup=new PopupWindow(uri) {Icon=Icon};
                 popup.Show(this);
-                if(!await popup.InitializeAsync(environment)) return;
+                if(!await popup.InitializeAsync(environment,page.Client)) return;
                 if(popup.IsDisposed||popup.Browser.IsDisposed||resourcesDisposed||quitting||popup.Browser.CoreWebView2==null) return;
                 var child=popup.Browser.CoreWebView2;
                 child.Settings.AreHostObjectsAllowed=false;
                 child.Settings.IsWebMessageEnabled=false;
                 child.Settings.AreDevToolsEnabled=false;
                 child.WindowCloseRequested += delegate { if(!popup.IsDisposed) popup.Close(); };
+                child.NavigationStarting+=delegate(object sender,CoreWebView2NavigationStartingEventArgs e){
+                    Uri callback;
+                    if(page!=opener||opener.View.IsDisposed||!Uri.TryCreate(e.Uri,UriKind.Absolute,out callback)||!opener.Client.IsChatOrigin(callback))return;
+                    // Complete a main-frame sign-in redirect in the original tab, consuming the callback once.
+                    e.Cancel=true;
+                    BeginInvoke(new Action(delegate{
+                        if(!resourcesDisposed&&!quitting&&page==opener&&!opener.View.IsDisposed)opener.View.CoreWebView2.Navigate(callback.AbsoluteUri);
+                        if(!popup.IsDisposed)popup.Close();
+                    }));
+                };
                 child.Navigate(uri.AbsoluteUri);
             } catch(Exception) {
                 if(popup!=null && !popup.IsDisposed) popup.ShowError("此窗口未能打开，请关闭后重试。");
@@ -1222,11 +1422,11 @@ return String(editors[0].value===undefined?editors[0].textContent:editors[0].val
             try
             {
                 Uri uri;
-                if (!Uri.TryCreate(e.Uri,UriKind.Absolute,out uri) || uri.Scheme!="https") { e.Handled=true; return; }
+                if (!Uri.TryCreate(e.Uri,UriKind.Absolute,out uri) || (uri.Scheme!="https" && !(e.IsUserInitiated && uri.AbsoluteUri=="about:blank"))) { e.Handled=true; return; }
                 popup=new PopupWindow(uri) {Icon=Icon};
                 var child=popup.Browser;
                 popup.Show(this);
-                if(!await popup.InitializeAsync(environment)){e.Handled=true;return;}
+                if(!await popup.InitializeAsync(environment,page.Client)){e.Handled=true;return;}
                 if(popup.IsDisposed||child.IsDisposed||resourcesDisposed||quitting){e.Handled=true;return;}
                 child.CoreWebView2.Settings.AreHostObjectsAllowed=false;
                 child.CoreWebView2.Settings.IsWebMessageEnabled=false;
@@ -1238,14 +1438,16 @@ return String(editors[0].value===undefined?editors[0].textContent:editors[0].val
             catch (Exception) { e.Handled=true;bool cancelled=resourcesDisposed||quitting||(popup!=null&&popup.IsDisposed);if(popup!=null&&!popup.IsDisposed)popup.ShowError("此窗口未能打开，请关闭后重试。");if(!cancelled&&popup==null)ShowBrowserError("链接窗口未能打开，请重试。"); }
             finally { deferral.Complete(); }
         }
-        private async Task CollectPageFacts()
+        private async Task CollectPageFacts(ClientPage owner)
         {
             try
             {
                 await Task.Delay(1500);
-                health.pageFacts=await browser.CoreWebView2.ExecuteScriptAsync("({ready:document.readyState,loginFields:document.querySelectorAll('input[type=password],input[type=tel]').length,editableFields:document.querySelectorAll('textarea,[contenteditable=true]').length,loginVisible:Array.from(document.querySelectorAll('button,a')).some(e=>/登录|Log in|Sign in/i.test(e.innerText)),width:innerWidth,height:innerHeight})");
+                if(page!=owner||resourcesDisposed||quitting||owner.View.IsDisposed)return;
+                string facts=await owner.View.CoreWebView2.ExecuteScriptAsync("({ready:document.readyState,loginFields:document.querySelectorAll('input[type=password],input[type=tel]').length,editableFields:document.querySelectorAll('textarea,[contenteditable=true]').length,loginVisible:Array.from(document.querySelectorAll('button,a')).some(e=>/登录|Log in|Sign in/i.test(e.innerText)),width:innerWidth,height:innerHeight})");
+                if(page==owner)health.pageFacts=facts;
             }
-            catch (Exception) { health.pageFacts=null; }
+            catch (Exception) { if(page==owner)health.pageFacts=null; }
         }
         internal void SaveBounds()
         {
@@ -1280,7 +1482,7 @@ return String(editors[0].value===undefined?editors[0].textContent:editors[0].val
             health.guideVisible=guideOpen;health.guideAcknowledged=!GettingStarted.NeedsIntroduction;
             health.selectionVisible=selectionBar.Visible;
             health.edgeDocked=edgeDock!=null&&edgeDock.Docked;
-            health.chatMode=settings.ChatMode;
+            health.chatMode=settings.ChatMode;health.chatClient=page.Client.Id;
             health.automaticSelectionEnabled=autoSelection!=null && autoSelection.Enabled;
             health.automaticSelectionRegistered=autoSelection!=null && autoSelection.Registered;
             try { using(var memory=new MemoryStream()) { new DataContractJsonSerializer(typeof(Health)).WriteObject(memory,health); File.WriteAllText(diagnostics,Encoding.UTF8.GetString(memory.ToArray())); } }
@@ -1331,6 +1533,7 @@ return String(editors[0].value===undefined?editors[0].textContent:editors[0].val
         {
             if(disposing && !resourcesDisposed) {
                 resourcesDisposed=true;
+                idleTimer.Dispose();
                 if(updater!=null)updater.Dispose();if(updateDialog!=null){updateDialog.Dispose();updateDialog=null;}
                 if(activeSettings!=null){activeSettings.Dispose();activeSettings=null;}settingsOpen=false;settingsControlStates.Clear();
                 DetachMenuMouseHook();

@@ -19,6 +19,7 @@ namespace DeepSeekFloat
         private readonly Timer expiry=new Timer { Interval=20000 };
         private readonly float scale;
         private readonly Point anchor;
+        private readonly ChatClient client;
         private string text,ownDraft;
         private int pendingAction;
         private WebView2 view;
@@ -27,6 +28,7 @@ namespace DeepSeekFloat
         internal bool Expanded { get; private set; }
         internal QuickAnswerWindow(string text,Point anchor)
         {
+            client=ChatClient.Selected();
             this.text=text;this.anchor=anchor;
             using(var g=Graphics.FromHwnd(IntPtr.Zero))scale=g.DpiX/96f;
             Text="DeepSeek-Reflex 划词浮窗";AutoScaleMode=AutoScaleMode.None;
@@ -39,7 +41,7 @@ namespace DeepSeekFloat
             question.Click+=async delegate { await Request(2); };
             retry.Click+=async delegate { await Request(pendingAction); };
             close.Click+=delegate { Close(); };
-            caption.Text="划词 · DeepSeek-Reflex";caption.ForeColor=PanelTheme.Ink;caption.TextAlign=ContentAlignment.MiddleLeft;
+            caption.Text="划词 · "+client.Name;caption.ForeColor=PanelTheme.Ink;caption.TextAlign=ContentAlignment.MiddleLeft;
             caption.MouseDown+=delegate(object s,MouseEventArgs e) { if(Expanded && e.Button==MouseButtons.Left) { Native.ReleaseCapture();Native.SendMessage(Handle,0xA1,new IntPtr(2),IntPtr.Zero); } };
             selectionPreview.Text=text.Replace('\r',' ').Replace('\n',' ');selectionPreview.AutoEllipsis=true;selectionPreview.ForeColor=PanelTheme.Muted;
             selectionPreview.TextAlign=ContentAlignment.MiddleLeft;
@@ -85,16 +87,16 @@ namespace DeepSeekFloat
         private async Task<bool> LoadWebsite()
         {
             try {
-                var environment=await CoreWebView2Environment.CreateAsync(null,Path.Combine(Preferences.Root,"webview2-profile"));
+                var environment=await CoreWebView2Environment.CreateAsync(null,ChatClient.UserDataDirectory);
                 if(disposed)return false;
-                await view.EnsureCoreWebView2Async(environment);
+                await client.InitializeView(view,environment);
                 if(disposed)return false;
                 var core=view.CoreWebView2;core.Settings.AreHostObjectsAllowed=false;core.Settings.IsWebMessageEnabled=false;core.Settings.AreDevToolsEnabled=false;
                 core.NavigationStarting+=delegate(object s,CoreWebView2NavigationStartingEventArgs e) { Uri uri;if(!Uri.TryCreate(e.Uri,UriKind.Absolute,out uri)||uri.Scheme!="https")e.Cancel=true; };
                 core.NewWindowRequested+=delegate(object s,CoreWebView2NewWindowRequestedEventArgs e) { e.Handled=true;Uri uri;if(Uri.TryCreate(e.Uri,UriKind.Absolute,out uri)&&uri.Scheme=="https")core.Navigate(e.Uri); };
                 var loaded=new TaskCompletionSource<bool>();
                 core.NavigationCompleted+=delegate(object s,CoreWebView2NavigationCompletedEventArgs e) { loaded.TrySetResult(e.IsSuccess); };
-                core.Navigate("https://chat.deepseek.com/");
+                core.Navigate(client.Home.AbsoluteUri);
                 if(await Task.WhenAny(loaded.Task,Task.Delay(20000))!=loaded.Task)return false;
                 if(!await loaded.Task)return false;
                 await Task.Delay(1000);return !disposed;
@@ -112,7 +114,7 @@ namespace DeepSeekFloat
                 if(!await loading) { if(!disposed) { message.Text="页面未打开，点击继续重试";loading=null; }return; }
                 if(disposed)return;
                 string prompt=PromptInserter.Compose(text,action);
-                var result=await PromptInserter.InsertAsync(view.CoreWebView2,prompt,ownDraft);
+                var result=await PromptInserter.InsertAsync(view.CoreWebView2,prompt,ownDraft,client);
                 if(disposed)return;
                 if(result=="no-editor" || result=="wrong-host") { message.Text="请在下方登录，再点继续";return; }
                 if(result=="draft") { message.Text="下方已有草稿，请处理后继续";return; }

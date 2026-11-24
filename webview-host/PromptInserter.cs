@@ -31,14 +31,14 @@ namespace DeepSeekFloat
                 return Encoding.UTF8.GetString(memory.ToArray()).Replace("\u2028","\\u2028").Replace("\u2029","\\u2029");
             }
         }
-        internal static string Script(string prompt, string previous)
+        internal static string Script(string prompt, string previous, ChatClient client = null)
         {
             return "(()=>{const text="+Json(prompt)+", previous="+Json(previous)+";"+@"
-const editors=Array.from(document.querySelectorAll('textarea,[contenteditable=true]')).filter(e=>!e.disabled&&!e.readOnly&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden');
+const editors=Array.from(document.querySelectorAll("+Json(client==null||client==ChatClient.DeepSeek ? "textarea,[contenteditable=true]" : client.EditorSelector)+@")).filter(e=>!e.disabled&&!e.readOnly&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden');
 if(!editors.length)return 'no-editor';if(editors.length!==1)return 'ambiguous';
 const e=editors[0],old=e.tagName==='TEXTAREA'?e.value:e.innerText;
 const owned=window.__deepSeekFloatDraft;
-if(old.trim() && !(owned&&owned.element===e&&owned.url===location.href&&owned.prompt===previous&&owned.actual===old&&owned.valid))return 'draft';
+if("+(client==ChatClient.Qianwen ? "("+client.HasDraftScript+")(e)" : "old.trim()")+@" && !(owned&&owned.element===e&&owned.url===location.href&&owned.prompt===previous&&owned.actual===old&&owned.valid))return 'draft';
 if(owned){owned.valid=false;if(owned.revoke)owned.revoke();}
 const mode=window.__deepSeekFloatChatMode;if(mode)mode.suspended=true;
 try{
@@ -61,13 +61,14 @@ if(current===text || (e.tagName!=='TEXTAREA'&&normalize(current)===normalize(tex
 }return 'failed';
 }finally{if(mode)mode.suspended=false;}})()";
         }
-        internal static async Task<string> InsertAsync(CoreWebView2 core,string prompt,string previous)
+        internal static async Task<string> InsertAsync(CoreWebView2 core,string prompt,string previous, ChatClient client = null)
         {
             if(core==null) return "loading";
+            client=client ?? ChatClient.DeepSeek;
             Uri uri;
-            if(!Uri.TryCreate(core.Source,UriKind.Absolute,out uri) || uri.Scheme!="https" || uri.Host!="chat.deepseek.com") return "wrong-host";
+            if(!Uri.TryCreate(core.Source,UriKind.Absolute,out uri) || !client.IsChatOrigin(uri)) return "wrong-host";
             // Check again inside the executing document, in case navigation changed while queued.
-            try { return (await core.ExecuteScriptAsync("(location.origin==='https://chat.deepseek.com'?"+Script(prompt,previous)+":'wrong-host')")).Trim('"'); }
+            try { return (await core.ExecuteScriptAsync("("+client.OriginCheck+"?"+Script(prompt,previous,client)+":'wrong-host')")).Trim('"'); }
             catch(Exception) { return "failed"; }
         }
     }

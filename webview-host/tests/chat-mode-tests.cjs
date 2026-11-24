@@ -10,7 +10,7 @@ const copy=JSON.parse(fs.readFileSync(path.join(root,'chat-mode-copy.json'),'utf
 const HEAD=name=>`【当前模式：${name}】`;
 let passed=0;
 function fixture(value='') {
- const handlers={},timers=[];
+ const handlers={},timers=[],observers=new Set();
  const document={activeElement:null,querySelectorAll:()=>editors,addEventListener:(name,callback)=>(handlers[name]??=[]).push(callback)};
  const fire=(type,extra={})=>{for(const callback of handlers[type]??[])callback({type,...extra});};
  class Editor {
@@ -25,11 +25,29 @@ function fixture(value='') {
  const e=new Editor(value);let editors=[e];document.activeElement=e;
  const window={};window.top=window;
  const location={origin:'https://chat.deepseek.com',href:'https://chat.deepseek.com/a'};
- const context=vm.createContext({window,document,location,HTMLTextAreaElement:Editor,Event:class{constructor(type,options){this.type=type;Object.assign(this,options);}},MutationObserver:class{constructor(callback){this.callback=callback;}observe(){}},getComputedStyle:()=>({visibility:'visible'}),setTimeout:callback=>timers.push(callback)});
- return {e,window,location,Editor,document,fire,run:mode=>vm.runInContext(scripts[mode],context),runSelection:()=>vm.runInContext(selection,context),expectCopy:()=>vm.runInContext(copy,context),type:text=>{e.value=text;e.selectionStart=e.selectionEnd=text.length;fire('input');},flush:()=>{while(timers.length)timers.shift()();},setEditors:list=>{editors=list;}};
+ class Observer {
+  constructor(callback){this.callback=callback;}
+  observe(){observers.add(this);}
+  disconnect(){observers.delete(this);}
+ }
+ const context=vm.createContext({window,document,location,HTMLTextAreaElement:Editor,Event:class{constructor(type,options){this.type=type;Object.assign(this,options);}},MutationObserver:Observer,getComputedStyle:()=>({visibility:'visible'}),setTimeout:callback=>timers.push(callback)});
+ return {e,window,location,Editor,document,fire,observers,run:mode=>vm.runInContext(scripts[mode],context),runSelection:()=>vm.runInContext(selection,context),expectCopy:()=>vm.runInContext(copy,context),type:text=>{e.value=text;e.selectionStart=e.selectionEnd=text.length;fire('input');},flush:()=>{while(timers.length)timers.shift()();},setEditors:list=>{editors=list;}};
 }
 function check(name,fn){fn();passed++;console.log('PASS '+name);}
 check('ordinary conversation sends the typed text untouched',()=>{const f=fixture('RAW');f.run('normal');f.type('NEXT');assert.equal(f.e.value,'NEXT');});
+check('ordinary chat does no editor scans during typing, streaming or SPA updates',()=>{
+ const f=fixture('TEXT');let scans=0;
+ f.document.querySelectorAll=()=>{scans++;return [f.e];};
+ f.run('normal');f.type('typing');f.fire('click');f.fire('keydown',{key:'Enter'});
+ assert.equal(f.observers.size,0);assert.equal(scans,0);
+ f.run('translate');f.run('explain');assert.equal(f.observers.size,1);
+ f.run('normal');assert.equal(f.observers.size,0);assert.equal(f.e.value,'typing');
+});
+check('one-shot pasted in ordinary mode survives switching to a task mode',()=>{
+ const f=fixture();f.run('normal');f.expectCopy();f.type('COPIED ONE SHOT');
+ f.run('translate');assert.equal(f.e.value,'COPIED ONE SHOT');f.type('');f.type('NEXT');
+ assert.ok(f.e.value.startsWith(HEAD('翻译模式')));
+});
 check('switching applies a visible translation prefix to an existing draft',()=>{const f=fixture('RAW');assert.equal(f.run('translate'),'ready');assert.ok(f.e.value.startsWith(HEAD('翻译模式')));assert.ok(f.e.value.includes('请翻译'));assert.ok(f.e.value.endsWith('RAW'));});
 check('empty input stays empty until material is entered',()=>{const f=fixture();f.run('translate');assert.equal(f.e.value,'');f.type('hello');assert.ok(f.e.value.endsWith('hello'));assert.ok(f.e.value.startsWith(HEAD('翻译模式')));});
 check('consecutive messages each receive exactly one prefix',()=>{const f=fixture();f.run('translate');f.type('one');f.type('');assert.equal(f.e.value,'');f.type('two');const text=f.e.value;f.fire('click');f.fire('keydown',{key:'Enter'});f.run('translate');assert.equal(f.e.value,text);assert.equal(text.split('待处理内容：').length,2);assert.ok(text.endsWith('two'));});

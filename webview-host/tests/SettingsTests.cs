@@ -161,7 +161,8 @@ internal static class SettingsTests {
     commandsMenu.Close();Application.DoEvents();
     var modes=(Panel)Field(window,"chrome");var selector=(PanelButton)Field(window,"chatModeButton");
     Check(selector.Visible&&selector.Parent==modes&&modes.ClientRectangle.Contains(selector.Bounds)&&((Control)Field(window,"mode")).Right<=selector.Left&&selector.Right<=((Control)Field(window,"more")).Left&&bar.Top==modes.Bottom,"persistent mode fits inside title chrome without an extra row at width "+width);
-    Check(Math.Abs((selector.Left+selector.Width/2)-modes.Width/2)<=2,"mode pill is centered on the title bar at width "+width);
+    var clientSelector=(PanelButton)Field(window,"clientButton");
+    Check(clientSelector.Visible && ((Control)Field(window,"mode")).Right<=clientSelector.Left && clientSelector.Right<=selector.Left && selector.Right<=((Control)Field(window,"minimize")).Left,"client and mode selectors share the title bar without overlap at width "+width);
     using(var bitmap=new Bitmap(modes.Width,modes.Height)){modes.DrawToBitmap(bitmap,modes.ClientRectangle);bitmap.Save(Path.Combine(directory,"chat-mode-bar-"+width+".png"));}
     using(var bitmap=new Bitmap(bar.Width,bar.Height)){bar.DrawToBitmap(bitmap,bar.ClientRectangle);bitmap.Save(Path.Combine(directory,"selection-bar-"+width+".png"));}
    }
@@ -185,7 +186,8 @@ internal static class SettingsTests {
    var modeMenu=(TrayMenu)typeof(ChatWindow).GetMethod("CreateChatModeMenu",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);
    Check(modeMenu.Items.Count==8&&ChatModes.All.All(m=>modeMenu.Items.Cast<ToolStripItem>().Any(item=>item.Text.EndsWith(m.Name)))&&modeMenu.Items.Cast<ToolStripItem>().Any(item=>item.Text=="自定义提示词…"),"title menu retains all six modes plus the custom-prompts entry");
    var modeSelector=(PanelButton)Field(window,"chatModeButton");
-   window.ApplyDpi(WindowDpi.Scale(window),new Rectangle(window.Left,window.Top,410,616));window.Activate();Pump(150);
+   var menuArea=Screen.FromControl(window).WorkingArea;
+   window.ApplyDpi(WindowDpi.Scale(window),new Rectangle(menuArea.Left+60,menuArea.Top+60,410,616));window.Activate();Pump(150);
    ToolStripDropDownCloseReason? closeReason=null;modeMenu.Closed+=delegate(object sender,ToolStripDropDownClosedEventArgs e){closeReason=e.CloseReason;};
    var itemFont=modeMenu.Items[0].Font;int widest=0;
    foreach(var item in modeMenu.Items.Cast<ToolStripItem>())if(!string.IsNullOrEmpty(item.Text))widest=Math.Max(widest,TextRenderer.MeasureText(item.Text,itemFont,new Size(int.MaxValue,int.MaxValue),TextFormatFlags.Left|TextFormatFlags.NoPadding).Width);
@@ -196,7 +198,7 @@ internal static class SettingsTests {
    Check(modeMenu.Width==expected,"mode menu width hugs the widest item plus fixed chrome, no blank column");
    window.Activate();Native.SetForegroundWindow(window.Handle);modeSelector.Focus();Application.DoEvents();
    modeMenu.Show(modeSelector,new Point(0,modeSelector.Height));var menuHandle=modeMenu.Handle;var anchorScreen=modeSelector.PointToScreen(Point.Empty);
-   Check(modeMenu.Left==anchorScreen.X&&modeMenu.Top==anchorScreen.Y+modeSelector.Height,"mode menu drops with its left edge flush to the anchor button");
+   Check(modeMenu.Left==anchorScreen.X&&modeMenu.Top==anchorScreen.Y+modeSelector.Height,"mode menu drops with its left edge flush to the anchor button; menu="+modeMenu.Location+" anchor="+anchorScreen+" height="+modeSelector.Height);
    using(var menuBitmap=new Bitmap(modeMenu.Width,modeMenu.Height)){modeMenu.DrawToBitmap(menuBitmap,new Rectangle(0,0,modeMenu.Width,modeMenu.Height));menuBitmap.Save(Path.Combine(directory,"mode-menu-open.png"));}
    Native.PostMessage(menuHandle,0x100,new IntPtr((int)Keys.Escape),IntPtr.Zero);Pump(80);
    Console.WriteLine("Menu Escape evidence: reason="+closeReason+" visible="+modeMenu.Visible+" selectorEnabled="+modeSelector.Enabled+" focused="+modeSelector.Focused);
@@ -226,6 +228,7 @@ internal static class SettingsTests {
    var awaySwallow=window.CloseOpenMenuForClick();Application.DoEvents();
    Check(!awaySwallow&&Field(window,"openMenu")==null,"a click elsewhere inside the window dismisses the mode menu and lets the press through");
    var pillState=typeof(ChatWindow).GetField("pillSuppressTick",BindingFlags.Instance|BindingFlags.NonPublic);
+   typeof(ChatWindow).GetField("suppressedAnchor",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(window,pill);
    pillState.SetValue(window,Environment.TickCount);
    typeof(ChatWindow).GetMethod("ShowChatModeMenu",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(window,null);Application.DoEvents();
    Check(Field(window,"openMenu")==null,"a pill press observed by the hook suppresses immediate reopen");

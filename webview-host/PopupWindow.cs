@@ -23,7 +23,7 @@ namespace DeepSeekFloat {
             Text="DeepSeek-Reflex · 登录或链接";Font=PanelTheme.TextFont();BackColor=PanelTheme.Back;AutoScaleMode=AutoScaleMode.None;
             FormBorderStyle=FormBorderStyle.None;StartPosition=FormStartPosition.CenterParent;ShowInTaskbar=false;
             Size=new Size(S(440),S(640));MinimumSize=new Size(S(320),S(360));
-            origin.Text=uri.Host;origin.AccessibleName="当前页面域名";
+            origin.Text=uri.Scheme=="about"?"正在打开…":uri.Host;origin.AccessibleName="当前页面域名";
             close.Click+=delegate{Close();};chrome.Controls.AddRange(new Control[]{origin,close});
             chrome.MouseDown+=Drag;origin.MouseDown+=Drag;
             Browser.CoreWebView2InitializationCompleted+=delegate {
@@ -33,9 +33,9 @@ namespace DeepSeekFloat {
                 core.Settings.IsWebMessageEnabled=false;
                 core.Settings.AreDevToolsEnabled=false;
                 core.NavigationStarting+=delegate(object sender,Microsoft.Web.WebView2.Core.CoreWebView2NavigationStartingEventArgs args){
-                    Uri target;if(!Uri.TryCreate(args.Uri,UriKind.Absolute,out target)||target.Scheme!="https"){args.Cancel=true;return;}origin.Text=target.Host;
+                    Uri target;if(!Uri.TryCreate(args.Uri,UriKind.Absolute,out target)||(target.Scheme!="https"&&target.AbsoluteUri!="about:blank")){args.Cancel=true;return;}if(target.Scheme=="https")origin.Text=target.Host;
                 };
-                core.SourceChanged+=delegate{Uri target;if(Uri.TryCreate(core.Source,UriKind.Absolute,out target))origin.Text=target.Host;};
+                core.SourceChanged+=delegate{Uri target;if(Uri.TryCreate(core.Source,UriKind.Absolute,out target)&&target.Scheme=="https")origin.Text=target.Host;};
             };
             Controls.AddRange(new Control[]{Browser,error,chrome,frame});
             smoothFrame=new SmoothFrame(this,scale,Arrange);
@@ -44,9 +44,9 @@ namespace DeepSeekFloat {
             OwnedWindowPlacement.Attach(this,delegate{return scale;},ApplyDpi);
         }
         internal void ShowError(string text){error.Text=text;error.Show();error.BringToFront();chrome.BringToFront();frame.BringToFront();}
-        internal async Task<bool> InitializeAsync(CoreWebView2Environment environment) {
+        internal async Task<bool> InitializeAsync(CoreWebView2Environment environment, ChatClient client = null) {
             if(closing||IsDisposed||Browser.IsDisposed)return false;
-            try{await Browser.EnsureCoreWebView2Async(environment);return !closing&&!IsDisposed&&!Browser.IsDisposed&&Browser.CoreWebView2!=null;}
+            try{await (client ?? ChatClient.DeepSeek).InitializeView(Browser,environment);return !closing&&!IsDisposed&&!Browser.IsDisposed&&Browser.CoreWebView2!=null;}
             catch(Exception){if(closing||IsDisposed||Browser.IsDisposed)return false;throw;}
         }
         private int S(int value){return Math.Max(1,(int)Math.Round(value*scale));}

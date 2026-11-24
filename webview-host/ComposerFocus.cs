@@ -11,13 +11,14 @@ const editors=Array.from(document.querySelectorAll('textarea,[contenteditable=tr
 if(editors.length!==1)return 'no-editor';
 editors[0].focus({preventScroll:true});return document.activeElement===editors[0]?'focused':'not-focused';})()";
         internal const string Script="(location.origin==='https://chat.deepseek.com'?"+EditorScript+":'wrong-host')";
-        internal static async Task<string> TryFocusAsync(CoreWebView2 core,Func<bool> current)
+        internal static async Task<string> TryFocusAsync(CoreWebView2 core,Func<bool> current, ChatClient client = null)
         {
             if(core==null)return "loading";
             try {
+                string script = client==null||client==ChatClient.DeepSeek ? Script : "("+client.OriginCheck+"?"+EditorScript.Replace("'textarea,[contenteditable=true]'",PromptInserter.Json(client.EditorSelector))+":'wrong-host')";
                 for(int i=0;i<8;i++) {
                     await Task.Delay(i==0?80:200);if(!current())return "cancelled";
-                    string result=(await core.ExecuteScriptAsync(Script)).Trim('"');
+                    string result=(await core.ExecuteScriptAsync(script)).Trim('"');
                     if(result=="focused"||result=="wrong-host"||result=="not-active")return result;
                 }
                 return "no-editor";

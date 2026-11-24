@@ -5,7 +5,7 @@
 </p>
 
 <h1 align="center">DeepSeek-Reflex</h1>
-<p align="center"><strong>DeepSeek, one shortcut away.</strong><br>A compact Windows chat window with always-on-top controls and global shortcuts.</p>
+<p align="center"><strong>Your chat client, one shortcut away.</strong><br>A compact Windows chat window with always-on-top controls and global shortcuts.</p>
 <p align="center">
   <a href="https://github.com/DOIT-Ben/DeepSeek-Reflex/releases"><img src="https://img.shields.io/github/v/release/DOIT-Ben/DeepSeek-Reflex" alt="Release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
@@ -16,7 +16,7 @@ Reading, preparing a lesson, or writing code? Press a shortcut to open DeepSeek-
 
 **[Download the latest release →](https://github.com/DOIT-Ben/DeepSeek-Reflex/releases/latest)** · [Report an issue](https://github.com/DOIT-Ben/DeepSeek-Reflex/issues) · [Changelog](CHANGELOG.md)
 
-This is an independent community project that loads the [official DeepSeek website](https://chat.deepseek.com). It is not affiliated with or endorsed by DeepSeek.
+This independent community app opens the official chat websites for DeepSeek, Doubao, Qianwen and Kimi. Select a client from the title bar.
 
 A skippable introduction appears on first use and can be reopened from Settings. See the [changelog](CHANGELOG.md) for version history.
 
@@ -27,14 +27,14 @@ A skippable introduction appears on first use and can be reopened from Settings.
 | Global shortcuts | Open or hide the same window without losing your current conversation. |
 | Wake on the pointer's display | Center when changing displays and retain the last position and size on the same display. |
 | Always on top | Ask questions while reading a document, browsing, or coding. The pin control is in the title bar. |
-| Regular website sign-in | Use your DeepSeek account, conversation history, and attachments. No separate API key is needed. |
+| Regular website sign-in | Each client keeps its own sign-in, conversation history and attachments. No separate API key is needed. |
 | Selected-text import | Bring selected text into a draft to translate, explain, or ask about it. Existing drafts are preserved; you review and send. |
-| Persistent chat modes | Apply translation, explanation, questions, polishing, or summarization to each message with a visible prompt; switch back to regular chat at any time. |
+| Persistent chat modes | On DeepSeek and Doubao, apply translation, explanation, questions, polishing or summarization to each message with a visible prompt; switch back to regular chat at any time. |
 | Compact and reading layouts | Use the compact window for quick questions and the wider layout for longer answers. Resize from any edge or corner. |
 | Settings panel | Customize shortcuts, hide behavior, input focus, and window size. Content scrolls on smaller screens while the save controls stay visible. |
 | Smooth window frame | Rounded corners stay visible while dragging, with animated feedback on buttons and switches. |
 
-Useful for follow-up questions while researching, lesson preparation, translating passages, and quick coding questions. Sign-in and the hosted model service require internet access. Website features and availability are provided by DeepSeek.
+Useful for follow-up questions while researching, lesson preparation, translating passages, and quick coding questions. Sign-in and the hosted model service require internet access. Each provider manages its website, pricing and session expiry.
 
 ## Keep side questions in the window and the main task focused
 
@@ -55,7 +55,7 @@ This direction relies on processing in the independent website window, rather th
 
 ## Scope and limitations
 
-Reflex saves the window switching needed for a quick question: summon the same chat with a shortcut, ask, and tuck it away. It provides the desktop window and selected-text interactions; DeepSeek supplies the answers, account, and conversation history.
+Reflex saves the window switching needed for a quick question: summon the same chat with a shortcut, ask, and tuck it away. It provides the desktop window and selected-text interactions; the selected website supplies answers, accounts and conversation history.
 
 - **Windows x64 only; macOS is not supported yet.** The current host uses WinForms, WebView2, and Windows window APIs. A Mac version needs a separate native host; this EXE will not install on macOS.
 - Requires internet access and the website account. There is no offline model, independent API service, or model-provider switch. Website changes, connectivity, and service load can affect the experience.
@@ -105,8 +105,8 @@ Choose a file from [Releases](https://github.com/DOIT-Ben/DeepSeek-Reflex/releas
 
 | File | How to use it |
 | --- | --- |
-| `DeepSeek-Reflex-1.0.17-Setup-x64.exe` | Run the installer. It installs for the current user without administrator privileges, with optional desktop and startup shortcuts. Uninstall through Windows Apps. |
-| `DeepSeek-Reflex-1.0.17-Windows-x64.zip` | Extract the entire folder and run `DeepSeek-Reflex.exe`. Keep all dependency DLLs beside the executable. |
+| `DeepSeek-Reflex-1.1.2-Setup-x64.exe` | Run the installer. It installs for the current user without administrator privileges, with optional desktop and startup shortcuts. Uninstall through Windows Apps. |
+| `DeepSeek-Reflex-1.1.2-Windows-x64.zip` | Extract the entire folder and run `DeepSeek-Reflex.exe`. Keep all dependency DLLs beside the executable. |
 | `SHA256SUMS.txt` | Verify the downloaded files against their SHA-256 checksums. GitHub also provides source archives. |
 
 Requires **Windows 10/11 x64, .NET Framework 4.8, and WebView2 Evergreen Runtime**. V1 has been verified on Windows 11; Windows 10 has not been validated across devices. The installer checks prerequisites and points to [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) or [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48) if needed. It does not silently download other software. A native ARM64 build is not available.
@@ -114,7 +114,7 @@ Requires **Windows 10/11 x64, .NET Framework 4.8, and WebView2 Evergreen Runtime
 Current releases are unsigned, so Windows may display an unknown-publisher prompt. See the [signing policy](docs/code-signing.md). Download from this repository's Releases and verify the checksum:
 
 ```powershell
-Get-FileHash .\DeepSeek-Reflex-1.0.17-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\DeepSeek-Reflex-1.1.2-Setup-x64.exe -Algorithm SHA256
 ```
 
 Before upgrading, choose **Exit** from the tray menu. Uninstalling preserves settings and website sign-in data. The ZIP uses the same user data directory as the installed application; moving the extracted folder does not move those data.
@@ -125,7 +125,7 @@ The current package starts with `DeepSeek-Reflex.exe`. An older install may stil
 
 The first visible launch offers a four-step introduction. You can skip it, or reopen it later from **Settings → 使用帮助 (Help)**. Startup in the background waits until you explicitly open the window. The introduction shows your current shortcut settings.
 
-1. Sign in to DeepSeek through the website inside the window.
+1. Click the client name in the title bar and choose DeepSeek, Doubao, Qianwen or Kimi. Sign in on each website when prompted. Reopening the app restores your last choice.
 2. Press **Ctrl+Space** to open or minimize it. You can change the hide action to the tray in Settings.
 3. Select text in another application and press **Ctrl+Shift+D**. Choose translation, a student-friendly explanation, or a question about the text; review the draft before sending.
 4. The title bar has minimize, pin, and layout controls on the left; Settings and hide are on the right. Closing the window or pressing Alt+F4 hides it to the tray. Choose **退出 (Exit)** in the tray menu to quit.
@@ -137,7 +137,7 @@ Selected-text import depends on the source application's accessibility support. 
 
 ### Persistent chat modes
 
-In v1.0.19, the chat-mode selector lives in the title bar. Choose regular chat, translation, explanation, questions, polishing, or summarization. The current draft and later messages show a mode directive and any task instruction for you to review before sending. Regular chat includes the mode directive without a task instruction. Switching modes preserves your material, and the choice is remembered locally.
+On DeepSeek and Doubao, use the title bar to choose regular chat, translation, explanation, questions, polishing, or summarization. Regular chat sends your text as typed. Task modes show their instructions in the draft for review before sending. Switching modes preserves your material, and the choice is remembered locally.
 
 Open **Settings → 聊天模式 (Chat modes)** to edit built-in instructions, restore defaults, or add up to ten custom modes. Names allow up to 16 UTF-16 units and instructions up to 2,000. Deleting the active custom mode returns to regular chat.
 
@@ -152,7 +152,8 @@ Moving the pointer alone does not move the chat. With settings open, the saved w
 ## Data and privacy
 
 - Uses a dedicated WebView2 profile without copying your regular browser's cookies, passwords, or sign-in data.
-- Connects directly to `https://chat.deepseek.com`, without proxying the website, replacing its chat API, or sending conversations to a project server.
+- Each website runs in its own persistent profile within one shared WebView2 browser process. Tray-only startup defers website loading until the first wake. Switching releases idle pages and suspends pages with drafts.
+- The window lowers the website's memory target when it loses focus. A quick hide keeps the page ready. After a minute in the tray or minimized, an untouched chat home page can unload while its tab keeps its session. Conversations, drafts and sign-in flows stay live.
 - Reads selected text only when you invoke capture or clipboard import. Captured text is not written to application logs; sending the website draft is your decision.
 - Includes no project-operated telemetry or analytics service. The embedded website and Microsoft runtime remain subject to their providers' policies.
 - Stores user data in `%APPDATA%\cloud.doitbenai.deepseek-reflex` and installs by default in `%LOCALAPPDATA%\Programs\DeepSeek-Reflex`. A previous `cloud.doitbenai.deepseekfloat` directory is migrated once on startup. The process name is `DeepSeek-Reflex`.

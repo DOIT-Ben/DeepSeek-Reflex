@@ -1,5 +1,27 @@
 # 回归检查
 
+## 客户端切换与轻量启动
+
+在独立 Windows 测试桌面运行以下入口。驱动使用构建好的发行程序集、真实 WinForms 主窗口、WebView2 和独立的测试资料目录。可加 `-CandidateDirectory <已解包的发行目录>` 核验指定安装包。
+
+```powershell
+pwsh -NoProfile -File .\webview-host\tests\run-client-tests.ps1 -OutputDirectory <新会话测试目录>
+pwsh -NoProfile -File .\webview-host\tests\run-client-tests.ps1 -Live -OutputDirectory <新官网测试目录>
+```
+
+第一条用测试登录表单建立持久 Cookie，检查旧资料沿用、隔离、窗口回跳、草稿、资源释放，并在新进程复查。第二条通过标题栏打开四个官网和登录界面，采样主程序与 WebView2 专用内存。联网测试使用空白资料。见[本机验收记录](../../docs/testing/2026-11-22-desktop-clients.md)。
+
+会话检查还在真实 WebView2 中验证短暂收起、最小化超过回收期限、休眠过程中唤起、临时 Cookie、标签页存储、登录弹窗和后台对话。夹具缩短回收计时器，发行包的实际一分钟等待和前后版本资源对照见[浮窗资源实测](../../docs/testing/2026-11-22-idle.md)。
+
+DSR 原生 WebView 焦点专项（BUG-050，需可交互的 Windows 桌面）：
+
+```powershell
+pwsh -NoProfile -File .\webview-host\tests\run-webview-focus-tests.ps1 -OutputDirectory <新的隔离目录>
+pwsh -NoProfile -File .\webview-host\tests\run-webview-focus-tests.ps1 -HighDpi -OutputDirectory <另一个隔离目录>
+```
+
+使用实际 `ChatWindow`、独立资料目录和真实 WebView2，通过本地响应拦截全部网页请求。测试短暂激活自有窗口，不发送全局键鼠；开始前协调前台使用。覆盖原生焦点交接的消息时序、过期回调取消、关闭、隐藏恢复、最小化恢复及草稿/反向选区保留。前台权限不可用时失败，不能按跳过通过。`-SourceDirectory <旧宿主源码目录>` 用于负例对照。实际微信输入法的候选位置仍需独立真实输入及坐标/屏幕证据，不能从 DOM 聚焦通过推断。
+
 更新器专项（ADR-0006）：
 
 ```powershell

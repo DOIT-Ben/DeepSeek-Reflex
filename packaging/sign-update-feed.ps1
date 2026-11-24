@@ -21,7 +21,9 @@ $size=(Get-Item -LiteralPath $zip).Length
 if($size -le 0 -or $size -gt 64MB){throw 'Package size outside updater limits'}
 $hash=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
 $issued=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$payload=[ordered]@{schema=1;issued=$issued;expires=($issued+86400L*$ValidDays);release=[ordered]@{tag_name="v$version";draft=$false;prerelease=$false;body="新增签名静态更新源，修复共享网络下更新检查受限流的问题。保留现有设置和登录状态。";assets=@([ordered]@{name=[IO.Path]::GetFileName($zip);size=$size;digest="sha256:$hash";browser_download_url="https://test.doitbenai.cloud/reflex/updates/releases/$version/$([IO.Path]::GetFileName($zip))"})}}
+$notesPath=Join-Path $PSScriptRoot "../docs/releases/$version.md"
+$notes=if(Test-Path -LiteralPath $notesPath -PathType Leaf){[IO.File]::ReadAllText($notesPath).Trim()}else{"DeepSeek-Reflex v$version"}
+$payload=[ordered]@{schema=1;issued=$issued;expires=($issued+86400L*$ValidDays);release=[ordered]@{tag_name="v$version";draft=$false;prerelease=$false;body=$notes;assets=@([ordered]@{name=[IO.Path]::GetFileName($zip);size=$size;digest="sha256:$hash";browser_download_url="https://test.doitbenai.cloud/reflex/updates/releases/$version/$([IO.Path]::GetFileName($zip))"})}}
 $bytes=[Text.Encoding]::UTF8.GetBytes(($payload | ConvertTo-Json -Depth 8 -Compress))
 $rsa=[Security.Cryptography.RSA]::Create()
 try {

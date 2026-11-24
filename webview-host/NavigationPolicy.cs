@@ -6,18 +6,18 @@ namespace DeepSeekFloat
     // the popup keeps its own visible host and is not limited to this list.
     internal static class NavigationPolicy
     {
-        internal static bool AllowMainFrame(Uri uri)
+        internal static bool AllowMainFrame(Uri uri, ChatClient client = null)
         {
             if (uri==null || !uri.IsAbsoluteUri) return false;
             if (string.Equals(uri.Scheme,"about",StringComparison.OrdinalIgnoreCase))
                 return string.Equals(uri.AbsolutePath,"blank",StringComparison.OrdinalIgnoreCase);
             if (!string.Equals(uri.Scheme,"https",StringComparison.OrdinalIgnoreCase)) return false;
-            return IsDeepSeekHost(HostOf(uri));
+            return uri.IsDefaultPort && uri.UserInfo.Length==0 && IsProviderHost(HostOf(uri), (client ?? ChatClient.DeepSeek).Domain);
         }
-        internal static bool ShowHostChip(Uri uri)
+        internal static bool ShowHostChip(Uri uri, ChatClient client = null)
         {
             if (uri==null || !uri.IsAbsoluteUri || !string.Equals(uri.Scheme,"https",StringComparison.OrdinalIgnoreCase)) return false;
-            return !string.Equals(HostOf(uri),"chat.deepseek.com",StringComparison.OrdinalIgnoreCase);
+            return !(client ?? ChatClient.DeepSeek).IsChatOrigin(uri);
         }
         internal static string DisplayHost(Uri uri)
         {
@@ -30,13 +30,13 @@ namespace DeepSeekFloat
             catch (Exception) { return uri.Host ?? ""; }
         }
         // ASCII / punycode only. A lookalike label does not end with .deepseek.com.
-        private static bool IsDeepSeekHost(string host)
+        private static bool IsProviderHost(string host, string domain)
         {
             if (string.IsNullOrEmpty(host)) return false;
             host=host.Trim().TrimEnd('.').ToLowerInvariant();
             if (host.Length==0 || host.IndexOf(' ')>=0) return false;
-            if (host=="deepseek.com") return true;
-            if (!host.EndsWith(".deepseek.com",StringComparison.Ordinal)) return false;
+            if (host==domain) return true;
+            if (!host.EndsWith("."+domain,StringComparison.Ordinal)) return false;
             return host.IndexOf("..",StringComparison.Ordinal)<0 && !host.StartsWith(".",StringComparison.Ordinal);
         }
     }

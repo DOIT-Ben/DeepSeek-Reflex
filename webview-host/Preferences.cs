@@ -80,15 +80,5 @@ namespace DeepSeekFloat
             result.Y = Math.Max(area.Top, Math.Min(result.Y, area.Bottom-result.Height));
             return result;
         }
-        internal static string LastPage()
-        {
-            try
-            {
-                var uri = new Uri(File.ReadAllText(Path.Combine(Root,"webview-last-page.txt")));
-                if (uri.Scheme == "https" && uri.Host == "chat.deepseek.com") return uri.GetLeftPart(UriPartial.Path);
-            }
-            catch (Exception e) { if (!(IsStorageFailure(e) || e is UriFormatException)) throw; }
-            return "https://chat.deepseek.com/";
-        }
     }
 }

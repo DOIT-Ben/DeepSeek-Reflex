@@ -1,16 +1,16 @@
 using System.Linq;
 namespace DeepSeekFloat {
     internal static class ChatModeInjector {
-        internal static string ExpectOneShotScript(string prompt){return "(()=>{if(location.origin!=='https://chat.deepseek.com'||window.top!==window)return false;const state=window.__deepSeekFloatChatMode;if(!state)return false;state.oneShotPending="+PromptInserter.Json(prompt)+";return true;})()";}
-        internal static string Script(string id) {
+        internal static string ExpectOneShotScript(string prompt, ChatClient client = null){return "(()=>{if(!("+(client ?? ChatClient.DeepSeek).OriginCheck+")||window.top!==window)return false;const state=window.__deepSeekFloatChatMode;if(!state)return false;state.oneShotPending="+PromptInserter.Json(prompt)+";return true;})()";}
+        internal static string Script(string id, ChatClient client = null) {
             string catalog="{"+string.Join(",",ChatModes.Effective.Select(m=>PromptInserter.Json(m.Id)+":"+PromptInserter.Json(ChatModes.Prefix(m))))+"}";
-            return "(()=>{if(location.origin!=='https://chat.deepseek.com'||window.top!==window)return 'wrong-host';const prefixes="+catalog+",mode="+PromptInserter.Json(ChatModes.Find(id).Id)+";"+@"
+            return "(()=>{if(!("+(client ?? ChatClient.DeepSeek).OriginCheck+")||window.top!==window)return 'wrong-host';const prefixes="+catalog+",mode="+PromptInserter.Json(ChatModes.Find(id).Id)+";"+@"
 let state=window.__deepSeekFloatChatMode;
 if(!state){
  state={mode:'normal',marker:null,oneShot:null,suspended:false,writing:false,composing:false};
  window.__deepSeekFloatChatMode=state;
  const read=e=>e.tagName==='TEXTAREA'?e.value:e.innerText;
- const editor=()=>{const all=Array.from(document.querySelectorAll('textarea#chat-input,textarea[placeholder*=""发送消息""],#chat-input[contenteditable=true]')).filter(e=>!e.disabled&&!e.readOnly&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden');return all.length===1?all[0]:null;};
+ const editor=()=>{const all=Array.from(document.querySelectorAll("+PromptInserter.Json((client ?? ChatClient.DeepSeek).EditorSelector)+@")).filter(e=>!e.disabled&&!e.readOnly&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden');return all.length===1?all[0]:null;};
  const write=(e,text,offset)=>{
   state.writing=true;
   try{
@@ -31,7 +31,7 @@ if(!state){
   if(state.suspended||state.writing||state.composing)return 'busy';
   // ADR-0005 (amended 2026-11-08): plain chat injects nothing; an empty
   // composer without an owned task prefix has nothing to strip or add.
-  if(state.mode==='normal'&&!state.marker){const current=editor();if(!current||!read(current).trim())return 'ready';}
+  if(state.mode==='normal'&&!state.marker&&!state.oneShot&&!state.oneShotPending)return 'ready';
   const e=editor();if(!e)return 'no-editor';
   if(e.tagName!=='TEXTAREA')return 'unsupported-editor';
   const text=read(e),mark=state.marker;
@@ -60,9 +60,13 @@ if(!state){
  document.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229)state.apply();},true);
  // Pointer sends and SPA editor replacements need no site-specific CSS classes.
  document.addEventListener('click',()=>state.apply(),true);
- new MutationObserver(()=>state.apply()).observe(document,{childList:true,subtree:true});
+ let observer=null;
+ state.observeEditor=enabled=>{
+  if(enabled&&!observer){observer=new MutationObserver(()=>state.apply());observer.observe(document,{childList:true,subtree:true});}
+  else if(!enabled&&observer){observer.disconnect();observer=null;}
+ };
 }
-state.mode=mode;return state.apply();})()";
+state.mode=mode;state.observeEditor(mode!=='normal');return state.apply();})()";
         }
     }
 }
