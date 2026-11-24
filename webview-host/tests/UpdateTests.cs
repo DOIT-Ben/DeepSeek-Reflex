@@ -102,7 +102,27 @@ namespace DeepSeekFloat {
             Test("mid-apply file lock rollback + old restart",delegate{using(var s=new Session("lock")){s.Begin();s.Ready();using(var held=new FileStream(Path.Combine(s.Target,"icon.ico"),FileMode.Open,FileAccess.Read,FileShare.Read)){s.Exit();s.Done();}Assert(s.Worker.ExitCode==1,"failure falsely successful");s.Old();Wait(()=>File.ReadAllLines(Path.Combine(s.Target,"boot.log")).Length==2,"old restart missing");}});
             Test("external change after prepare retained",delegate{using(var s=new Session("changed")){s.Begin();s.Ready();File.WriteAllText(Path.Combine(s.Target,"LICENSE"),"external");s.Exit();s.Done();Assert(File.ReadAllText(Path.Combine(s.Target,"LICENSE"))=="external","unknown content overwritten");Assert(s.Worker.ExitCode==1,"change unnoticed");}});
             Test("concurrent startup blocked until complete",delegate{using(var s=new Session("competing","pause:after:Microsoft.Web.WebView2.Core.dll")){s.Begin();s.Ready();s.Exit();Wait(()=>File.Exists(UpdateTransaction.Signal(s.Path,"paused")),"pause missing");using(var other=UpdateTransaction.Start(Path.Combine(s.Target,"DeepSeek-Reflex.exe"),"")){Assert(other.WaitForExit(3000),"competing process blocked");}Assert(File.ReadAllLines(Path.Combine(s.Target,"boot.log")).Length==1,"mixed UI started");s.Worker.Kill();s.Worker.WaitForExit();File.Delete(UpdateTransaction.Signal(s.Path,"hook.txt"));using(var boot=UpdateTransaction.Start(Path.Combine(s.Target,"DeepSeek-Reflex.exe"),"")){Assert(boot.WaitForExit(5000),"bootstrap failed");}Wait(()=>!File.Exists(UpdateTransaction.Active(s.Target)),"recovery incomplete");s.Old();Wait(()=>File.ReadAllLines(Path.Combine(s.Target,"boot.log")).Length==2,"recovery restart missing");}});
-            Test("crash + unknown recovery content remains blocked",delegate{using(var s=new Session("recovery-unknown","pause:after:Microsoft.Web.WebView2.Core.dll")){s.Begin();s.Ready();s.Exit();Wait(()=>File.Exists(UpdateTransaction.Signal(s.Path,"paused")),"pause missing");s.Worker.Kill();s.Worker.WaitForExit();File.Delete(UpdateTransaction.Signal(s.Path,"hook.txt"));File.WriteAllText(Path.Combine(s.Target,"Microsoft.Web.WebView2.Core.dll"),"unknown");using(var boot=UpdateTransaction.Start(Path.Combine(s.Target,"DeepSeek-Reflex.exe"),"")){boot.WaitForExit(5000);}Wait(()=>UpdateTransaction.Read<UpdateJournal>(Path.Combine(UpdateTransaction.TransactionRoot(s.Plan),"journal.json")).State=="RecoveryRequired","recovery state missing");Assert(File.ReadAllText(Path.Combine(s.Target,"Microsoft.Web.WebView2.Core.dll"))=="unknown"&&File.Exists(UpdateTransaction.Active(s.Target)),"unknown overwritten");Assert(File.ReadAllLines(Path.Combine(s.Target,"boot.log")).Length==1,"unsafe UI started");}});
+            Test("crash + unknown recovery content remains blocked",delegate {
+                const string dependency="Microsoft.Web.WebView2.Core.dll";
+                using(var s=new Session("recovery-unknown","pause:after:"+dependency)) {
+                    s.Begin();s.Ready();s.Exit();
+                    Wait(()=>File.Exists(UpdateTransaction.Signal(s.Path,"paused")),"pause missing");
+                    s.Worker.Kill();s.Worker.WaitForExit();
+                    File.Delete(UpdateTransaction.Signal(s.Path,"hook.txt"));
+                    string changed=Path.Combine(s.Target,dependency);
+                    File.WriteAllText(changed,"unknown");
+                    using(var boot=UpdateTransaction.Start(Path.Combine(s.Target,"DeepSeek-Reflex.exe"),"")) {
+                        Assert(boot.WaitForExit(5000),"bootstrap did not hand off recovery");
+                    }
+                    // A journal reader holds a Windows file handle that blocks atomic replacement.
+                    // The worker writes its result after persisting the final recovery state.
+                    Wait(()=>File.Exists(UpdateTransaction.Signal(s.Path,"result")),"recovery worker result missing");
+                    var journal=UpdateTransaction.Read<UpdateJournal>(Path.Combine(UpdateTransaction.TransactionRoot(s.Plan),"journal.json"));
+                    Assert(journal.State=="RecoveryRequired","recovery state was "+journal.State);
+                    Assert(File.ReadAllText(changed)=="unknown"&&File.Exists(UpdateTransaction.Active(s.Target)),"unknown overwritten");
+                    Assert(File.ReadAllLines(Path.Combine(s.Target,"boot.log")).Length==1,"unsafe UI started");
+                }
+            });
             Test("startup crosses first check then worker crashes",StartupRace);
             Test("crash after executable / after commit",delegate{
                 foreach(string stage in new[]{"after:DeepSeek-Reflex.exe","committed"})using(var s=new Session(stage=="committed"?"crash-committed":"crash-exe","pause:"+stage)) {
